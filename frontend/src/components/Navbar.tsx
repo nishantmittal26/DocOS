@@ -5,6 +5,7 @@ import {
   Stethoscope,
   Users,
   Calendar,
+  History,
   Settings,
   LogOut,
   UserPlus,
@@ -56,6 +57,17 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenNewPatient }) => {
               >
                 <Calendar className="w-4 h-4" />
                 <span>OPD Queue</span>
+              </Link>
+              <Link
+                to="/history"
+                className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  isActive('/history')
+                    ? 'bg-emerald-50 text-emerald-700'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <History className="w-4 h-4" />
+                <span>OPD History</span>
               </Link>
               <Link
                 to="/patients"

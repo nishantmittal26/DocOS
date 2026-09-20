@@ -16,12 +16,22 @@ public record CompleteConsultationCommand(CompleteConsultationRequest Request) :
 
 public record GetPrescriptionQuery(Guid VisitId) : IRequest<PrescriptionDetailDto?>;
 
+public record GetVisitHistoryQuery(
+    DateTime? FromDate = null,
+    DateTime? ToDate = null,
+    string? Search = null,
+    VisitStatus? Status = null,
+    int Page = 1,
+    int PageSize = 100
+) : IRequest<List<VisitQueueDto>>;
+
 public class VisitHandlers :
     IRequestHandler<AddToQueueCommand, VisitQueueDto>,
     IRequestHandler<RecordVitalsCommand, bool>,
     IRequestHandler<GetTodayQueueQuery, List<VisitQueueDto>>,
     IRequestHandler<CompleteConsultationCommand, PrescriptionDetailDto>,
-    IRequestHandler<GetPrescriptionQuery, PrescriptionDetailDto?>
+    IRequestHandler<GetPrescriptionQuery, PrescriptionDetailDto?>,
+    IRequestHandler<GetVisitHistoryQuery, List<VisitQueueDto>>
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUser;
@@ -43,6 +53,37 @@ public class VisitHandlers :
 
         var today = DateTime.UtcNow.Date;
         var tomorrow = today.AddDays(1);
+
+        // Check if patient is already in today's OPD queue (Waiting or InConsultation)
+        var existingActiveVisit = await _context.Visits
+            .AsNoTracking()
+            .Where(v => v.ClinicId == clinicId
+                     && v.PatientId == patient.Id
+                     && v.VisitDate >= today
+                     && v.VisitDate < tomorrow
+                     && (v.Status == VisitStatus.Waiting || v.Status == VisitStatus.InConsultation))
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (existingActiveVisit != null)
+        {
+            throw new InvalidOperationException(
+                $"Patient '{patient.FullName}' is already in today's OPD queue (Token #{existingActiveVisit.TokenNumber} is currently {existingActiveVisit.Status}).");
+        }
+
+        var existingCompletedVisit = await _context.Visits
+            .AsNoTracking()
+            .Where(v => v.ClinicId == clinicId
+                     && v.PatientId == patient.Id
+                     && v.VisitDate >= today
+                     && v.VisitDate < tomorrow
+                     && v.Status == VisitStatus.Completed)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (existingCompletedVisit != null)
+        {
+            throw new InvalidOperationException(
+                $"Patient '{patient.FullName}' has already completed consultation today (Token #{existingCompletedVisit.TokenNumber}).");
+        }
 
         // Next token number for today
         var maxToken = await _context.Visits
@@ -344,4 +385,84 @@ public class VisitHandlers :
             clinicDto
         );
     }
+
+    public async Task<List<VisitQueueDto>> Handle(GetVisitHistoryQuery request, CancellationToken cancellationToken)
+    {
+        var clinicId = _currentUser.ClinicId
+            ?? throw new UnauthorizedAccessException("Active clinic context is required");
+
+        var query = _context.Visits
+            .AsNoTracking()
+            .Include(v => v.Patient)
+            .Include(v => v.Prescription)
+            .Where(v => v.ClinicId == clinicId);
+
+        if (request.FromDate.HasValue)
+        {
+            var fromUtc = DateTime.SpecifyKind(request.FromDate.Value.Date, DateTimeKind.Utc);
+            query = query.Where(v => v.VisitDate >= fromUtc);
+        }
+
+        if (request.ToDate.HasValue)
+        {
+            var toUtc = DateTime.SpecifyKind(request.ToDate.Value.Date.AddDays(1), DateTimeKind.Utc);
+            query = query.Where(v => v.VisitDate < toUtc);
+        }
+
+        if (request.Status.HasValue)
+        {
+            query = query.Where(v => v.Status == request.Status.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.Search))
+        {
+            var s = request.Search.Trim().ToLower();
+            query = query.Where(v =>
+                v.Patient.FullName.ToLower().Contains(s) ||
+                v.Patient.PatientUid.ToLower().Contains(s) ||
+                v.Patient.MobileNumber.Contains(s) ||
+                (v.Diagnosis != null && v.Diagnosis.ToLower().Contains(s)) ||
+                (v.ChiefComplaints != null && v.ChiefComplaints.ToLower().Contains(s)));
+        }
+
+        var pageSize = Math.Clamp(request.PageSize, 1, 200);
+        var page = Math.Max(request.Page, 1);
+
+        var visits = await query
+            .OrderByDescending(v => v.VisitDate)
+            .ThenByDescending(v => v.TokenNumber)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return visits.Select(v => new VisitQueueDto(
+            v.Id,
+            v.PatientId,
+            v.Patient.PatientUid,
+            v.Patient.FullName,
+            v.Patient.Age,
+            v.Patient.Gender,
+            v.Patient.MobileNumber,
+            v.Patient.Allergies,
+            v.Patient.MedicalHistory,
+            v.TokenNumber,
+            v.Status,
+            v.VisitDate,
+            new VitalsDto(
+                v.SystolicBp,
+                v.DiastolicBp,
+                v.PulseBpm,
+                v.TemperatureF,
+                v.Spo2,
+                v.WeightKg,
+                v.HeightCm,
+                v.Bmi
+            ),
+            v.ChiefComplaints,
+            v.Diagnosis,
+            v.ClinicalNotes,
+            v.Prescription != null
+        )).ToList();
+    }
 }
+

@@ -1,4 +1,5 @@
 using DocOS.Application.Visits;
+using DocOS.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -28,6 +29,19 @@ public class VisitsController : ControllerBase
     public async Task<ActionResult<List<VisitQueueDto>>> GetTodayQueue()
     {
         var result = await _mediator.Send(new GetTodayQueueQuery());
+        return Ok(result);
+    }
+
+    [HttpGet("history")]
+    public async Task<ActionResult<List<VisitQueueDto>>> GetVisitHistory(
+        [FromQuery] DateTime? fromDate,
+        [FromQuery] DateTime? toDate,
+        [FromQuery] string? search,
+        [FromQuery] VisitStatus? status,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 100)
+    {
+        var result = await _mediator.Send(new GetVisitHistoryQuery(fromDate, toDate, search, status, page, pageSize));
         return Ok(result);
     }
 

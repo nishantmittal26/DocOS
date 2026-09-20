@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { patientsApi, visitsApi } from '../../api/client';
-import { PatientSearchResult } from '../../types';
-import { Search, Plus, UserPlus, Phone, Calendar, AlertTriangle, Users } from 'lucide-react';
+import { PatientSearchResult, VisitQueueItem } from '../../types';
+import { Search, Plus, UserPlus, Phone, Calendar, AlertTriangle, Users, Clock, CheckCircle2 } from 'lucide-react';
 
 interface PatientsPageProps {
   onOpenNewPatient: () => void;
@@ -10,7 +10,17 @@ interface PatientsPageProps {
 export const PatientsPage: React.FC<PatientsPageProps> = ({ onOpenNewPatient }) => {
   const [query, setQuery] = useState('');
   const [patients, setPatients] = useState<PatientSearchResult[]>([]);
+  const [todayQueue, setTodayQueue] = useState<VisitQueueItem[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const fetchTodayQueue = async () => {
+    try {
+      const q = await visitsApi.getTodayQueue();
+      setTodayQueue(q);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const fetchPatients = async (q: string = '') => {
     setLoading(true);
@@ -25,6 +35,10 @@ export const PatientsPage: React.FC<PatientsPageProps> = ({ onOpenNewPatient }) 
   };
 
   useEffect(() => {
+    fetchTodayQueue();
+  }, []);
+
+  useEffect(() => {
     const timer = setTimeout(() => {
       fetchPatients(query);
     }, 300);
@@ -35,6 +49,7 @@ export const PatientsPage: React.FC<PatientsPageProps> = ({ onOpenNewPatient }) 
     try {
       await visitsApi.addToQueue(patientId);
       alert('Patient added to today OPD Queue successfully!');
+      fetchTodayQueue();
     } catch (err: any) {
       alert(err.response?.data?.message || 'Failed to add patient to queue');
     }
@@ -133,13 +148,42 @@ export const PatientsPage: React.FC<PatientsPageProps> = ({ onOpenNewPatient }) 
               </div>
 
               <div className="pt-3 border-t border-slate-100 flex items-center justify-end">
-                <button
-                  onClick={() => handleAddToQueue(p.id)}
-                  className="inline-flex items-center space-x-1 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold rounded-lg transition-colors"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Add to Today's Queue</span>
-                </button>
+                {(() => {
+                  const existingQueueItem = todayQueue.find((q) => q.patientId === p.id);
+                  const isWaitingOrInConsultation =
+                    existingQueueItem &&
+                    (existingQueueItem.status === 'Waiting' ||
+                      existingQueueItem.status === 'InConsultation');
+                  const isCompleted = existingQueueItem && existingQueueItem.status === 'Completed';
+
+                  if (isWaitingOrInConsultation) {
+                    return (
+                      <span className="inline-flex items-center space-x-1 px-3 py-1.5 bg-amber-50 text-amber-800 text-xs font-bold rounded-lg border border-amber-200">
+                        <Clock className="w-3.5 h-3.5 text-amber-600" />
+                        <span>In Queue (#{existingQueueItem.tokenNumber})</span>
+                      </span>
+                    );
+                  }
+
+                  if (isCompleted) {
+                    return (
+                      <span className="inline-flex items-center space-x-1 px-3 py-1.5 bg-emerald-50 text-emerald-800 text-xs font-bold rounded-lg border border-emerald-200">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Completed Today (#{existingQueueItem.tokenNumber})</span>
+                      </span>
+                    );
+                  }
+
+                  return (
+                    <button
+                      onClick={() => handleAddToQueue(p.id)}
+                      className="inline-flex items-center space-x-1 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold rounded-lg transition-colors"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add to Today's Queue</span>
+                    </button>
+                  );
+                })()}
               </div>
             </div>
           ))}

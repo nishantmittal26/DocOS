@@ -93,6 +93,17 @@ export const visitsApi = {
     const res = await api.get<VisitQueueItem[]>('/visits/queue/today');
     return res.data;
   },
+  getHistory: async (params?: {
+    fromDate?: string;
+    toDate?: string;
+    search?: string;
+    status?: string;
+    page?: number;
+    pageSize?: number;
+  }) => {
+    const res = await api.get<VisitQueueItem[]>('/visits/history', { params });
+    return res.data;
+  },
   recordVitals: async (data: { visitId: string } & Vitals) => {
     const res = await api.put<boolean>('/visits/vitals', data);
     return res.data;

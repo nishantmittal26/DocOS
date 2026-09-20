@@ -5,6 +5,7 @@ import { Navbar } from './components/Navbar';
 import { NewPatientModal } from './components/NewPatientModal';
 import { LoginPage } from './pages/auth/LoginPage';
 import { OpdQueuePage } from './pages/queue/OpdQueuePage';
+import { OpdHistoryPage } from './pages/history/OpdHistoryPage';
 import { ConsultationRoomPage } from './pages/consultation/ConsultationRoomPage';
 import { PatientsPage } from './pages/patients/PatientsPage';
 import { SettingsPage } from './pages/settings/SettingsPage';
@@ -35,6 +36,7 @@ const AppContent: React.FC = () => {
             path="/"
             element={<OpdQueuePage onOpenNewPatient={() => setIsNewPatientOpen(true)} />}
           />
+          <Route path="/history" element={<OpdHistoryPage />} />
           <Route
             path="/patients"
             element={<PatientsPage onOpenNewPatient={() => setIsNewPatientOpen(true)} />}
