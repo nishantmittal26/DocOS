@@ -223,6 +223,12 @@ export const PrescriptionPrintModal: React.FC<PrescriptionPrintModalProps> = ({
                           <span className="font-semibold text-slate-800">{vitals.spo2} %</span>
                         </div>
                       )}
+                      {vitals.sugar && (
+                        <div>
+                          <span className="text-slate-400 text-[10px] block">Sugar</span>
+                          <span className="font-semibold text-slate-800">{vitals.sugar}</span>
+                        </div>
+                      )}
                       {vitals.weightKg && (
                         <div>
                           <span className="text-slate-400 text-[10px] block">Weight</span>

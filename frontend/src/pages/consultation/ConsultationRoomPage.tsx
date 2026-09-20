@@ -292,6 +292,12 @@ export const ConsultationRoomPage: React.FC = () => {
                   <span className="font-bold text-slate-800">{vitals.spo2}%</span>
                 </div>
               )}
+              {vitals.sugar && (
+                <div className="px-2 py-1 bg-white rounded-lg border border-slate-200 font-mono">
+                  <span className="text-slate-400 text-[10px] block">SUGAR</span>
+                  <span className="font-bold text-slate-800">{vitals.sugar}</span>
+                </div>
+              )}
               {vitals.weightKg && (
                 <div className="px-2 py-1 bg-white rounded-lg border border-slate-200 font-mono">
                   <span className="text-slate-400 text-[10px] block">WT</span>

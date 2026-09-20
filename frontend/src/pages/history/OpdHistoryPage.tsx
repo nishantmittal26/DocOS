@@ -412,6 +412,8 @@ export const OpdHistoryPage: React.FC = () => {
                       (item.vitals.systolicBp ||
                         item.vitals.pulseBpm ||
                         item.vitals.temperatureF ||
+                        item.vitals.sugar ||
+                        item.vitals.spo2 ||
                         item.vitals.weightKg) ? (
                         <button
                           onClick={() => setSelectedVisitForVitals(item)}
@@ -424,6 +426,7 @@ export const OpdHistoryPage: React.FC = () => {
                               : ''}
                             {item.vitals.pulseBpm ? ` • ${item.vitals.pulseBpm} bpm` : ''}
                             {item.vitals.temperatureF ? ` • ${item.vitals.temperatureF}°F` : ''}
+                            {item.vitals.sugar ? ` • Sugar ${item.vitals.sugar}` : ''}
                             {item.vitals.bmi ? ` • BMI ${item.vitals.bmi}` : ''}
                           </span>
                         </button>

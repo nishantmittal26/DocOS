@@ -354,7 +354,7 @@ export const OpdQueuePage: React.FC<OpdQueuePageProps> = ({ onOpenNewPatient }) 
 
                   {/* Vitals Summary Pill */}
                   <div className="pt-1 flex flex-wrap items-center gap-2">
-                    {item.vitals && (item.vitals.systolicBp || item.vitals.pulseBpm || item.vitals.temperatureF) ? (
+                    {item.vitals && (item.vitals.systolicBp || item.vitals.pulseBpm || item.vitals.temperatureF || item.vitals.sugar || item.vitals.spo2 || item.vitals.weightKg) ? (
                       <button
                         onClick={() => setSelectedVisitForVitals(item)}
                         className="inline-flex items-center space-x-1 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg transition-colors"
@@ -364,6 +364,7 @@ export const OpdQueuePage: React.FC<OpdQueuePageProps> = ({ onOpenNewPatient }) 
                           {item.vitals.systolicBp ? `${item.vitals.systolicBp}/${item.vitals.diastolicBp} BP` : ''}
                           {item.vitals.pulseBpm ? ` • ${item.vitals.pulseBpm} bpm` : ''}
                           {item.vitals.temperatureF ? ` • ${item.vitals.temperatureF}°F` : ''}
+                          {item.vitals.sugar ? ` • Sugar ${item.vitals.sugar}` : ''}
                           {item.vitals.bmi ? ` • BMI ${item.vitals.bmi}` : ''}
                         </span>
                       </button>
