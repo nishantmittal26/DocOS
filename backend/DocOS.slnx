@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/DocOS.API/DocOS.API.csproj" />
+    <Project Path="src/DocOS.Application/DocOS.Application.csproj" />
+    <Project Path="src/DocOS.Domain/DocOS.Domain.csproj" />
+    <Project Path="src/DocOS.Infrastructure/DocOS.Infrastructure.csproj" />
+  </Folder>
+</Solution>
