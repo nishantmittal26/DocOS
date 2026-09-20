@@ -18,12 +18,17 @@ if ! command -v npm &> /dev/null; then
     exit 1
 fi
 
+echo "Active Configuration Profile: Local Development"
+echo " - Backend Config : appsettings.Local.json"
+echo " - Frontend Config: Local Vite Proxy (/api -> http://localhost:5107)"
+echo ""
+
 echo "[1/2] Starting .NET 10 Web API Backend..."
-(cd "$SCRIPT_DIR/backend" && DOTNET_CLI_HOME=/Users/nishantmittal dotnet run --project src/DocOS.API) &
+(cd "$SCRIPT_DIR/backend" && ASPNETCORE_ENVIRONMENT=Development dotnet run --project src/DocOS.API --launch-profile http) &
 BACKEND_PID=$!
 
 echo "[2/2] Starting React + Vite Frontend..."
-(cd "$SCRIPT_DIR/frontend" && npm run dev) &
+(cd "$SCRIPT_DIR/frontend" && VITE_API_URL=/api npm run dev) &
 FRONTEND_PID=$!
 
 echo ""
