@@ -1,19 +1,25 @@
-import React, { useState } from 'react';
-import { X, Pill, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Pill, AlertCircle, Edit3 } from 'lucide-react';
 import { medicinesApi } from '../api/client';
 import { DosageForm, Medicine } from '../types';
 
 interface AddCustomMedicineModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onMedicineAdded: (medicine: Medicine) => void;
+  onMedicineAdded?: (medicine: Medicine) => void;
+  onMedicineUpdated?: (medicine: Medicine) => void;
+  medicineToEdit?: Medicine | null;
 }
 
 export const AddCustomMedicineModal: React.FC<AddCustomMedicineModalProps> = ({
   isOpen,
   onClose,
   onMedicineAdded,
+  onMedicineUpdated,
+  medicineToEdit,
 }) => {
+  const isEditMode = !!medicineToEdit;
+
   const [brandName, setBrandName] = useState('');
   const [saltComposition, setSaltComposition] = useState('');
   const [form, setForm] = useState<DosageForm>('Tablet');
@@ -22,6 +28,23 @@ export const AddCustomMedicineModal: React.FC<AddCustomMedicineModalProps> = ({
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (medicineToEdit) {
+      setBrandName(medicineToEdit.brandName);
+      setSaltComposition(medicineToEdit.saltComposition);
+      setForm(medicineToEdit.form);
+      setStrength(medicineToEdit.strength);
+      setManufacturer(medicineToEdit.manufacturer || '');
+    } else {
+      setBrandName('');
+      setSaltComposition('');
+      setForm('Tablet');
+      setStrength('');
+      setManufacturer('');
+    }
+    setError(null);
+  }, [isOpen, medicineToEdit]);
 
   if (!isOpen) return null;
 
@@ -54,18 +77,34 @@ export const AddCustomMedicineModal: React.FC<AddCustomMedicineModalProps> = ({
 
     setLoading(true);
     try {
-      const newMed = await medicinesApi.addCustom({
-        brandName: brandName.trim(),
-        saltComposition: saltComposition.trim(),
-        form,
-        strength: strength.trim(),
-        manufacturer: manufacturer.trim() || undefined,
-      });
+      if (isEditMode && medicineToEdit) {
+        const updated = await medicinesApi.updateCustom(medicineToEdit.id, {
+          brandName: brandName.trim(),
+          saltComposition: saltComposition.trim(),
+          form,
+          strength: strength.trim(),
+          manufacturer: manufacturer.trim() || undefined,
+        });
 
-      onMedicineAdded(newMed);
+        if (onMedicineUpdated) {
+          onMedicineUpdated(updated);
+        } else if (onMedicineAdded) {
+          onMedicineAdded(updated);
+        }
+      } else {
+        const newMed = await medicinesApi.addCustom({
+          brandName: brandName.trim(),
+          saltComposition: saltComposition.trim(),
+          form,
+          strength: strength.trim(),
+          manufacturer: manufacturer.trim() || undefined,
+        });
+
+        onMedicineAdded?.(newMed);
+      }
       handleClose();
     } catch (err: any) {
-      const msg = err.response?.data?.message || err.response?.data?.error || err.message || 'Failed to add custom medicine';
+      const msg = err.response?.data?.message || err.response?.data?.error || err.message || (isEditMode ? 'Failed to update custom medicine' : 'Failed to add custom medicine');
       setError(msg);
     } finally {
       setLoading(false);
@@ -78,13 +117,19 @@ export const AddCustomMedicineModal: React.FC<AddCustomMedicineModalProps> = ({
         {/* Modal Header */}
         <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shadow-inner">
-              <Pill className="w-5 h-5" />
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-inner ${
+              isEditMode ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+            }`}>
+              {isEditMode ? <Edit3 className="w-5 h-5" /> : <Pill className="w-5 h-5" />}
             </div>
             <div>
-              <h3 className="text-base font-bold text-slate-900">Add Custom Medicine</h3>
+              <h3 className="text-base font-bold text-slate-900">
+                {isEditMode ? 'Edit Custom Medicine' : 'Add Custom Medicine'}
+              </h3>
               <p className="text-xs text-slate-500 font-medium">
-                Add specialized brands & salt formulations to your clinic formulary.
+                {isEditMode
+                  ? 'Update brand details, dosage strength, or salt composition.'
+                  : 'Add specialized brands & salt formulations to your clinic formulary.'}
               </p>
             </div>
           </div>
@@ -202,14 +247,28 @@ export const AddCustomMedicineModal: React.FC<AddCustomMedicineModalProps> = ({
             <button
               type="submit"
               disabled={loading}
-              className="inline-flex items-center space-x-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-sm font-semibold rounded-xl shadow-md shadow-emerald-600/20 transition-all"
+              className={`inline-flex items-center space-x-2 px-5 py-2.5 disabled:opacity-50 text-white text-sm font-semibold rounded-xl shadow-md transition-all ${
+                isEditMode
+                  ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/20'
+                  : 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-600/20'
+              }`}
             >
               {loading ? (
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : isEditMode ? (
+                <Edit3 className="w-4 h-4" />
               ) : (
                 <Pill className="w-4 h-4" />
               )}
-              <span>{loading ? 'Adding...' : 'Save to Formulary'}</span>
+              <span>
+                {loading
+                  ? isEditMode
+                    ? 'Updating...'
+                    : 'Adding...'
+                  : isEditMode
+                  ? 'Update Medicine'
+                  : 'Save to Formulary'}
+              </span>
             </button>
           </div>
         </form>

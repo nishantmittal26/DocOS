@@ -192,6 +192,19 @@ export const medicinesApi = {
     const res = await api.get<Medicine[]>('/medicines/custom');
     return res.data;
   },
+  updateCustom: async (
+    id: string,
+    data: {
+      brandName: string;
+      saltComposition: string;
+      form: string;
+      strength: string;
+      manufacturer?: string;
+    }
+  ) => {
+    const res = await api.put<Medicine>(`/medicines/custom/${id}`, data);
+    return res.data;
+  },
   deleteCustom: async (id: string) => {
     const res = await api.delete<boolean>(`/medicines/custom/${id}`);
     return res.data;

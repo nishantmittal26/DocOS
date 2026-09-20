@@ -39,6 +39,14 @@ public class MedicinesController : ControllerBase
         return Ok(result);
     }
 
+    [HttpPut("custom/{id}")]
+    [Authorize(Roles = "Doctor")]
+    public async Task<ActionResult<MedicineDto>> UpdateCustomMedicine(Guid id, [FromBody] UpdateCustomMedicineRequest request)
+    {
+        var result = await _mediator.Send(new UpdateCustomMedicineCommand(id, request));
+        return Ok(result);
+    }
+
     [HttpDelete("custom/{id}")]
     [Authorize(Roles = "Doctor")]
     public async Task<ActionResult<bool>> DeleteCustomMedicine(Guid id)

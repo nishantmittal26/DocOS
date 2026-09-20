@@ -11,12 +11,15 @@ public record GetCustomMedicinesQuery() : IRequest<List<MedicineDto>>;
 
 public record AddCustomMedicineCommand(AddCustomMedicineRequest Request) : IRequest<MedicineDto>;
 
+public record UpdateCustomMedicineCommand(Guid Id, UpdateCustomMedicineRequest Request) : IRequest<MedicineDto>;
+
 public record DeleteCustomMedicineCommand(Guid Id) : IRequest<bool>;
 
 public class MedicineHandlers :
     IRequestHandler<SearchMedicinesQuery, List<MedicineDto>>,
     IRequestHandler<GetCustomMedicinesQuery, List<MedicineDto>>,
     IRequestHandler<AddCustomMedicineCommand, MedicineDto>,
+    IRequestHandler<UpdateCustomMedicineCommand, MedicineDto>,
     IRequestHandler<DeleteCustomMedicineCommand, bool>
 {
     private readonly IApplicationDbContext _context;
@@ -79,6 +82,39 @@ public class MedicineHandlers :
         };
 
         _context.Medicines.Add(medicine);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return new MedicineDto(
+            medicine.Id,
+            medicine.BrandName,
+            medicine.SaltComposition,
+            medicine.Form,
+            medicine.Strength,
+            medicine.Manufacturer,
+            medicine.IsCustom
+        );
+    }
+
+    public async Task<MedicineDto> Handle(UpdateCustomMedicineCommand request, CancellationToken cancellationToken)
+    {
+        var clinicId = _currentUser.ClinicId
+            ?? throw new UnauthorizedAccessException("Active clinic context is required to update custom medicines");
+
+        var medicine = await _context.Medicines
+            .FirstOrDefaultAsync(m => m.Id == request.Id && m.ClinicId == clinicId, cancellationToken);
+
+        if (medicine == null)
+        {
+            throw new KeyNotFoundException("Custom medicine not found or does not belong to this clinic");
+        }
+
+        var req = request.Request;
+        medicine.BrandName = req.BrandName.Trim();
+        medicine.SaltComposition = req.SaltComposition.Trim();
+        medicine.Form = req.Form;
+        medicine.Strength = req.Strength.Trim();
+        medicine.Manufacturer = string.IsNullOrWhiteSpace(req.Manufacturer) ? null : req.Manufacturer.Trim();
+
         await _context.SaveChangesAsync(cancellationToken);
 
         return new MedicineDto(

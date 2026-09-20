@@ -19,3 +19,11 @@ public record AddCustomMedicineRequest(
     string Strength,
     string? Manufacturer
 );
+
+public record UpdateCustomMedicineRequest(
+    string BrandName,
+    string SaltComposition,
+    DosageForm Form,
+    string Strength,
+    string? Manufacturer
+);

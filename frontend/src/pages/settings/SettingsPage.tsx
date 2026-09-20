@@ -15,7 +15,8 @@ import {
   Plus,
   Search,
   Trash2,
-  Filter
+  Filter,
+  Edit2
 } from 'lucide-react';
 import { AddCustomMedicineModal } from '../../components/AddCustomMedicineModal';
 
@@ -51,6 +52,7 @@ export const SettingsPage: React.FC = () => {
   const [customMedicines, setCustomMedicines] = useState<Medicine[]>([]);
   const [loadingMedicines, setLoadingMedicines] = useState(false);
   const [isAddMedModalOpen, setIsAddMedModalOpen] = useState(false);
+  const [editingMedicine, setEditingMedicine] = useState<Medicine | null>(null);
   const [medSearchQuery, setMedSearchQuery] = useState('');
   const [medFormFilter, setMedFormFilter] = useState('All');
   const [medSuccessMsg, setMedSuccessMsg] = useState<string | null>(null);
@@ -473,7 +475,10 @@ export const SettingsPage: React.FC = () => {
 
               <button
                 type="button"
-                onClick={() => setIsAddMedModalOpen(true)}
+                onClick={() => {
+                  setEditingMedicine(null);
+                  setIsAddMedModalOpen(true);
+                }}
                 className="inline-flex items-center justify-center space-x-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm shadow-emerald-600/20 transition-all shrink-0"
               >
                 <Plus className="w-4 h-4" />
@@ -543,7 +548,10 @@ export const SettingsPage: React.FC = () => {
               {customMedicines.length === 0 ? (
                 <button
                   type="button"
-                  onClick={() => setIsAddMedModalOpen(true)}
+                  onClick={() => {
+                    setEditingMedicine(null);
+                    setIsAddMedModalOpen(true);
+                  }}
                   className="inline-flex items-center space-x-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all"
                 >
                   <Plus className="w-4 h-4" />
@@ -602,14 +610,27 @@ export const SettingsPage: React.FC = () => {
                           <span className="text-slate-600">{med.manufacturer || '—'}</span>
                         </td>
                         <td className="px-4 py-3.5 text-right">
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteMedicine(med.id, med.brandName)}
-                            title="Delete custom medicine"
-                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors opacity-80 group-hover:opacity-100"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          <div className="flex items-center justify-end space-x-1.5">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingMedicine(med);
+                                setIsAddMedModalOpen(true);
+                              }}
+                              title="Edit custom medicine"
+                              className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors opacity-80 group-hover:opacity-100"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteMedicine(med.id, med.brandName)}
+                              title="Delete custom medicine"
+                              className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors opacity-80 group-hover:opacity-100"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -619,13 +640,22 @@ export const SettingsPage: React.FC = () => {
             </div>
           )}
 
-          {/* Add Custom Medicine Popup Modal */}
+          {/* Add / Edit Custom Medicine Popup Modal */}
           <AddCustomMedicineModal
             isOpen={isAddMedModalOpen}
-            onClose={() => setIsAddMedModalOpen(false)}
+            medicineToEdit={editingMedicine}
+            onClose={() => {
+              setIsAddMedModalOpen(false);
+              setEditingMedicine(null);
+            }}
             onMedicineAdded={(newMed) => {
               setCustomMedicines((prev) => [newMed, ...prev]);
               setMedSuccessMsg(`Medicine "${newMed.brandName}" was added successfully to your clinic formulary!`);
+              setTimeout(() => setMedSuccessMsg(null), 4000);
+            }}
+            onMedicineUpdated={(updatedMed) => {
+              setCustomMedicines((prev) => prev.map((m) => (m.id === updatedMed.id ? updatedMed : m)));
+              setMedSuccessMsg(`Medicine "${updatedMed.brandName}" was updated successfully!`);
               setTimeout(() => setMedSuccessMsg(null), 4000);
             }}
           />
