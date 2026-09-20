@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { showGlobalLoading, hideGlobalLoading } from '../context/LoadingContext';
 import {
   AuthResponse,
   ClinicProfile,
@@ -14,13 +15,43 @@ const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || '/api',
 });
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('docos_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('docos_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    const isSilent = config.headers['x-silent'] === 'true' || (config as any).silent;
+    if (!isSilent) {
+      showGlobalLoading();
+    }
+
+    return config;
+  },
+  (error) => {
+    hideGlobalLoading();
+    return Promise.reject(error);
   }
-  return config;
-});
+);
+
+api.interceptors.response.use(
+  (response) => {
+    const isSilent =
+      response.config.headers['x-silent'] === 'true' || (response.config as any).silent;
+    if (!isSilent) {
+      hideGlobalLoading();
+    }
+    return response;
+  },
+  (error) => {
+    const isSilent = error.config?.headers?.['x-silent'] === 'true' || error.config?.silent;
+    if (!isSilent) {
+      hideGlobalLoading();
+    }
+    return Promise.reject(error);
+  }
+);
 
 export const authApi = {
   login: async (credentials: { email: string; password: string }) => {
@@ -97,8 +128,10 @@ export const visitsApi = {
     const res = await api.delete<boolean>(`/visits/${visitId}`);
     return res.data;
   },
-  getTodayQueue: async () => {
-    const res = await api.get<VisitQueueItem[]>('/visits/queue/today');
+  getTodayQueue: async (silent: boolean = false) => {
+    const res = await api.get<VisitQueueItem[]>('/visits/queue/today', {
+      headers: silent ? { 'x-silent': 'true' } : undefined,
+    });
     return res.data;
   },
   getHistory: async (params?: {
