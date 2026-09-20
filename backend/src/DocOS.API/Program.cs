@@ -125,6 +125,9 @@ builder.Services.AddSwaggerGen(c =>
 var app = builder.Build();
 
 // Configure the HTTP request pipeline
+// UseCors must be at the very top of the pipeline so preflight OPTIONS and error responses include CORS headers
+app.UseCors("AllowDocOSClient");
+
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 if (app.Environment.IsDevelopment() || builder.Configuration.GetValue<bool>("EnableSwagger", true))
@@ -136,8 +139,6 @@ if (app.Environment.IsDevelopment() || builder.Configuration.GetValue<bool>("Ena
         c.RoutePrefix = "swagger";
     });
 }
-
-app.UseCors("AllowDocOSClient");
 
 app.UseAuthentication();
 app.UseAuthorization();
