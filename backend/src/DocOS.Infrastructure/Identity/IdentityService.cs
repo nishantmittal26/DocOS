@@ -57,4 +57,23 @@ public class IdentityService : IIdentityService
 
         return (true, null, user.Id, user.FullName, user.ClinicId, user.Role);
     }
+
+    public async Task<(bool Success, string? Error)> ChangePasswordAsync(
+        string userId, string currentPassword, string newPassword)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user == null)
+        {
+            return (false, "User account not found");
+        }
+
+        var result = await _userManager.ChangePasswordAsync(user, currentPassword, newPassword);
+        if (!result.Succeeded)
+        {
+            var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+            return (false, errors);
+        }
+
+        return (true, null);
+    }
 }

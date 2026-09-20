@@ -6,4 +6,5 @@ public interface IIdentityService
 {
     Task<(bool Success, string? Error, string UserId)> CreateUserAsync(string email, string password, string fullName, Guid clinicId, string role);
     Task<(bool Success, string? Error, string UserId, string FullName, Guid ClinicId, string Role)> ValidateCredentialsAsync(string email, string password);
+    Task<(bool Success, string? Error)> ChangePasswordAsync(string userId, string currentPassword, string newPassword);
 }

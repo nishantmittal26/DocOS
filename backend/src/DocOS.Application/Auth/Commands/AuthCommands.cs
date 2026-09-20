@@ -11,10 +11,13 @@ public record LoginCommand(LoginRequest Request) : IRequest<AuthResponse>;
 
 public record RegisterStaffCommand(RegisterStaffRequest Request) : IRequest<bool>;
 
+public record ChangePasswordCommand(ChangePasswordRequest Request) : IRequest<bool>;
+
 public class AuthCommandHandler :
     IRequestHandler<RegisterClinicCommand, AuthResponse>,
     IRequestHandler<LoginCommand, AuthResponse>,
-    IRequestHandler<RegisterStaffCommand, bool>
+    IRequestHandler<RegisterStaffCommand, bool>,
+    IRequestHandler<ChangePasswordCommand, bool>
 {
     private readonly IApplicationDbContext _context;
     private readonly IIdentityService _identityService;
@@ -136,6 +139,27 @@ public class AuthCommandHandler :
         if (!success)
         {
             throw new InvalidOperationException(error ?? "Failed to register staff account");
+        }
+
+        return true;
+    }
+
+    public async Task<bool> Handle(ChangePasswordCommand request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(_currentUserService.UserId))
+        {
+            throw new UnauthorizedAccessException("User is not authenticated");
+        }
+
+        var (success, error) = await _identityService.ChangePasswordAsync(
+            _currentUserService.UserId,
+            request.Request.CurrentPassword,
+            request.Request.NewPassword
+        );
+
+        if (!success)
+        {
+            throw new InvalidOperationException(error ?? "Failed to change password");
         }
 
         return true;

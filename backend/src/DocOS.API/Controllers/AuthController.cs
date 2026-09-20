@@ -44,6 +44,14 @@ public class AuthController : ControllerBase
         return Ok(result);
     }
 
+    [HttpPost("change-password")]
+    [Authorize]
+    public async Task<ActionResult<bool>> ChangePassword([FromBody] ChangePasswordRequest request)
+    {
+        var result = await _mediator.Send(new ChangePasswordCommand(request));
+        return Ok(result);
+    }
+
     [HttpGet("me")]
     [Authorize]
     public ActionResult GetCurrentUser()

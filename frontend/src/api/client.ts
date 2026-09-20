@@ -82,6 +82,10 @@ export const authApi = {
     const res = await api.post<boolean>('/auth/register-staff', data);
     return res.data;
   },
+  changePassword: async (data: { currentPassword: string; newPassword: string }) => {
+    const res = await api.post<boolean>('/auth/change-password', data);
+    return res.data;
+  },
   getMe: async () => {
     const res = await api.get('/auth/me');
     return res.data;

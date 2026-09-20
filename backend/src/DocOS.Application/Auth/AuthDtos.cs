@@ -25,6 +25,11 @@ public record LoginRequest(
     string Password
 );
 
+public record ChangePasswordRequest(
+    string CurrentPassword,
+    string NewPassword
+);
+
 public record AuthResponse(
     string Token,
     string UserId,
