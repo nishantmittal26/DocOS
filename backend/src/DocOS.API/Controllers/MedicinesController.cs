@@ -24,11 +24,26 @@ public class MedicinesController : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("custom")]
+    public async Task<ActionResult<List<MedicineDto>>> GetCustomMedicines()
+    {
+        var result = await _mediator.Send(new GetCustomMedicinesQuery());
+        return Ok(result);
+    }
+
     [HttpPost("custom")]
     [Authorize(Roles = "Doctor")]
     public async Task<ActionResult<MedicineDto>> AddCustomMedicine([FromBody] AddCustomMedicineRequest request)
     {
         var result = await _mediator.Send(new AddCustomMedicineCommand(request));
+        return Ok(result);
+    }
+
+    [HttpDelete("custom/{id}")]
+    [Authorize(Roles = "Doctor")]
+    public async Task<ActionResult<bool>> DeleteCustomMedicine(Guid id)
+    {
+        var result = await _mediator.Send(new DeleteCustomMedicineCommand(id));
         return Ok(result);
     }
 }

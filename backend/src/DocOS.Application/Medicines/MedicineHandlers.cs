@@ -7,11 +7,17 @@ namespace DocOS.Application.Medicines;
 
 public record SearchMedicinesQuery(string Query) : IRequest<List<MedicineDto>>;
 
+public record GetCustomMedicinesQuery() : IRequest<List<MedicineDto>>;
+
 public record AddCustomMedicineCommand(AddCustomMedicineRequest Request) : IRequest<MedicineDto>;
+
+public record DeleteCustomMedicineCommand(Guid Id) : IRequest<bool>;
 
 public class MedicineHandlers :
     IRequestHandler<SearchMedicinesQuery, List<MedicineDto>>,
-    IRequestHandler<AddCustomMedicineCommand, MedicineDto>
+    IRequestHandler<GetCustomMedicinesQuery, List<MedicineDto>>,
+    IRequestHandler<AddCustomMedicineCommand, MedicineDto>,
+    IRequestHandler<DeleteCustomMedicineCommand, bool>
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUser;
@@ -84,5 +90,47 @@ public class MedicineHandlers :
             medicine.Manufacturer,
             medicine.IsCustom
         );
+    }
+
+    public async Task<List<MedicineDto>> Handle(GetCustomMedicinesQuery request, CancellationToken cancellationToken)
+    {
+        var clinicId = _currentUser.ClinicId
+            ?? throw new UnauthorizedAccessException("Active clinic context is required");
+
+        var results = await _context.Medicines
+            .AsNoTracking()
+            .Where(m => m.ClinicId == clinicId)
+            .OrderBy(m => m.BrandName)
+            .Select(m => new MedicineDto(
+                m.Id,
+                m.BrandName,
+                m.SaltComposition,
+                m.Form,
+                m.Strength,
+                m.Manufacturer,
+                m.IsCustom
+            ))
+            .ToListAsync(cancellationToken);
+
+        return results;
+    }
+
+    public async Task<bool> Handle(DeleteCustomMedicineCommand request, CancellationToken cancellationToken)
+    {
+        var clinicId = _currentUser.ClinicId
+            ?? throw new UnauthorizedAccessException("Active clinic context is required");
+
+        var medicine = await _context.Medicines
+            .FirstOrDefaultAsync(m => m.Id == request.Id && m.ClinicId == clinicId, cancellationToken);
+
+        if (medicine == null)
+        {
+            throw new KeyNotFoundException("Custom medicine not found");
+        }
+
+        _context.Medicines.Remove(medicine);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return true;
     }
 }

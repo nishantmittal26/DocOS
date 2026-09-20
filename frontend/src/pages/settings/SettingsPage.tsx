@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { clinicsApi, medicinesApi, authApi } from '../../api/client';
-import { ClinicProfile, DosageForm } from '../../types';
+import { ClinicProfile, DosageForm, Medicine } from '../../types';
 import {
   Settings,
   Building2,
@@ -11,8 +11,13 @@ import {
   CheckCircle2,
   AlertCircle,
   Save,
-  ShieldCheck
+  ShieldCheck,
+  Plus,
+  Search,
+  Trash2,
+  Filter
 } from 'lucide-react';
+import { AddCustomMedicineModal } from '../../components/AddCustomMedicineModal';
 
 export const SettingsPage: React.FC = () => {
   const { user, updateUserClinicInfo } = useAuth();
@@ -42,14 +47,25 @@ export const SettingsPage: React.FC = () => {
   const [staffSuccess, setStaffSuccess] = useState(false);
   const [staffError, setStaffError] = useState<string | null>(null);
 
-  // Custom medicine state
-  const [customBrand, setCustomBrand] = useState('');
-  const [customSalt, setCustomSalt] = useState('');
-  const [customForm, setCustomForm] = useState<DosageForm>('Tablet');
-  const [customStrength, setCustomStrength] = useState('');
-  const [customMfg, setCustomMfg] = useState('');
-  const [addingMed, setAddingMed] = useState(false);
-  const [medSuccess, setMedSuccess] = useState(false);
+  // Custom medicines state
+  const [customMedicines, setCustomMedicines] = useState<Medicine[]>([]);
+  const [loadingMedicines, setLoadingMedicines] = useState(false);
+  const [isAddMedModalOpen, setIsAddMedModalOpen] = useState(false);
+  const [medSearchQuery, setMedSearchQuery] = useState('');
+  const [medFormFilter, setMedFormFilter] = useState('All');
+  const [medSuccessMsg, setMedSuccessMsg] = useState<string | null>(null);
+
+  const loadCustomMedicines = async () => {
+    setLoadingMedicines(true);
+    try {
+      const data = await medicinesApi.getCustom();
+      setCustomMedicines(data);
+    } catch (err) {
+      console.error('Failed to load custom medicines', err);
+    } finally {
+      setLoadingMedicines(false);
+    }
+  };
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -71,6 +87,7 @@ export const SettingsPage: React.FC = () => {
     };
 
     loadProfile();
+    loadCustomMedicines();
   }, []);
 
   const handleSaveLetterhead = async (e: React.FormEvent) => {
@@ -136,30 +153,50 @@ export const SettingsPage: React.FC = () => {
     }
   };
 
-  const handleAddCustomMedicine = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAddingMed(true);
-    setMedSuccess(false);
-
+  const handleDeleteMedicine = async (id: string, name: string) => {
+    if (!window.confirm(`Are you sure you want to delete "${name}" from your clinic formulary?`)) {
+      return;
+    }
     try {
-      await medicinesApi.addCustom({
-        brandName: customBrand.trim(),
-        saltComposition: customSalt.trim(),
-        form: customForm,
-        strength: customStrength.trim(),
-        manufacturer: customMfg.trim() || undefined,
-      });
-
-      setMedSuccess(true);
-      setCustomBrand('');
-      setCustomSalt('');
-      setCustomStrength('');
-      setCustomMfg('');
-      setTimeout(() => setMedSuccess(false), 4000);
+      await medicinesApi.deleteCustom(id);
+      setCustomMedicines((prev) => prev.filter((m) => m.id !== id));
+      setMedSuccessMsg(`Medicine "${name}" was removed from your formulary.`);
+      setTimeout(() => setMedSuccessMsg(null), 3500);
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to add custom medicine');
-    } finally {
-      setAddingMed(false);
+      alert(err.response?.data?.message || 'Failed to delete medicine');
+    }
+  };
+
+  const filteredMedicines = customMedicines.filter((m) => {
+    const q = medSearchQuery.trim().toLowerCase();
+    const matchesSearch =
+      !q ||
+      m.brandName.toLowerCase().includes(q) ||
+      m.saltComposition.toLowerCase().includes(q) ||
+      (m.manufacturer && m.manufacturer.toLowerCase().includes(q));
+
+    const matchesForm = medFormFilter === 'All' || m.form === medFormFilter;
+    return matchesSearch && matchesForm;
+  });
+
+  const getFormBadgeClass = (form: DosageForm) => {
+    switch (form) {
+      case 'Tablet':
+        return 'bg-blue-50 text-blue-700 border border-blue-200/60';
+      case 'Capsule':
+        return 'bg-purple-50 text-purple-700 border border-purple-200/60';
+      case 'Syrup':
+        return 'bg-amber-50 text-amber-700 border border-amber-200/60';
+      case 'Injection':
+        return 'bg-rose-50 text-rose-700 border border-rose-200/60';
+      case 'Ointment':
+        return 'bg-teal-50 text-teal-700 border border-teal-200/60';
+      case 'Drops':
+        return 'bg-cyan-50 text-cyan-700 border border-cyan-200/60';
+      case 'Inhaler':
+        return 'bg-indigo-50 text-indigo-700 border border-indigo-200/60';
+      default:
+        return 'bg-slate-100 text-slate-700 border border-slate-200';
     }
   };
 

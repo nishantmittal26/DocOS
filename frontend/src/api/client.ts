@@ -188,6 +188,14 @@ export const medicinesApi = {
     const res = await api.post<Medicine>('/medicines/custom', data);
     return res.data;
   },
+  getCustom: async () => {
+    const res = await api.get<Medicine[]>('/medicines/custom');
+    return res.data;
+  },
+  deleteCustom: async (id: string) => {
+    const res = await api.delete<boolean>(`/medicines/custom/${id}`);
+    return res.data;
+  },
 };
 
 export const clinicsApi = {
