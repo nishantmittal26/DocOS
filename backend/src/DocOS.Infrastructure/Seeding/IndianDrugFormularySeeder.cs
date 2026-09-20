@@ -7,16 +7,17 @@ namespace DocOS.Infrastructure.Seeding;
 
 public static class IndianDrugFormularySeeder
 {
-    public static async Task SeedFormularyAsync(ApplicationDbContext context)
+    public static async Task<bool> SeedFormularyAsync(ApplicationDbContext context)
     {
         if (await context.Medicines.AnyAsync(m => m.ClinicId == null))
         {
-            return; // Already seeded
+            return false; // Already seeded, skip
         }
 
         var formulary = GetIndianFormularyList();
         context.Medicines.AddRange(formulary);
         await context.SaveChangesAsync();
+        return true;
     }
 
     private static List<Medicine> GetIndianFormularyList()

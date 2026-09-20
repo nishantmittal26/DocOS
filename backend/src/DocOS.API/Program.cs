@@ -138,9 +138,17 @@ try
     logger.LogInformation("Applying EF Core migrations...");
     await dbContext.Database.MigrateAsync();
 
-    logger.LogInformation("Seeding Indian Drug Formulary (500+ generic salts & top brands)...");
-    await IndianDrugFormularySeeder.SeedFormularyAsync(dbContext);
-    logger.LogInformation("Formulary seeding check completed.");
+    var existingFormularyCount = await dbContext.Medicines.CountAsync(m => m.ClinicId == null);
+    if (existingFormularyCount > 0)
+    {
+        logger.LogInformation("Indian Drug Formulary already seeded ({Count} medicines found in catalog). Skipping seeding.", existingFormularyCount);
+    }
+    else
+    {
+        logger.LogInformation("Seeding Indian Drug Formulary (generic salts & top brands)...");
+        await IndianDrugFormularySeeder.SeedFormularyAsync(dbContext);
+        logger.LogInformation("Indian Drug Formulary seeded successfully.");
+    }
 }
 catch (Exception ex)
 {
