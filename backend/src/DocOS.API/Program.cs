@@ -127,7 +127,7 @@ var app = builder.Build();
 // Configure the HTTP request pipeline
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || builder.Configuration.GetValue<bool>("EnableSwagger", true))
 {
     app.UseSwagger();
     app.UseSwaggerUI(c =>
@@ -141,6 +141,9 @@ app.UseCors("AllowDocOSClient");
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Root health-check endpoint for Render / cloud monitoring
+app.MapGet("/", () => Results.Ok(new { status = "healthy", service = "DocOS.API", version = "1.0.0" }));
 
 app.MapControllers();
 
