@@ -29,8 +29,8 @@ export const PrescriptionPrintModal: React.FC<PrescriptionPrintModalProps> = ({
   const vitals = prescription.vitals;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-slate-100 rounded-2xl shadow-2xl max-w-4xl w-full overflow-hidden border border-slate-200 flex flex-col max-h-[92vh]">
+    <div className="print-modal-overlay fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
+      <div className="print-modal-container bg-slate-100 rounded-2xl shadow-2xl max-w-4xl w-full overflow-hidden border border-slate-200 flex flex-col max-h-[92vh]">
         {/* Top Control Bar (Hidden when printing) */}
         <div className="no-print bg-white px-6 py-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center space-x-3">
@@ -104,7 +104,7 @@ export const PrescriptionPrintModal: React.FC<PrescriptionPrintModalProps> = ({
         </div>
 
         {/* Prescription Paper Preview */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-200/60 flex justify-center">
+        <div className="print-page-wrapper flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-200/60 flex justify-center">
           <div
             className={`print-page bg-white shadow-xl rounded-xl sm:rounded-none w-full max-w-[210mm] min-h-[297mm] p-8 sm:p-12 text-slate-900 text-sm flex flex-col justify-between ${
               printMode === 'pad' ? 'pad-mode' : ''
