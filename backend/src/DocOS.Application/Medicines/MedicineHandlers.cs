@@ -114,8 +114,33 @@ public class MedicineHandlers :
         medicine.Form = req.Form;
         medicine.Strength = req.Strength.Trim();
         medicine.Manufacturer = string.IsNullOrWhiteSpace(req.Manufacturer) ? null : req.Manufacturer.Trim();
+        medicine.UpdatedAt = DateTime.UtcNow;
 
-        await _context.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // If already committed or concurrency mismatch, return latest persisted state
+            var refreshed = await _context.Medicines
+                .AsNoTracking()
+                .FirstOrDefaultAsync(m => m.Id == request.Id, cancellationToken);
+
+            if (refreshed != null)
+            {
+                return new MedicineDto(
+                    refreshed.Id,
+                    refreshed.BrandName,
+                    refreshed.SaltComposition,
+                    refreshed.Form,
+                    refreshed.Strength,
+                    refreshed.Manufacturer,
+                    refreshed.IsCustom
+                );
+            }
+            throw;
+        }
 
         return new MedicineDto(
             medicine.Id,
@@ -161,11 +186,19 @@ public class MedicineHandlers :
 
         if (medicine == null)
         {
-            throw new KeyNotFoundException("Custom medicine not found");
+            return true; // Already deleted
         }
 
-        _context.Medicines.Remove(medicine);
-        await _context.SaveChangesAsync(cancellationToken);
+        try
+        {
+            _context.Medicines.Remove(medicine);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Row already deleted
+            return true;
+        }
 
         return true;
     }

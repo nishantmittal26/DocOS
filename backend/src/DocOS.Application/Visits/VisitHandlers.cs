@@ -489,22 +489,23 @@ public class VisitHandlers :
             ?? throw new UnauthorizedAccessException("Active clinic context is required");
 
         var visit = await _context.Visits
-            .Include(v => v.Prescription)
-                .ThenInclude(p => p!.Items)
-            .FirstOrDefaultAsync(v => v.Id == request.VisitId && v.ClinicId == clinicId, cancellationToken)
-            ?? throw new KeyNotFoundException("Visit not found in this clinic.");
+            .FirstOrDefaultAsync(v => v.Id == request.VisitId && v.ClinicId == clinicId, cancellationToken);
 
-        if (visit.Prescription != null)
+        if (visit == null)
         {
-            if (visit.Prescription.Items.Any())
-            {
-                _context.PrescriptionItems.RemoveRange(visit.Prescription.Items);
-            }
-            _context.Prescriptions.Remove(visit.Prescription);
+            return true; // Already deleted
         }
 
-        _context.Visits.Remove(visit);
-        await _context.SaveChangesAsync(cancellationToken);
+        try
+        {
+            _context.Visits.Remove(visit);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // Row or cascaded children already deleted
+            return true;
+        }
 
         return true;
     }
