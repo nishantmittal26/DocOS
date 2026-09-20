@@ -455,96 +455,180 @@ export const SettingsPage: React.FC = () => {
 
       {/* Tab 3: Custom Medicine Master */}
       {activeTab === 'medicines' && (
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
-          <div>
-            <h2 className="text-base font-bold text-slate-900">Add Custom Medicine to Formulary</h2>
-            <p className="text-xs text-slate-500">
-              Add specialized brands and generic salt formulations specific to your clinic.
-            </p>
-          </div>
-
-          {medSuccess && (
-            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center space-x-2 text-xs font-bold text-emerald-800">
-              <CheckCircle2 className="w-4 h-4" />
-              <span>Medicine added to your clinic's autocomplete list!</span>
-            </div>
-          )}
-
-          <form onSubmit={handleAddCustomMedicine} className="space-y-4 max-w-lg">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Medicine / Brand Name
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. MySpecial Brand 500"
-                value={customBrand}
-                onChange={(e) => setCustomBrand(e.target.value)}
-                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Generic / Salt Composition
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. Paracetamol 500mg + Caffeine 30mg"
-                value={customSalt}
-                onChange={(e) => setCustomSalt(e.target.value)}
-                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-4">
+          {/* Header Card */}
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Form</label>
+                <div className="flex items-center gap-2.5">
+                  <h2 className="text-base font-bold text-slate-900">Custom Medicine Master</h2>
+                  <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2.5 py-0.5 rounded-full">
+                    {customMedicines.length} {customMedicines.length === 1 ? 'Medicine' : 'Medicines'}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  Manage custom brands, specialized salt formulations, and clinic-specific drugs.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsAddMedModalOpen(true)}
+                className="inline-flex items-center justify-center space-x-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm shadow-emerald-600/20 transition-all shrink-0"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add New Medicine</span>
+              </button>
+            </div>
+
+            {/* Notification Banner if recently added/removed */}
+            {medSuccessMsg && (
+              <div className="mt-4 p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center space-x-2 text-xs font-bold text-emerald-800 animate-in fade-in">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>{medSuccessMsg}</span>
+              </div>
+            )}
+
+            {/* Filter & Search Bar */}
+            <div className="mt-5 pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center gap-3">
+              <div className="relative flex-1 w-full">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search by brand name, generic salt, or manufacturer..."
+                  value={medSearchQuery}
+                  onChange={(e) => setMedSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-3.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition-all font-medium"
+                />
+              </div>
+
+              {/* Form Filter Selector */}
+              <div className="flex items-center space-x-2 w-full sm:w-auto">
+                <Filter className="w-3.5 h-3.5 text-slate-400 hidden sm:block shrink-0" />
                 <select
-                  value={customForm}
-                  onChange={(e) => setCustomForm(e.target.value as DosageForm)}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500 bg-white"
+                  value={medFormFilter}
+                  onChange={(e) => setMedFormFilter(e.target.value)}
+                  className="w-full sm:w-auto px-3 py-2 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
                 >
+                  <option value="All">All Forms</option>
                   <option value="Tablet">Tablet</option>
                   <option value="Capsule">Capsule</option>
                   <option value="Syrup">Syrup</option>
                   <option value="Injection">Injection</option>
                   <option value="Ointment">Ointment</option>
                   <option value="Drops">Drops</option>
+                  <option value="Inhaler">Inhaler</option>
+                  <option value="Powder">Powder</option>
+                  <option value="Lotion">Lotion</option>
+                  <option value="Other">Other</option>
                 </select>
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Strength</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. 500mg"
-                  value={customStrength}
-                  onChange={(e) => setCustomStrength(e.target.value)}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500"
-                />
+            </div>
+          </div>
+
+          {/* Medicines Grid / Table */}
+          {filteredMedicines.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center shadow-sm">
+              <div className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-inner">
+                <Pill className="w-7 h-7" />
+              </div>
+              <h3 className="text-sm font-bold text-slate-800">
+                {customMedicines.length === 0 ? 'No custom medicines added yet' : 'No matching medicines found'}
+              </h3>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1 mb-4">
+                {customMedicines.length === 0
+                  ? 'Add your clinic’s custom brand names, dosage formulations, and specialized salts to use them in OPD prescriptions.'
+                  : 'Try adjusting your search query or form filter to find the medicine you are looking for.'}
+              </p>
+              {customMedicines.length === 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setIsAddMedModalOpen(true)}
+                  className="inline-flex items-center space-x-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add First Medicine</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMedSearchQuery('');
+                    setMedFormFilter('All');
+                  }}
+                  className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition-colors"
+                >
+                  Clear Filters
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50/80 border-b border-slate-200/80 text-slate-600 font-bold uppercase tracking-wider">
+                    <tr>
+                      <th className="px-5 py-3.5">Brand / Medicine</th>
+                      <th className="px-4 py-3.5">Form</th>
+                      <th className="px-4 py-3.5">Strength</th>
+                      <th className="px-5 py-3.5">Generic / Salt Composition</th>
+                      <th className="px-4 py-3.5">Manufacturer</th>
+                      <th className="px-4 py-3.5 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredMedicines.map((med) => (
+                      <tr key={med.id} className="hover:bg-slate-50/60 transition-colors group">
+                        <td className="px-5 py-3.5 font-bold text-slate-900">
+                          <div className="flex items-center space-x-2.5">
+                            <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+                              <Pill className="w-3.5 h-3.5" />
+                            </div>
+                            <span className="truncate max-w-[200px]">{med.brandName}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${getFormBadgeClass(med.form)}`}>
+                            {med.form}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3.5 font-semibold text-slate-700 font-mono">
+                          {med.strength}
+                        </td>
+                        <td className="px-5 py-3.5 text-slate-600 max-w-xs truncate font-medium">
+                          {med.saltComposition}
+                        </td>
+                        <td className="px-4 py-3.5 text-slate-50">
+                          <span className="text-slate-600">{med.manufacturer || '—'}</span>
+                        </td>
+                        <td className="px-4 py-3.5 text-right">
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteMedicine(med.id, med.brandName)}
+                            title="Delete custom medicine"
+                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors opacity-80 group-hover:opacity-100"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Manufacturer (Optional)</label>
-              <input
-                type="text"
-                placeholder="e.g. Sun Pharma"
-                value={customMfg}
-                onChange={(e) => setCustomMfg(e.target.value)}
-                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-emerald-500"
-              />
-            </div>
+          )}
 
-            <button
-              type="submit"
-              disabled={addingMed}
-              className="inline-flex items-center space-x-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all"
-            >
-              <Pill className="w-4 h-4" />
-              <span>{addingMed ? 'Adding...' : 'Add Medicine to Formulary'}</span>
-            </button>
-          </form>
+          {/* Add Custom Medicine Popup Modal */}
+          <AddCustomMedicineModal
+            isOpen={isAddMedModalOpen}
+            onClose={() => setIsAddMedModalOpen(false)}
+            onMedicineAdded={(newMed) => {
+              setCustomMedicines((prev) => [newMed, ...prev]);
+              setMedSuccessMsg(`Medicine "${newMed.brandName}" was added successfully to your clinic formulary!`);
+              setTimeout(() => setMedSuccessMsg(null), 4000);
+            }}
+          />
         </div>
       )}
     </div>
