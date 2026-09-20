@@ -12,10 +12,26 @@ using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Load appsettings.Local.json optionally to override settings locally without affecting Azure/Development server
-builder.Configuration
-    .AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true)
-    .AddEnvironmentVariables();
+// Load appsettings.Local.json to override settings locally for local development
+var localCandidates = new[]
+{
+    Path.Combine(builder.Environment.ContentRootPath, "appsettings.Local.json"),
+    Path.Combine(AppContext.BaseDirectory, "appsettings.Local.json"),
+    Path.Combine(Directory.GetCurrentDirectory(), "src", "DocOS.API", "appsettings.Local.json"),
+    Path.Combine(Directory.GetCurrentDirectory(), "appsettings.Local.json")
+};
+
+string? loadedLocalPath = null;
+foreach (var candidate in localCandidates)
+{
+    if (File.Exists(candidate))
+    {
+        builder.Configuration.AddJsonFile(candidate, optional: true, reloadOnChange: true);
+        loadedLocalPath = candidate;
+        break;
+    }
+}
+builder.Configuration.AddEnvironmentVariables();
 
 // Add services to the container
 builder.Services.AddControllers()

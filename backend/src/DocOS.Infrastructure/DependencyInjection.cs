@@ -19,6 +19,10 @@ public static class DependencyInjection
     {
         // PostgreSQL Database Configuration
         var connectionString = configuration.GetConnectionString("DefaultConnection");
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            connectionString = configuration["ConnectionStrings:DefaultConnection"];
+        }
 
         services.AddDbContext<ApplicationDbContext>(options =>
             options.UseNpgsql(connectionString, b =>
@@ -40,7 +44,9 @@ public static class DependencyInjection
         .AddEntityFrameworkStores<ApplicationDbContext>();
 
         // JWT Authentication Configuration
-        var secretKey = configuration["Jwt:Secret"] ?? "DocOS_Super_Secret_Healthcare_Encryption_Key_2026_Doctor_App!";
+        var secretKey = string.IsNullOrWhiteSpace(configuration["Jwt:Secret"]) 
+            ? "DocOS_Super_Secret_Healthcare_Encryption_Key_2026_Doctor_App!_MustBeLongEnoughForHMAC256" 
+            : configuration["Jwt:Secret"]!;
         var issuer = configuration["Jwt:Issuer"] ?? "DocOS.API";
         var audience = configuration["Jwt:Audience"] ?? "DocOS.Client";
 

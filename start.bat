@@ -31,10 +31,10 @@ echo  - Frontend Config: Local Vite Proxy (/api -^> http://localhost:5107)
 echo.
 
 echo [1/2] Launching .NET 10 Web API Backend (using appsettings.Local.json)...
-start "DocOS Backend API (.NET 10)" cmd /k "cd /d "%~dp0backend" && set ASPNETCORE_ENVIRONMENT=Development&& dotnet run --project src\DocOS.API --launch-profile http"
+start "DocOS Backend API (.NET 10)" cmd /k "cd /d "%~dp0backend\src\DocOS.API" && dotnet run --launch-profile http"
 
 echo [2/2] Launching React + Vite Frontend (connecting locally)...
-start "DocOS Frontend (React + Vite)" cmd /k "cd /d "%~dp0frontend" && set VITE_API_URL=/api&& npm run dev"
+start "DocOS Frontend (React + Vite)" cmd /k "cd /d "%~dp0frontend" && npm run dev"
 
 echo.
 echo =========================================================
