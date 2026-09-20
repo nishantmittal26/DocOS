@@ -43,9 +43,9 @@ export const OpdQueuePage: React.FC<OpdQueuePageProps> = ({ onOpenNewPatient }) 
   const [selectedPrescription, setSelectedPrescription] = useState<PrescriptionDetail | null>(null);
   const [loadingPrescription, setLoadingPrescription] = useState(false);
 
-  const fetchQueue = async () => {
+  const fetchQueue = async (silent = false) => {
     try {
-      const data = await visitsApi.getTodayQueue();
+      const data = await visitsApi.getTodayQueue(silent);
       setQueue(data);
     } catch (err) {
       console.error('Failed to fetch queue', err);
@@ -55,9 +55,9 @@ export const OpdQueuePage: React.FC<OpdQueuePageProps> = ({ onOpenNewPatient }) 
   };
 
   useEffect(() => {
-    fetchQueue();
-    // Auto-refresh queue every 20 seconds
-    const interval = setInterval(fetchQueue, 20000);
+    fetchQueue(false);
+    // Auto-refresh queue every 20 seconds silently in background
+    const interval = setInterval(() => fetchQueue(true), 20000);
     return () => clearInterval(interval);
   }, []);
 
@@ -139,7 +139,7 @@ export const OpdQueuePage: React.FC<OpdQueuePageProps> = ({ onOpenNewPatient }) 
           <div className="flex items-center space-x-2">
             <h1 className="text-2xl font-black text-slate-900 tracking-tight">Today's OPD Queue</h1>
             <button
-              onClick={fetchQueue}
+              onClick={() => fetchQueue(false)}
               title="Refresh Queue"
               className="p-1.5 text-slate-400 hover:text-emerald-600 rounded-lg hover:bg-emerald-50 transition-colors"
             >
