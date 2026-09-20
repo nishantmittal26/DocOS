@@ -15,6 +15,12 @@
     margin: 8mm 10mm;
   }
 
+  /* 1. Hide the entire application tree completely from layout */
+  #root {
+    display: none !important;
+  }
+
+  /* 2. Style html and body for clean, unconstrained printing */
   html,
   body {
     background: white !important;
@@ -25,9 +31,7 @@
     overflow: visible !important;
   }
 
-  /* Hide background elements outside the modal during print */
-  body > #root > div > nav,
-  body > #root > div > main,
+  /* 3. Hide non-printable controls inside the modal */
   .no-print {
     display: none !important;
   }
@@ -36,7 +40,7 @@
     display: block !important;
   }
 
-  /* Reset fixed position & scrolling wrappers so the browser doesn't duplicate the page */
+  /* 4. Collapse modal wrappers so they take zero extra layout space */
   .print-modal-overlay {
     position: static !important;
     inset: auto !important;
@@ -73,10 +77,11 @@
     display: block !important;
   }
 
+  /* 5. Clean, single-page A4 prescription */
   .print-page {
     width: 100% !important;
     max-width: 100% !important;
-    min-height: auto !important;
+    min-height: 0 !important;
     height: auto !important;
     padding: 0 !important;
     margin: 0 !important;

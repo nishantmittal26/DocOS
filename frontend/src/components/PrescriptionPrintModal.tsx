@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Printer, FileText, Sliders, AlertTriangle, Calendar, Phone, MapPin } from 'lucide-react';
 import { PrescriptionDetail } from '../types';
 
@@ -28,7 +29,7 @@ export const PrescriptionPrintModal: React.FC<PrescriptionPrintModalProps> = ({
   const clinic = prescription.clinic;
   const vitals = prescription.vitals;
 
-  return (
+  return createPortal(
     <div className="print-modal-overlay fixed inset-0 z-50 overflow-y-auto bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="print-modal-container bg-slate-100 rounded-2xl shadow-2xl max-w-4xl w-full overflow-hidden border border-slate-200 flex flex-col max-h-[92vh]">
         {/* Top Control Bar (Hidden when printing) */}
@@ -366,6 +367,7 @@ export const PrescriptionPrintModal: React.FC<PrescriptionPrintModalProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
