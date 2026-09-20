@@ -24,9 +24,9 @@ Library/
 *.DotSettings.user
 
 # Local configuration overrides & secrets
-appsettings.*.local.json
-appsettings.Local.json
-appsettings.Production.json
+# appsettings.*.local.json
+# appsettings.Local.json
+# appsettings.Production.json
 
 # Test results & code coverage
 TestResults/

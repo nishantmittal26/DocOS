@@ -15,14 +15,14 @@ node_modules/
 # Build and production outputs
 dist/
 dist-ssr/
-*.local
+# *.local
 
 # Environment variables
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+# .env
+# .env.local
+# .env.development.local
+# .env.test.local
+# .env.production.local
 !.env.example
 
 # Editor & IDE directories

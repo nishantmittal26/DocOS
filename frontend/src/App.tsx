@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, HashRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LoadingProvider } from './context/LoadingContext';
 import { Navbar } from './components/Navbar';
@@ -11,9 +11,15 @@ import { ConsultationRoomPage } from './pages/consultation/ConsultationRoomPage'
 import { PatientsPage } from './pages/patients/PatientsPage';
 import { SettingsPage } from './pages/settings/SettingsPage';
 
+// Automatically use HashRouter on GitHub Pages to prevent 404s on subpath page reloads
+const isGitHubPages = typeof window !== 'undefined' && window.location.hostname.endsWith('github.io');
+const useHash = import.meta.env.VITE_ROUTER_MODE === 'hash' || isGitHubPages;
+const AppRouter = useHash ? HashRouter : BrowserRouter;
+
 const AppContent: React.FC = () => {
   const { isAuthenticated, isLoading } = useAuth();
   const [isNewPatientOpen, setIsNewPatientOpen] = useState(false);
+  const navigate = useNavigate();
 
   if (isLoading) {
     return (
@@ -54,7 +60,7 @@ const AppContent: React.FC = () => {
         onClose={() => setIsNewPatientOpen(false)}
         onPatientAdded={(_, queued) => {
           if (queued) {
-            window.location.href = '/';
+            navigate('/');
           }
         }}
       />
@@ -64,13 +70,13 @@ const AppContent: React.FC = () => {
 
 export const App: React.FC = () => {
   return (
-    <Router>
+    <AppRouter>
       <AuthProvider>
         <LoadingProvider>
           <AppContent />
         </LoadingProvider>
       </AuthProvider>
-    </Router>
+    </AppRouter>
   );
 };
 

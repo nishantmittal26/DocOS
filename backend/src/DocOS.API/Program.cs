@@ -12,6 +12,11 @@ using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Load appsettings.Local.json optionally to override settings locally without affecting Azure/Development server
+builder.Configuration
+    .AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true)
+    .AddEnvironmentVariables();
+
 // Add services to the container
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -27,15 +32,49 @@ builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration);
 
-// CORS for React Vite frontend (http://localhost:5173) and any local network access
+// Dynamic CORS configuration based on environment settings (Cors:AllowedOrigins)
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() 
+    ?? Array.Empty<string>();
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowDocOSClient", policy =>
     {
-        policy.SetIsOriginAllowed(_ => true)
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
+        // If wildcard '*' or empty in config, allow any origin (with credentials)
+        if (allowedOrigins.Length == 0 || allowedOrigins.Contains("*"))
+        {
+            policy.SetIsOriginAllowed(_ => true)
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials();
+        }
+        else
+        {
+            policy.SetIsOriginAllowed(origin =>
+            {
+                if (string.IsNullOrWhiteSpace(origin)) return false;
+
+                foreach (var pattern in allowedOrigins)
+                {
+                    if (string.IsNullOrWhiteSpace(pattern)) continue;
+
+                    if (pattern == "*" || pattern.Equals(origin, StringComparison.OrdinalIgnoreCase))
+                        return true;
+
+                    // Wildcard matching e.g. "https://*.github.io" or "http://localhost:*"
+                    if (pattern.Contains("*"))
+                    {
+                        var regex = "^" + System.Text.RegularExpressions.Regex.Escape(pattern).Replace("\\*", ".*") + "$";
+                        if (System.Text.RegularExpressions.Regex.IsMatch(origin, regex, System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+                            return true;
+                    }
+                }
+                return false;
+            })
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+        }
     });
 });
 
