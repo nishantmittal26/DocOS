@@ -10,20 +10,13 @@ namespace DocOS.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
-                name: "Sugar",
-                table: "Visits",
-                type: "character varying(50)",
-                maxLength: 50,
-                nullable: true);
+            migrationBuilder.Sql("ALTER TABLE \"Visits\" ADD COLUMN IF NOT EXISTS \"Sugar\" character varying(50);");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "Sugar",
-                table: "Visits");
+            migrationBuilder.Sql("ALTER TABLE \"Visits\" DROP COLUMN IF EXISTS \"Sugar\";");
         }
     }
 }
