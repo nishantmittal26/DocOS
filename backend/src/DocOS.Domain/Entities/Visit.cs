@@ -24,6 +24,7 @@ public class Visit : BaseEntity
     public decimal? WeightKg { get; set; } // kg
     public decimal? HeightCm { get; set; } // cm
     public decimal? Bmi { get; set; } // kg/m^2
+    public string? Sugar { get; set; } // Blood Sugar e.g., "110 mg/dL", "140 PP", "95 Fasting", "RBS 160"
 
     // Clinical Consultation (Doctor entry)
     public string? ChiefComplaints { get; set; } // e.g., "Fever (3 days), Dry Cough (1 week)"

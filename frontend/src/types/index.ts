@@ -64,6 +64,7 @@ export interface Vitals {
   weightKg?: number;
   heightCm?: number;
   bmi?: number;
+  sugar?: string;
 }
 
 export interface PrescriptionItem {

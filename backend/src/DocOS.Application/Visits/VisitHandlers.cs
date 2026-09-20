@@ -154,6 +154,7 @@ public class VisitHandlers :
         visit.Spo2 = req.Spo2;
         visit.WeightKg = req.WeightKg;
         visit.HeightCm = req.HeightCm;
+        visit.Sugar = string.IsNullOrWhiteSpace(req.Sugar) ? null : req.Sugar.Trim();
 
         if (req.WeightKg.HasValue && req.HeightCm.HasValue && req.HeightCm > 0)
         {
@@ -204,7 +205,8 @@ public class VisitHandlers :
                 v.Spo2,
                 v.WeightKg,
                 v.HeightCm,
-                v.Bmi
+                v.Bmi,
+                v.Sugar
             ),
             v.ChiefComplaints,
             v.Diagnosis,
@@ -310,7 +312,8 @@ public class VisitHandlers :
                 visit.Spo2,
                 visit.WeightKg,
                 visit.HeightCm,
-                visit.Bmi
+                visit.Bmi,
+                visit.Sugar
             ),
             visit.ChiefComplaints,
             visit.Diagnosis,
@@ -380,7 +383,8 @@ public class VisitHandlers :
                 visit.Spo2,
                 visit.WeightKg,
                 visit.HeightCm,
-                visit.Bmi
+                visit.Bmi,
+                visit.Sugar
             ),
             visit.ChiefComplaints,
             visit.Diagnosis,
@@ -469,7 +473,8 @@ public class VisitHandlers :
                 v.Spo2,
                 v.WeightKg,
                 v.HeightCm,
-                v.Bmi
+                v.Bmi,
+                v.Sugar
             ),
             v.ChiefComplaints,
             v.Diagnosis,

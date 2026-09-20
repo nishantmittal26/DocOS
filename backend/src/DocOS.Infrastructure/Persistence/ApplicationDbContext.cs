@@ -58,6 +58,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
             entity.Property(v => v.WeightKg).HasPrecision(5, 2);
             entity.Property(v => v.HeightCm).HasPrecision(5, 2);
             entity.Property(v => v.Bmi).HasPrecision(5, 2);
+            entity.Property(v => v.Sugar).HasMaxLength(50);
 
             entity.HasIndex(v => new { v.ClinicId, v.VisitDate });
 

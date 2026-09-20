@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Activity, Check, HeartPulse, Thermometer, Wind, Scale, Ruler } from 'lucide-react';
+import { X, Activity, Check, HeartPulse, Thermometer, Wind, Scale, Ruler, Droplet } from 'lucide-react';
 import { visitsApi } from '../api/client';
 import { VisitQueueItem } from '../types';
 
@@ -23,6 +23,7 @@ export const VitalsModal: React.FC<VitalsModalProps> = ({
   const [spo2, setSpo2] = useState<string>('');
   const [weightKg, setWeightKg] = useState<string>('');
   const [heightCm, setHeightCm] = useState<string>('');
+  const [sugar, setSugar] = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,6 +37,7 @@ export const VitalsModal: React.FC<VitalsModalProps> = ({
       setSpo2(v.spo2?.toString() || '');
       setWeightKg(v.weightKg?.toString() || '');
       setHeightCm(v.heightCm?.toString() || '');
+      setSugar(v.sugar || '');
     } else {
       setSystolicBp('');
       setDiastolicBp('');
@@ -44,6 +46,7 @@ export const VitalsModal: React.FC<VitalsModalProps> = ({
       setSpo2('');
       setWeightKg('');
       setHeightCm('');
+      setSugar('');
     }
   }, [visit]);
 
@@ -89,6 +92,7 @@ export const VitalsModal: React.FC<VitalsModalProps> = ({
         spo2: spo2 ? parseInt(spo2) : undefined,
         weightKg: weightKg ? parseFloat(weightKg) : undefined,
         heightCm: heightCm ? parseFloat(heightCm) : undefined,
+        sugar: sugar.trim() || undefined,
       });
 
       onSaved();
@@ -187,21 +191,36 @@ export const VitalsModal: React.FC<VitalsModalProps> = ({
             </div>
           </div>
 
-          {/* SpO2 */}
-          <div>
-            <label className="flex items-center text-xs font-semibold text-slate-700 mb-1.5">
-              <Wind className="w-4 h-4 mr-1 text-cyan-500" />
-              Oxygen Saturation (SpO2 %)
-            </label>
-            <input
-              type="number"
-              min="50"
-              max="100"
-              placeholder="e.g. 98"
-              value={spo2}
-              onChange={(e) => setSpo2(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
-            />
+          {/* SpO2 & Blood Sugar */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="flex items-center text-xs font-semibold text-slate-700 mb-1.5">
+                <Wind className="w-4 h-4 mr-1 text-cyan-500" />
+                SpO2 (%)
+              </label>
+              <input
+                type="number"
+                min="50"
+                max="100"
+                placeholder="e.g. 98"
+                value={spo2}
+                onChange={(e) => setSpo2(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
+              />
+            </div>
+            <div>
+              <label className="flex items-center text-xs font-semibold text-slate-700 mb-1.5">
+                <Droplet className="w-4 h-4 mr-1 text-rose-500" />
+                Sugar (Blood Sugar)
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. 110 mg/dL, 140 (PP)"
+                value={sugar}
+                onChange={(e) => setSugar(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm"
+              />
+            </div>
           </div>
 
           {/* Weight & Height & Live BMI */}

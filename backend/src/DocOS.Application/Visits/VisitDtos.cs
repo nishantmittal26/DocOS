@@ -14,7 +14,8 @@ public record RecordVitalsRequest(
     decimal? TemperatureF,
     int? Spo2,
     decimal? WeightKg,
-    decimal? HeightCm
+    decimal? HeightCm,
+    string? Sugar
 );
 
 public record VitalsDto(
@@ -25,7 +26,8 @@ public record VitalsDto(
     int? Spo2,
     decimal? WeightKg,
     decimal? HeightCm,
-    decimal? Bmi
+    decimal? Bmi,
+    string? Sugar
 );
 
 public record PrescriptionItemDto(
