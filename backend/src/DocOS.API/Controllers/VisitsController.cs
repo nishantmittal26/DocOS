@@ -25,6 +25,20 @@ public class VisitsController : ControllerBase
         return Ok(result);
     }
 
+    [HttpDelete("queue/{visitId:guid}")]
+    public async Task<ActionResult<bool>> RemoveFromQueue(Guid visitId)
+    {
+        var result = await _mediator.Send(new RemoveFromQueueCommand(visitId));
+        return Ok(result);
+    }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<ActionResult<bool>> DeleteVisit(Guid id)
+    {
+        var result = await _mediator.Send(new DeleteVisitCommand(id));
+        return Ok(result);
+    }
+
     [HttpGet("queue/today")]
     public async Task<ActionResult<List<VisitQueueDto>>> GetTodayQueue()
     {

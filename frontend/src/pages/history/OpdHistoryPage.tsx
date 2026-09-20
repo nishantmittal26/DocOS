@@ -18,7 +18,8 @@ import {
   Filter,
   FileText,
   Users,
-  Activity
+  Activity,
+  Trash2
 } from 'lucide-react';
 
 type DatePreset = 'all' | 'today' | 'yesterday' | '7days' | '30days' | 'custom';
@@ -124,6 +125,22 @@ export const OpdHistoryPage: React.FC = () => {
       alert('Prescription not found');
     } finally {
       setLoadingPrescription(false);
+    }
+  };
+
+  const handleDeleteVisit = async (visitId: string, patientName: string, dateStr: string) => {
+    if (
+      !window.confirm(
+        `Are you sure you want to permanently delete the OPD record for ${patientName} (${dateStr})? This will also remove any attached prescription and cannot be undone.`
+      )
+    ) {
+      return;
+    }
+    try {
+      await visitsApi.deleteVisit(visitId);
+      fetchHistory();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to delete visit record');
     }
   };
 
@@ -446,6 +463,14 @@ export const OpdHistoryPage: React.FC = () => {
                       <span>View / Print Rx</span>
                     </button>
                   )}
+
+                  <button
+                    onClick={() => handleDeleteVisit(item.id, item.patientName, vDate.toLocaleDateString())}
+                    className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl border border-slate-200 hover:border-rose-200 transition-colors"
+                    title="Delete OPD record"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
             );

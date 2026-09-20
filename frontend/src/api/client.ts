@@ -89,6 +89,14 @@ export const visitsApi = {
     const res = await api.post<VisitQueueItem>('/visits/queue', { patientId });
     return res.data;
   },
+  removeFromQueue: async (visitId: string) => {
+    const res = await api.delete<boolean>(`/visits/queue/${visitId}`);
+    return res.data;
+  },
+  deleteVisit: async (visitId: string) => {
+    const res = await api.delete<boolean>(`/visits/${visitId}`);
+    return res.data;
+  },
   getTodayQueue: async () => {
     const res = await api.get<VisitQueueItem[]>('/visits/queue/today');
     return res.data;

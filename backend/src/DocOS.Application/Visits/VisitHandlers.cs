@@ -25,13 +25,19 @@ public record GetVisitHistoryQuery(
     int PageSize = 100
 ) : IRequest<List<VisitQueueDto>>;
 
+public record RemoveFromQueueCommand(Guid VisitId) : IRequest<bool>;
+
+public record DeleteVisitCommand(Guid VisitId) : IRequest<bool>;
+
 public class VisitHandlers :
     IRequestHandler<AddToQueueCommand, VisitQueueDto>,
     IRequestHandler<RecordVitalsCommand, bool>,
     IRequestHandler<GetTodayQueueQuery, List<VisitQueueDto>>,
     IRequestHandler<CompleteConsultationCommand, PrescriptionDetailDto>,
     IRequestHandler<GetPrescriptionQuery, PrescriptionDetailDto?>,
-    IRequestHandler<GetVisitHistoryQuery, List<VisitQueueDto>>
+    IRequestHandler<GetVisitHistoryQuery, List<VisitQueueDto>>,
+    IRequestHandler<RemoveFromQueueCommand, bool>,
+    IRequestHandler<DeleteVisitCommand, bool>
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUser;
@@ -85,17 +91,24 @@ public class VisitHandlers :
                 $"Patient '{patient.FullName}' has already completed consultation today (Token #{existingCompletedVisit.TokenNumber}).");
         }
 
-        // Next token number for today
-        var maxToken = await _context.Visits
+        // Find next token number (lowest unused positive integer for today so released tokens are reused)
+        var usedTokens = await _context.Visits
             .Where(v => v.ClinicId == clinicId && v.VisitDate >= today && v.VisitDate < tomorrow)
-            .Select(v => (int?)v.TokenNumber)
-            .MaxAsync(cancellationToken) ?? 0;
+            .Select(v => v.TokenNumber)
+            .ToListAsync(cancellationToken);
+
+        var usedTokensSet = new HashSet<int>(usedTokens);
+        int nextToken = 1;
+        while (usedTokensSet.Contains(nextToken))
+        {
+            nextToken++;
+        }
 
         var visit = new Visit
         {
             ClinicId = clinicId,
             PatientId = patient.Id,
-            TokenNumber = maxToken + 1,
+            TokenNumber = nextToken,
             VisitDate = DateTime.UtcNow,
             Status = VisitStatus.Waiting
         };
@@ -463,6 +476,37 @@ public class VisitHandlers :
             v.ClinicalNotes,
             v.Prescription != null
         )).ToList();
+    }
+
+    public async Task<bool> Handle(RemoveFromQueueCommand request, CancellationToken cancellationToken)
+    {
+        return await Handle(new DeleteVisitCommand(request.VisitId), cancellationToken);
+    }
+
+    public async Task<bool> Handle(DeleteVisitCommand request, CancellationToken cancellationToken)
+    {
+        var clinicId = _currentUser.ClinicId
+            ?? throw new UnauthorizedAccessException("Active clinic context is required");
+
+        var visit = await _context.Visits
+            .Include(v => v.Prescription)
+                .ThenInclude(p => p!.Items)
+            .FirstOrDefaultAsync(v => v.Id == request.VisitId && v.ClinicId == clinicId, cancellationToken)
+            ?? throw new KeyNotFoundException("Visit not found in this clinic.");
+
+        if (visit.Prescription != null)
+        {
+            if (visit.Prescription.Items.Any())
+            {
+                _context.PrescriptionItems.RemoveRange(visit.Prescription.Items);
+            }
+            _context.Prescriptions.Remove(visit.Prescription);
+        }
+
+        _context.Visits.Remove(visit);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return true;
     }
 }
 

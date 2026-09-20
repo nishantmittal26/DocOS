@@ -17,7 +17,8 @@ import {
   AlertTriangle,
   RefreshCw,
   HeartPulse,
-  History
+  History,
+  Trash2
 } from 'lucide-react';
 
 interface OpdQueuePageProps {
@@ -90,6 +91,22 @@ export const OpdQueuePage: React.FC<OpdQueuePageProps> = ({ onOpenNewPatient }) 
       fetchQueue();
     } catch (err: any) {
       alert(err.response?.data?.message || 'Failed to add patient to queue');
+    }
+  };
+
+  const handleRemoveFromQueue = async (visitId: string, patientName: string, tokenNumber: number) => {
+    if (
+      !window.confirm(
+        `Remove ${patientName} (Token #${tokenNumber}) from today's queue? Token #${tokenNumber} will be released for the next patient.`
+      )
+    ) {
+      return;
+    }
+    try {
+      await visitsApi.removeFromQueue(visitId);
+      fetchQueue();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to remove patient from queue');
     }
   };
 
@@ -392,6 +409,17 @@ export const OpdQueuePage: React.FC<OpdQueuePageProps> = ({ onOpenNewPatient }) 
                   >
                     <Printer className="w-3.5 h-3.5" />
                     <span>View / Print Rx</span>
+                  </button>
+                )}
+
+                {/* Remove from queue & release token button (for Waiting/InConsultation visits) */}
+                {item.status !== 'Completed' && (
+                  <button
+                    onClick={() => handleRemoveFromQueue(item.id, item.patientName, item.tokenNumber)}
+                    className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl border border-slate-200 hover:border-rose-200 transition-colors"
+                    title={`Remove ${item.patientName} from queue (releases Token #${item.tokenNumber})`}
+                  >
+                    <Trash2 className="w-4 h-4" />
                   </button>
                 )}
               </div>
