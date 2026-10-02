@@ -233,3 +233,94 @@ Located in the Clinic Settings section:
   - Queries active vitals configured for the clinic in their specified `DisplayOrder`.
   - Automatically displays unit badges (`mmHg`, `bpm`, `°F`, `mg/dL`).
   - Evaluates recorded values against `NormalRangeMin` and `NormalRangeMax` in real-time, displaying subtle warning color indicators (amber/red) if vitals are out of normal physiological range.
+
+---
+
+## 6. Granular Subscription Management & Usage Quotas Engine
+
+To enable commercial distribution across diverse Indian healthcare clinic profiles, Phase 2 implements a flexible, dual-track subscription and usage quota model.
+
+### A. Dual-Track Pricing Model (Metered Quota vs. Unlimited)
+Every subscription tier can be configured in either a **Metered/Capped** or **Unlimited** operational mode:
+
+| Tier | Plan Variant | Max Doctors | Max Staff | Monthly Visit / Rx Quota | Target Use Case |
+| :--- | :--- | :---: | :---: | :---: | :--- |
+| **Starter Clinic** | **Capped / Metered** | 1 | 2 | Configurable (e.g., 250, 500, 1,000 visits/mo) | Budget-conscious solo doctor |
+| **Starter Clinic** | **Unlimited** | 1 | 2 | **Unlimited** (`Quota = null`) | High-volume solo practitioner |
+| **Multi-Doctor Practice** | **Capped / Metered** | Up to 5 | 10 | Configurable (e.g., 1,000, 2,500, 5,000 visits/mo) | Polyclinic sharing an OPD quota pool |
+| **Multi-Doctor Practice** | **Unlimited** | Up to 5 | 10 | **Unlimited** (`Quota = null`) | Busy multi-specialty polyclinic |
+| **Enterprise / Hospital OPD**| **Tailored** | Custom | Custom | Custom Quota or Unlimited | Multi-branch or nursing home chain |
+
+### B. SaaS Owner (`PlatformAdmin`) Super-Powers & Overrides
+The SaaS Owner has complete discretionary authority over clinic quotas:
+1. **Global Plan Catalog (`SubscriptionPlanMaster`)**: Define standard packages sold publicly.
+2. **Individual Clinic Overrides (`ClinicSubscription`)**:
+   - Manually adjust any clinic's monthly limit to any custom integer.
+   - Quick one-click quota multipliers / top-up blocks:
+     - `+250 Visits Top-Up`
+     - `+500 Visits Top-Up`
+     - `+1,000 Visits Top-Up`
+   - One-click `Switch to Unlimited` toggle per clinic.
+   - Configurable rollover toggle: choose whether unused visits expire at month-end or roll over.
+
+### C. Database Schema for Subscriptions
+
+1. **`SubscriptionPlanMaster` (Plan Templates)**:
+   - `Id`: `Guid` (PK)
+   - `PlanName`: `string` (e.g., "Starter - 500 Visits", "Multi-Doctor Unlimited")
+   - `Tier`: `string` (`Starter`, `MultiDoctor`, `Enterprise`)
+   - `IsUnlimitedVisits`: `bool`
+   - `DefaultMonthlyVisits`: `int?` (`null` if unlimited, or integer limit)
+   - `MaxDoctors`: `int`
+   - `MaxStaff`: `int`
+   - `PriceINR`: `decimal`
+   - `BillingCycle`: `string` (`Monthly`, `Quarterly`, `Annual`)
+   - `IsActive`: `bool`
+
+2. **`ClinicSubscription` (Active Tenant Entitlements & Overrides)**:
+   - `Id`: `Guid` (PK)
+   - `ClinicId`: `Guid` (FK &rarr; `Clinics`)
+   - `PlanId`: `Guid` (FK &rarr; `SubscriptionPlanMaster`)
+   - `IsUnlimitedVisits`: `bool` (allows SaaS Owner to override plan default)
+   - `MonthlyVisitQuota`: `int?` (active limit for this clinic, e.g. 750 or `null` if unlimited)
+   - `AdditionalTopUpVisits`: `int` (extra bonus or purchased visits added by SaaS Owner)
+   - `Status`: `string` (`Trial`, `Active`, `GracePeriod`, `QuotaExceeded`, `Suspended`)
+   - `CurrentPeriodStart`: `DateTime`
+   - `CurrentPeriodEnd`: `DateTime`
+   - `GracePeriodDays`: `int` (default 5 days)
+
+3. **`ClinicMonthlyUsage` (Real-Time Counter)**:
+   - `Id`: `Guid` (PK)
+   - `ClinicId`: `Guid` (FK)
+   - `YearMonth`: `string` (e.g., "2026-10")
+   - `VisitsConducted`: `int` (increments on every completed consultation / generated prescription)
+   - `LastVisitRecordedAt`: `DateTime`
+
+4. **`SubscriptionPaymentHistory` (Invoices & Payments)**:
+   - `Id`: `Guid` (PK)
+   - `ClinicId`: `Guid` (FK)
+   - `SubscriptionId`: `Guid` (FK)
+   - `Amount`: `decimal`
+   - `PaymentMethod`: `string` (UPI, NetBanking, Card, Cash, Cheque)
+   - `TransactionReference`: `string` (Payment gateway transaction ID or manual bank UTR)
+   - `InvoiceNumber`: `string`
+   - `Status`: `string` (`Success`, `Pending`, `Failed`)
+
+### D. Non-Disruptive Quota Enforcement (Clinical Safety First)
+Patient care is never abruptly terminated mid-clinic:
+1. **Total Allowed Calculation**: `TotalAllowed = (MonthlyVisitQuota ?? ∞) + AdditionalTopUpVisits`.
+2. **Soft Buffer (+20 Visits)**:
+   - If usage reaches the quota, visits are still permitted up to a +20 visit safety buffer.
+   - Non-intrusive warning banner appears on the Doctor and Receptionist navbars:
+     *"⚠️ Monthly OPD Quota Reached (500/500). Please contact SaaS Admin to upgrade or top-up."*
+3. **Hard Cap (Beyond Buffer)**:
+   - Blocks new queue token generation with a friendly upgrade modal.
+   - **Clinical Safety Guarantee**: Past patient history, vitals trends, and past prescriptions remain 100% accessible in read-only mode for medicolegal safety.
+
+### E. SaaS Owner UI: Quota & Subscription Studio (`/admin/clinics/{id}/subscription`)
+Located in the Super Admin Portal:
+- Visual usage meter: `[===============>      ] 380 / 500 Visits (76%)`
+- Unlimited Visits toggle switch.
+- Custom base quota input field.
+- Quick top-up buttons: `+250`, `+500`, `+1,000` visits.
+- Offline payment recorder (record direct bank transfers / UPI payments with invoice generation).

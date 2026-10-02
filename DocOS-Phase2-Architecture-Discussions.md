@@ -205,13 +205,45 @@ Because DocOS strictly adheres to Clean Architecture:
 
 ---
 
-## 7. Implementation Readiness Checklist
+## 7. Granular Subscription Management, Metered vs. Unlimited Quotas & SaaS Owner Controls
+
+### A. Business Need & Context
+- Clinics in the Indian OPD ecosystem vary drastically in patient volume:
+  - Small, starting practices with 150–300 patient visits/month prefer lower-cost, capped/metered plans.
+  - Busy solo consultants or polyclinics with 1,000+ patient visits/month demand unlimited plans.
+- The SaaS Owner (`PlatformAdmin`) requires total operational flexibility:
+  - Both **Starter Clinic** and **Multi-Doctor Practice** tiers must offer both **Metered/Capped** and **Unlimited** options.
+  - The SaaS Owner must be able to customize or override visit limits for any specific clinic, add top-ups in multiples (`+250`, `+500`, `+1,000` visits), or toggle a clinic directly to Unlimited.
+
+### B. Core Decisions on Subscription Architecture
+1. **Dual-Track Plan Options (Metered vs. Unlimited)**:
+   - Every tier can be packaged as Capped or Unlimited.
+   - Plans in `SubscriptionPlanMaster` store `IsUnlimitedVisits` (bool) and `DefaultMonthlyVisits` (int?).
+2. **SaaS Owner Override Powers (`ClinicSubscription`)**:
+   - The active clinic subscription holds `MonthlyVisitQuota` (int?) and `AdditionalTopUpVisits` (int).
+   - The SaaS Owner can modify the quota for any clinic at will or grant extra visit top-up blocks.
+3. **Usage Metering (`ClinicMonthlyUsage`)**:
+   - Increments on completed consultations or generated prescriptions per billing cycle (`YearMonth`).
+4. **Clinical Safety Guarantee (Soft Buffer + Read-Only Protection)**:
+   - When a clinic reaches its quota, a soft safety buffer (+20 visits) allows in-progress clinics to finish without abrupt system locks.
+   - Even when hard capped, all historical patient records, past vitals, and past prescriptions remain 100% accessible in read-only mode to prevent medicolegal risks.
+5. **SaaS Owner UI (`/admin/clinics/{id}/subscription`)**:
+   - Visual usage percentage bar (`380 / 500 Visits (76%)`).
+   - One-click quick top-up buttons: `+250`, `+500`, `+1,000` visits.
+   - Unlimited toggle switch and base quota input.
+   - Offline payment recording (cash/UPI/cheque) with automatic receipt generation.
+
+---
+
+## 8. Implementation Readiness Checklist
 
 When you are ready to begin Phase 2 code execution:
 - [ ] Run Git commands to tag `v1.0-mvp` on `main` and checkout branch `phase-2`.
 - [ ] Install `Microsoft.EntityFrameworkCore.SqlServer` NuGet package in `DocOS.Infrastructure`.
 - [ ] Configure the `DatabaseProvider` toggle ("SqlServer" for local laptop, "PostgreSQL" for Supabase).
 - [ ] Implement Milestone 1: PlatformAdmin authentication, `AspNetRoles` seeding (`PlatformAdmin`, `ClinicAdmin`, `Doctor`, `Nurse`, `Receptionist`), and Super Admin dashboard.
-- [ ] Implement Milestone 2: `VitalMaster` and `VisitVitals` schema, migrations for both providers, and `/admin/masters` UI.
-- [ ] Implement Milestone 3: Clinic tenant onboarding, multi-doctor queue routing, and `/settings/vitals` configurator.
+- [ ] Implement Milestone 2: `SubscriptionPlanMaster`, `ClinicSubscription`, and `ClinicMonthlyUsage` tables and SaaS Owner Quota Studio.
+- [ ] Implement Milestone 3: `VitalMaster` and `VisitVitals` schema, migrations for both providers, and `/admin/masters` UI.
+- [ ] Implement Milestone 4: Clinic tenant onboarding, multi-doctor queue routing, and `/settings/vitals` configurator.
+
 
