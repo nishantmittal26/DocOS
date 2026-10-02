@@ -235,7 +235,29 @@ Because DocOS strictly adheres to Clean Architecture:
 
 ---
 
-## 8. Implementation Readiness Checklist
+## 8. Universal & Configurable ABDM (Ayushman Bharat Digital Mission) Architecture
+
+### A. Strategic Rationale
+- Initially, ABDM compliance was grouped under high-tier enterprise hospital plans.
+- **Decision**: DocOS is specifically designed for Indian solo doctors and multi-doctor outpatient clinics. The Government of India's ABDM mission is designed for grassroots adoption across private OPD clinics.
+- Therefore, **ABDM capabilities are elevated to a universal platform feature** available to **all clinic tiers** (Starter Clinic & Multi-Doctor Practice), rather than an enterprise-only add-on.
+
+### B. Configurable Clinic-Level Toggle
+Not all Indian doctors immediately adopt ABDM on day one. To prevent friction:
+1. **Configurable Flag (`EnableAbdmIntegration` on `Clinics`)**:
+   - Clinic Admin or Doctor can toggle ABDM ON or OFF in their Clinic Settings at any time.
+   - When **OFF**: The clinic operates cleanly as a rapid digital prescription generator without asking patients for ABHA OTPs or ABHA IDs.
+   - When **ON**: Patient registration & check-in displays optional ABHA verification fields, QR code scan for ABHA check-in, and HFR/HPR provider linking.
+
+### C. Schema Entities Supporting Universal ABDM
+- **`Patients`**: `AbhaNumber` (14-digit identifier: `XX-XXXX-XXXX-XXXX`), `AbhaAddress` (PHR handle: `patient@abdm`), `IsAbhaVerified` (bool).
+- **`Clinics`**: `HfrId` (Health Facility Registry ID registered on the National Health Authority portal), `EnableAbdmIntegration` (bool).
+- **`AspNetUsers` (`DoctorProfile`)**: `HprId` (Healthcare Professional Registry ID of the consulting doctor).
+- **`SubscriptionPlanMaster`**: `HasAbdmIntegration` (bool, default `true` across all tiers).
+
+---
+
+## 9. Implementation Readiness Checklist
 
 When you are ready to begin Phase 2 code execution:
 - [ ] Run Git commands to tag `v1.0-mvp` on `main` and checkout branch `phase-2`.
@@ -244,6 +266,6 @@ When you are ready to begin Phase 2 code execution:
 - [ ] Implement Milestone 1: PlatformAdmin authentication, `AspNetRoles` seeding (`PlatformAdmin`, `ClinicAdmin`, `Doctor`, `Nurse`, `Receptionist`), and Super Admin dashboard.
 - [ ] Implement Milestone 2: `SubscriptionPlanMaster`, `ClinicSubscription`, and `ClinicMonthlyUsage` tables and SaaS Owner Quota Studio.
 - [ ] Implement Milestone 3: `VitalMaster` and `VisitVitals` schema, migrations for both providers, and `/admin/masters` UI.
-- [ ] Implement Milestone 4: Clinic tenant onboarding, multi-doctor queue routing, and `/settings/vitals` configurator.
+- [ ] Implement Milestone 4: Clinic tenant onboarding, multi-doctor queue routing, `/settings/vitals` configurator, and configurable ABDM settings (`EnableAbdmIntegration`).
 
 

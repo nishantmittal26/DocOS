@@ -73,6 +73,7 @@ Represents all users: Platform Super Admins, Clinic Owners, Doctors, Nurses, and
 | `ClinicId` | `Guid` | **Yes** | FK &rarr; `Clinics(Id)` | **`null` for PlatformAdmin**; assigned for clinic staff |
 | `Qualifications` | `string` / `varchar(200)` | Yes | — | e.g. "MBBS, MD (Medicine)" (Doctor specific) |
 | `MedicalCouncilRegNo`| `string` / `varchar(100)`| Yes | — | e.g. "MCI-2018-87451" (Doctor specific) |
+| `HprId` | `string` / `varchar(100)`| Yes | — | Healthcare Professional Registry ID (ABDM) |
 | `Speciality` | `string` / `varchar(100)` | Yes | — | e.g. "General Physician", "Pediatrics" |
 | `ConsultationFee` | `decimal(10,2)` | Yes | `0.00` | Default consultation fee charged by doctor |
 | `IsActive` | `bool` | No | `true` | Allows deactivating staff without deleting records |
@@ -120,6 +121,8 @@ Represents independent medical practices or clinic facilities.
 | `ClinicTimings` | `string` / `varchar(200)` | Yes | — | e.g. "Mon-Sat: 10:00 AM - 08:00 PM" |
 | `Status` | `string` / `varchar(30)` | No | `'Trial'` | `'Trial'`, `'Active'`, `'Suspended'`, `'Deactivated'` |
 | `MaxDoctorsAllowed` | `int` | No | `1` | Max concurrent doctors allowed by active subscription |
+| `HfrId` | `string` / `varchar(100)`| Yes | — | Health Facility Registry ID (ABDM Clinic ID) |
+| `EnableAbdmIntegration`| `bool` | No | `true` | Configurable ABDM toggle per clinic |
 | `LogoUrl` | `string` / `varchar(500)` | Yes | — | Header logo for blank paper print |
 | `PrintTopMarginMm` | `int` | No | `0` | Offset (0-120mm) for physical letterhead pads |
 | `PrintBottomMarginMm`| `int` | No | `0` | Bottom margin offset for stationery |
@@ -147,6 +150,7 @@ Catalog of subscription packages managed by `PlatformAdmin`.
 | `BillingCycle` | `string` / `varchar(30)` | No | `'Monthly'` | `'Monthly'`, `'Quarterly'`, `'Annual'` |
 | `HasCustomVitals` | `bool` | No | `true` | Feature flag |
 | `HasLabModule` | `bool` | No | `true` | Feature flag |
+| `HasAbdmIntegration` | `bool` | No | `true` | Universal ABDM feature flag for all tiers |
 | `IsActive` | `bool` | No | `true` | Offered for new signups/upgrades |
 
 ### 4.2 `ClinicSubscription`
@@ -279,6 +283,9 @@ Master patient demographic record.
 | `DateOfBirth` | `DateTime` | Yes | — | Optional exact DOB |
 | `Gender` | `string` / `varchar(20)` | No | — | `'Male'`, `'Female'`, `'Other'` |
 | `BloodGroup` | `string` / `varchar(10)` | Yes | — | e.g. `"O+"`, `"B+"` |
+| `AbhaNumber` | `string` / `varchar(17)` | Yes | Index | 14-digit ABHA ID (`XX-XXXX-XXXX-XXXX`) |
+| `AbhaAddress` | `string` / `varchar(100)`| Yes | Index | ABDM PHR handle (e.g. `patient@abdm`) |
+| `IsAbhaVerified`| `bool` | No | `false` | ABHA OTP/biometric verification status |
 | `Allergies` | `string` / `varchar(500)`| Yes | — | **Drug allergies trigger visual alert banner** |
 | `Address` | `string` / `varchar(300)`| Yes | — | Residential address |
 | `CreatedAt` | `DateTime` | No | `UtcNow` | First registration date |

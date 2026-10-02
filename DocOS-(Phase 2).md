@@ -50,13 +50,15 @@ DocOS Phase 2 expands the validated Phase 1 (MVP) single-clinic OPD platform int
 - **Digital Patient Portal / Rx QR Code**:
   - Secure QR code printed on prescriptions allowing patients to view their digital prescription online.
 
-### E. Analytics, Billing & Compliance
+### E. Analytics, Billing & Universal ABDM Readiness
 - **Clinic Financials & Daily Collection**:
   - Cash / UPI consultation fee collection tracker for receptionists.
   - Daily OPD revenue reports and reconciliation.
-- **Audit Logs & ABDM Readiness**:
+- **Audit Logs & Universal ABDM (Ayushman Bharat Digital Mission) Integration**:
   - Tamper-proof audit logs for clinical record modifications.
-  - Preparations for Ayushman Bharat Digital Mission (ABDM) M1/M2/M3 compliance (ABHA ID integration).
+  - **Universal ABDM Readiness across all tiers**: Built for single-doctor clinics and multi-doctor practices alike (not restricted to enterprise).
+  - **Configurable per clinic**: Toggled ON or OFF via clinic settings (`EnableAbdmIntegration`).
+  - Supports ABHA ID (Ayushman Bharat Health Account) capture (`AbhaNumber`, `AbhaAddress`), doctor HPR ID (Healthcare Professional Registry), and clinic HFR ID (Health Facility Registry).
 
 ---
 
@@ -81,6 +83,7 @@ In Phase 1, roles were simplified into a single column `Role` on `AspNetUsers` (
    - Doctor credentials moved to user-level:
      - `Qualifications` (e.g. MBBS, MD Medicine)
      - `MedicalCouncilRegistrationNumber`
+     - `HprId` (Healthcare Professional Registry ID for ABDM doctor verification)
      - `Speciality` (e.g. General Physician, Pediatrics)
      - `ConsultationFee`
    - Active status flag: `IsActive` (bool) to allow disabling staff accounts without deleting user data.
@@ -93,17 +96,24 @@ In Phase 1, roles were simplified into a single column `Role` on `AspNetUsers` (
    - `SubscriptionExpiresAt`: `DateTime?`
    - `MaxDoctorsAllowed`: `int` (default `1` for starter, higher for multi-doctor).
    - `Subdomain`: `string?` (unique slug, e.g. `careclinic`).
+   - `HfrId`: `string?` (Health Facility Registry ID for ABDM clinic accreditation).
+   - `EnableAbdmIntegration`: `bool` (configurable toggle per clinic: true = enables ABHA intake & linking).
 
-2. **`Visits` (OPD Queue) Table Modifications**:
+2. **`Patients` Table ABDM Extensions**:
+   - `AbhaNumber`: `string?` (14-digit Ayushman Bharat Health Account number: `XX-XXXX-XXXX-XXXX`).
+   - `AbhaAddress`: `string?` (ABDM Personal Health Record handle, e.g. `patient@abdm`).
+   - `IsAbhaVerified`: `bool` (flag indicating verified ABHA record via OTP/demographics).
+
+3. **`Visits` (OPD Queue) Table Modifications**:
    - Add `DoctorId`: `Guid?` (foreign key pointing to `AspNetUsers.Id`).
    - Enables separate OPD queues per doctor within the same multi-doctor clinic.
    - Receptionist can route a patient to Dr. A or Dr. B at check-in.
 
-3. **`Prescriptions` Table Modifications**:
+4. **`Prescriptions` Table Modifications**:
    - Explicit `DoctorId`: `Guid` (ensures prescriptions are linked directly to the consulting doctor's council registration number and signature, even in multi-doctor practices).
    - `PdfShareToken`: `string?` (unique secure token for WhatsApp / QR code online prescription viewer).
 
-4. **New `AuditLogs` Table**:
+5. **New `AuditLogs` Table**:
    - `Id`, `TenantId`, `UserId`, `Action` (Create, Update, Delete, View), `EntityName`, `EntityId`, `Timestamp`, `IpAddress`, `ChangesJson`.
 
 ### C. Multi-Database Provider Architecture (Factory Pattern: SQL Server & PostgreSQL)
