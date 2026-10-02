@@ -1,295 +1,189 @@
-# DocOS — Phase 2 Architecture Discussions & Design Decisions Record
+# DocOS — Phase 2 Architecture Decision Record
 
-**Date**: October 2, 2026  
-**Document Status**: Final Architecture Review  
-**Related Documents**:
-- Baseline MVP Specification: [DocOS-(Phase 1).md](file:///c:/Nishant/Code/Antigravity/DocOS/DocOS-%28Phase%201%29.md)
-- Active Phase 2 Master Specification: [DocOS-(Phase 2).md](file:///c:/Nishant/Code/Antigravity/DocOS/DocOS-%28Phase%202%29.md)
-- Transition Execution Checklist: [DocOS-Phase2-Transition-Steps.md](file:///c:/Nishant/Code/Antigravity/DocOS/DocOS-Phase2-Transition-Steps.md)
+**Revision date:** 3 October 2026  
+**Status:** Chosen design for implementation  
+**Supersedes:** the 2 October 2026 draft on the points in section 1
 
----
+Related documents:
 
-## 1. Executive Summary
+- Locked MVP baseline: [DocOS-(Phase 1).md](DocOS-(Phase%201).md)
+- Active master spec: [DocOS-(Phase 2).md](<DocOS-(Phase 2).md>)
+- Schema by part: [DocOS-Phase2-Database-Schema.md](DocOS-Phase2-Database-Schema.md)
 
-This document captures the architectural deliberations, technical decisions, and design principles agreed upon for transitioning **DocOS** from a single-clinic OPD prototype (Phase 1 / MVP) into a multi-tenant, commercially distributable SaaS with Super Administration and configurable clinical master data (Phase 2 / V2).
-
----
-
-## 2. Project Separation & Isolation Strategy
-
-### A. Preserving Phase 1 as an Immutable MVP
-- **Decision**: Keep Phase 1 locked as a validated baseline (`DocOS-(Phase 1).md`).
-- **Rationale**: Ensures the working MVP remains intact and functional for immediate demonstrations or independent deployment without being broken by experimental multi-tenant changes.
-
-### B. Git Branching & Tagging
-- **Decision**:
-  1. Tag the current `main` branch with `v1.0-mvp`.
-  2. Create and push a dedicated feature branch: `phase-2`.
-  3. All Phase 2 architectural migrations and portal work will happen strictly on `phase-2`.
-
-### C. Fresh Database for Phase 2
-- **Decision**: A brand-new Supabase PostgreSQL project / connection string will be provided by the user for Phase 2.
-- **Rationale**:
-  - Phase 2 introduces table alterations (`Visits` adding `DoctorId`, `ApplicationUser` decoupling `ClinicId`, new master catalogs).
-  - Isolating databases ensures zero risk of destructive migrations or data corruption on Phase 1 MVP records.
+The build order and the done-when lists live in the master spec. This record is why those choices were locked.
 
 ---
 
-## 3. RBAC & Identity Evolution: Transitioning to `AspNetUserRoles`
+## 1. What this revision supersedes
 
-### A. The Phase 1 Limitation
-In Phase 1, user roles were stored as a simple string column directly on the `AspNetUsers` table:
-```csharp
-public class ApplicationUser : IdentityUser
+| Earlier draft (2 October 2026) | Decision locked on 3 October 2026 |
+| :--- | :--- |
+| PostgreSQL and SQL Server together, with a provider factory and two migration folders | Phase 2 uses Microsoft SQL Server only. One migration folder |
+| One Phase 2 release that included identity, billing, vitals, labs, messaging, and ABDM | Sequential parts 2A, 2B, 2C, 2D, then a Later list that is not executed with them |
+| `DosageFrequencyMaster` and `DosageTimingMaster` | Dosage stays the shorthand string (`1-0-1`) and the existing `DosageTiming` enum. `DurationDays` stays an `int` |
+| `ComplaintMaster` in Phase 2 | `ChiefComplaints` stays free text |
+| ABDM treated as compliance, with a plan flag and identifier columns in Phase 2 | ABDM is deferred. Storing an identifier is not compliance. `IsAbhaVerified` stays false until a real verification flow exists. `EnableAbdmIntegration` defaults to false when those columns are added later |
+| `ClinicMonthlyUsage.YearMonth` | `ClinicPeriodUsage` follows the subscription period (`PeriodStart`, `PeriodEnd`) |
+| `Clinics.Status`, tier, expiry, and max doctors copied onto the clinic row | The clinic lifecycle lives only on `ClinicSubscription`. Doctor cap is the plan’s `MaxDoctors`, overridable with `MaxDoctorsOverride` |
+| `IsDoctorFavorite` on `Medicines` | `DoctorMedicineFavorite` is unique on `(UserId, MedicineId)` |
+| `DoctorId` as `uniqueidentifier` | `Visit.DoctorId` and `Prescription.DoctorId` are `nvarchar(450)`, the Identity user id |
+
+---
+
+## 2. Why these choices
+
+**One database provider.** Two migration sets mean every schema change is written, reviewed, and repaired twice, and the folders drift. Phase 2 development and the hosted deployment both use SQL Server. The Phase 1 PostgreSQL database stays the tagged MVP snapshot. It is not altered in place, and Phase 2 does not point at it.
+
+**Four parts.** The October 2 scope was larger than one release: roles, onboarding, quotas, dynamic vitals, labs, a public link, payments, and audit. A part is allowed to ship only when the previous part still runs. Identity and multi-doctor queues (2A) stand alone before billing (2B). Vitals stay columns until 2C. Labs and the public link wait until 2D.
+
+**Free-text complaints and stable dosage shorthand.** Indian OPD notes are written as a line such as “Fever x 3 days, dry cough x 1 week,” and the printed dose is already `1-0-1` plus a meal timing. Dictionary tables on that path add lookups and do not change the paper. Those masters are on the Later list.
+
+**Usage follows the invoice period.** A quarterly or annual clinic does not have a calendar `YearMonth` that matches what they paid for. `ClinicPeriodUsage` counts completed visits between `CurrentPeriodStart` and `CurrentPeriodEnd`. A top-up adds visits to that period only. Unused base quota is not copied into the next period. PlatformAdmin can still raise `MonthlyVisitQuota` or switch the clinic to unlimited immediately.
+
+**Favorites are per doctor.** A global formulary row is shared by every clinic. One boolean on that row cannot mean “Dr A’s shortcut” without changing the row for everyone else. The favorite is a link from `AspNetUsers.Id` to `Medicines.Id`.
+
+**Identity ids are strings.** ASP.NET Core Identity primary keys in this codebase are `nvarchar(450)`. A `uniqueidentifier` doctor foreign key would not match `AspNetUsers.Id`.
+
+**Audit is a normal table.** `AuditLogs.ChangesJson` supports review of creates, updates, deletes, logins, and prints. It is a SQL table with a JSON column. Phase 2 does not claim a tamper-proof ledger, and it does not write a row for every queue view.
+
+**Handover is on screen.** WhatsApp or SMS needs a provider, an approved template, and consent. Part 2B shows the login URL, the credentials, and a QR code that opens the login page. Message delivery stays on the Later list.
+
+---
+
+## 3. Phase 1 facts this design sits on
+
+The working MVP is Clean Architecture (`DocOS.Domain`, `DocOS.Application`, `DocOS.Infrastructure`, `DocOS.API`), CQRS with MediatR, and a React + Vite client. Routes already in use: `/`, `/history`, `/patients`, `/consultation/:visitId`, `/settings`. Print is a React portal plus `@media print`.
+
+Today `ApplicationUser` has a non-null `ClinicId` and a string `Role` of `Doctor` or `Receptionist`. `AspNetRoles` is created and unused. JWT emits one role and `ClinicId`. Handlers filter by clinic in code. There is no EF global query filter. JWT lifetime is long (days), and the signing key has a hardcoded fallback. Part 2A removes that fallback and shortens the access token. This record does not describe how to abuse the fallback.
+
+Doctor letterhead fields sit on `Clinic` (`RegNumber`, `Qualifications`, `Specialization`). Vitals are columns, including one free-text `Sugar`. `PrescriptionItem` stores `SaltComposition`, a dosage string, `DosageTiming`, and `DurationDays`. `Medicine.ClinicId` null is the shared formulary. `Manufacturer` is already on `Medicine`.
+
+---
+
+## 4. SQL Server connection
+
+Phase 2 configuration has one connection string. Infrastructure calls `UseSqlServer` and stores migrations in `DocOS.Infrastructure/Migrations`.
+
+`Guid` is `uniqueidentifier`. Date-time is `datetime2`. Strings are `nvarchar`. Identity keys and doctor foreign keys are `nvarchar(450)`.
+
+Local development uses SQL Server on the laptop. A later hosted environment uses the same provider and the same connection-string name, with a hosted server value.
+
+```json
 {
-    public Guid ClinicId { get; set; }
-    public string Role { get; set; } = "Doctor"; // "Doctor" or "Receptionist"
+  "ConnectionStrings": {
+    "DocOS": "Server=localhost;Database=DocOS;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true"
+  }
 }
 ```
-While ASP.NET Identity tables (`AspNetRoles`, `AspNetUserRoles`) were created by EF Core, they remained unused. This created limitations:
-- A user could not hold more than one role (e.g., a clinic owner who is both `ClinicAdmin` and `Doctor`).
-- A `PlatformAdmin` (Super Admin) could not exist cleanly because `ClinicId` was non-nullable.
-- Granular staff roles (Nurse, Assistant, Pharmacist) could not be assigned dynamically.
 
-### B. The Phase 2 RBAC Design
-1. **Activate `AspNetRoles` and `AspNetUserRoles`**:
-   - Seed formal roles: `PlatformAdmin`, `ClinicAdmin`, `Doctor`, `Nurse`, `Receptionist`.
-   - Manage user-role mappings using standard ASP.NET Identity: `UserManager.AddToRoleAsync(user, role)` and `UserManager.GetRolesAsync(user)`.
-   - Store assignments in the relational `AspNetUserRoles` join table.
-2. **Support Multi-Role Users**:
-   - A doctor running their own practice holds both `ClinicAdmin` and `Doctor` roles.
-3. **Decouple PlatformAdmin**:
-   - In `ApplicationUser`, `ClinicId` becomes nullable (`Guid?`).
-   - `PlatformAdmin` accounts have `ClinicId = null`, granting them platform-wide visibility rather than clinic-scoped boundaries.
-4. **JWT Policy Authorization**:
-   - JWT token generator emits all assigned roles as `ClaimTypes.Role` claims.
-   - ASP.NET Core endpoints are secured via standard attributes: `[Authorize(Roles = "PlatformAdmin")]`, `[Authorize(Roles = "ClinicAdmin,Doctor")]`.
+There is no `DatabaseProvider` key and no second connection string in the Phase 2 plan.
+
+When implementation starts: tag `main` as `v1.0-mvp`, branch `phase-2`, and create an empty SQL Server database for that branch.
 
 ---
 
-## 4. Master Data-Driven Architecture (Observation & Catalog Pattern)
+## 5. Identity, tenancy, and queues (part 2A)
 
-### A. The Challenge with Hardcoded Vitals
-In Phase 1, vitals were hardcoded columns on the `Visits` table (`TemperatureF`, `WeightKg`, `HeightCm`, `Bmi`, `PulseBpm`, `SugarFasting`, etc.).
-- *Drawback*: Adding any new vital (e.g. Waist Circumference, SpO2 variations, Pediatric head circumference) required EF migrations, C# domain entity updates, DTO updates, and UI changes.
+Seeded roles are only `PlatformAdmin`, `SalesAgent`, `ClinicAdmin`, `Doctor`, `Nurse`, and `Receptionist`. A clinic owner holds `ClinicAdmin` and `Doctor`. The string `Role` column is removed once `AspNetUserRoles` is populated. The JWT emits each role as `ClaimTypes.Role`.
 
-### B. The Architecture Pattern: Master-Transactional / Observation Pattern
-In enterprise healthcare systems (such as **HL7 FHIR `ObservationDefinition` & `Observation`**), dynamic clinical measurements are structured via a **Master-Transactional** (or Observation) pattern:
+`ClinicId` is null only for PlatformAdmin and SalesAgent. Every clinic staff user has a clinic. Clinic-scoped handlers reject a null `ClinicId`, so platform roles cannot read patients, visits, or prescriptions through those APIs. The regression test is named “platform admin cannot read clinic clinical records.” SQL Server row-level security is not part of the design.
 
-#### 1. Master Table: `VitalMaster` (The Catalog / Definition)
-Stores the definition and clinical validation rules of each vital:
-- `Id`: Guid
-- `ClinicId`: `Guid?` (`null` = global standard; non-null = clinic custom vital)
-- `Code`: string (`BP_SYS`, `BP_DIA`, `PULSE`, `TEMP_F`, `SPO2`, `SUGAR_F`, `SUGAR_PP`, `BMI`, `WAIST`)
-- `DisplayName`: string ("Blood Pressure (Systolic)", "Fasting Blood Sugar")
-- `Unit`: string ("mmHg", "bpm", "°F", "mg/dL", "cm")
-- `InputType`: string (`Number`, `Decimal`, `Text`, `Select`)
-- `NormalRangeMin` / `NormalRangeMax`: decimal? (Reference ranges for abnormal triage alerting)
-- `DisplayOrder`: int
-- `IsRequired`: bool
-- `IsActive`: bool
+`SalesAgent` may exist in 2A. The column `Clinics.OnboardedByUserId` and the onboarding screens arrive in 2B, and that is what limits an agent to their own clinics.
 
-#### 2. Tenant Configuration: `ClinicVitalPreference`
-Allows a clinic to tailor which vitals it collects:
-- Enables / disables specific global vitals (e.g., Pediatrics disables adult fasting sugar, enables birth weight).
-- Customizes display order / triage intake sequence.
-- Sets clinic-specific mandatory flags.
+Letterhead identity moves to the user: `Qualifications`, `MedicalCouncilRegistrationNumber`, `Speciality`, `ConsultationFee`. `HprId` stays off the 2A table. The clinic keeps its trade name, contacts, logo, `LetterheadMarginTopMm` (default 60), `PatientIdPrefix`, `LastPatientSequence`, and gains `PrintBottomMarginMm` (default 0), `HideLetterheadOnPrint` (default false), and `ClinicTimings`.
 
-#### 3. Transactional Table: `VisitVitals` (The Recorded Observation)
-Stores the physical measurement recorded during a patient's visit:
-- `Id`: Guid
-- `VisitId`: Guid (FK &rarr; `Visits`)
-- `PatientId`: Guid (FK &rarr; `Patients`)
-- `VitalMasterId`: Guid (FK &rarr; `VitalMaster`)
-- `Value`: string (e.g. "120", "98.6", "110")
-- `Unit`: string (Historical snapshot of the unit)
-- `RecordedAt`: DateTime
-- `RecordedByUserId`: string (Staff member who captured the reading)
+The receptionist selects the doctor at check-in. Token numbers are unique per clinic, doctor, and calendar day. `Prescription.DoctorId` is required when the consult is saved. Visit vitals, free-text complaints, dosage shorthand, prescription snapshots, the allergy banner, formulary search, and the print portal stay as they are in 2A.
 
-### C. Extension to Other Clinical Catalogs
-This exact pattern is applied across the clinical workflow:
-- **Lab Investigations**: `LabTestMaster` (Catalog) &rarr; `PrescriptionLabOrders` (Per visit).
-- **Chief Complaints**: `ComplaintMaster` (Symptoms dictionary) &rarr; `VisitComplaints` (Recorded symptoms with durations).
-- **Dosage Schedules**: `DosageFrequencyMaster` (`1-0-1`, `SOS`, `STAT`) &rarr; `PrescriptionItems`.
-- **Clinical Advice**: `AdviceTemplateMaster` (Diet & post-op care snippets) &rarr; `PrescriptionAdvice`.
+Staff deactivation sets `IsActive` and leaves the row, so past visits still name that person.
+
+Standard Identity tables (`AspNetRoleClaims`, `AspNetUserClaims`, `AspNetUserLogins`, `AspNetUserTokens`) are created by EF. Part 2A does not invent a parallel permission vocabulary. Endpoints use role authorization.
 
 ---
 
-## 5. UI Configuration Screens & RBAC Access Matrix
+## 6. Onboarding and entitlements (part 2B)
 
-To ensure non-technical users can configure the application without modifying code, DocOS Phase 2 establishes dedicated UI configuration screens segmented strictly by RBAC roles:
+The wizard `/admin/onboard-doctor` has four steps: clinic and primary doctor, plan and quota, letterhead preview (blank A4 versus pad margin), and on-screen handover. The QR target is the shared login page. Tenant resolution remains the `ClinicId` claim.
 
-### A. Role-Based Access Matrix
+`SubscriptionPlanMaster` holds `PlanCode`, tier (`Starter`, `MultiDoctor`, `Enterprise`), unlimited versus `DefaultMonthlyVisits`, `MaxDoctors`, `MaxStaff`, `PriceINR`, billing cycle (`Monthly`, `Quarterly`, `Annual`), and the flags `HasCustomVitals` and `HasLabModule`. Those flags may be stored in 2B. The modules they describe are 2C and 2D. There is no ABDM selling flag.
 
-| Configuration Module | PlatformAdmin (Super Admin) | ClinicAdmin (Practice Owner) | Doctor | Receptionist / Nurse |
-| :--- | :---: | :---: | :---: | :---: |
-| **Global Master Catalog Studio** (`/admin/masters`) | **Full Access** (Platform-wide) | No Access | No Access | No Access |
-| **Clinic Vitals Workflow Settings** (`/settings/vitals`) | Audit / Supervise | **Full Access** (Enable/Disable/Reorder) | View / Suggest | Captures vitals dynamically |
-| **Clinic Lab Panels** (`/settings/lab-tests`) | Manage Global Tests | **Full Access** (Create custom packages) | **Full Access** | Views on Rx print |
-| **Advice & Lifestyle Templates** (`/settings/advice`) | Manage Global Presets | **Full Access** (Clinic templates) | **Full Access** (Doctor presets) | Views on Rx print |
-| **Formulary / Custom Medicines** (`/settings/medicines`) | Approve & Promote to Global | Add Clinic Brands | Add / Personal Favorites | Read-only |
+`ClinicSubscription` is one row per clinic and is the only place status is stored: `Trial`, `Active`, `GracePeriod`, `QuotaExceeded`, `Suspended`. `GracePeriodDays` defaults to 5. `MaxDoctorsOverride` lets PlatformAdmin raise or lower the plan cap for one clinic.
+
+Completed visits increment `ClinicPeriodUsage.VisitsConducted` once. Allowance is unlimited, or `MonthlyVisitQuota + AdditionalTopUpVisits`. Twenty further completed visits are a soft buffer with a navbar warning. Beyond that, new tokens stop. History, past vitals, and past prescriptions stay readable. Top-up buttons on `/admin/clinics/{id}/subscription` are +250, +500, and +1000 for the current period.
+
+`SubscriptionPaymentHistory` is the platform invoice (UPI, Card, NetBanking, Cash, Cheque, invoice number, UTR). The receptionist’s OPD fee is a different table in 2D (`VisitPayment`).
 
 ---
 
-### B. UI Screen Breakdown
+## 7. Vitals (part 2C) and what stays a snapshot
 
-1. **Platform Master Catalog Studio (`/admin/masters`)** — *PlatformAdmin*:
-   - `/admin/masters/vitals`: Manage standard vitals across all clinics with reference ranges and units.
-   - `/admin/masters/lab-tests`: Manage system diagnostic test dictionary.
-   - `/admin/masters/drugs`: Govern the 500+ Indian brand and generic salt formulary.
-2. **Clinic Workflow & Vitals Configurator (`/settings/vitals`)** — *ClinicAdmin & Doctor*:
-   - Toggle switches to enable/disable specific vitals for the clinic.
-   - Drag-and-drop handles to reorder the vitals input sequence.
-   - Checkboxes for mandatory intake flags.
-   - "Add Custom Clinic Vital" modal for specialty practices (e.g. Pulmonology PEFR).
-3. **Lab Investigation Panel Builder (`/settings/lab-tests`)** — *ClinicAdmin & Doctor*:
-   - Bundle individual tests into 1-click orderable panels (e.g. *Fever Panel*, *Diabetic Annual Panel*).
-4. **Clinical Advice Studio (`/settings/advice`)** — *ClinicAdmin & Doctor*:
-   - Pre-configured dietary, lifestyle, and post-consultation advice templates.
-5. **Dynamic Intake Modal (`VitalsModal.tsx`)** — *Receptionist & Nurse*:
-   - Renders fields dynamically based on the clinic's active `VitalMaster` configuration.
-   - Real-time physiological alert badges (amber/red) when readings fall outside `NormalRangeMin` or `NormalRangeMax`.
+`VitalMaster` plus `ClinicVitalPreference` plus `VisitVitals` replace the vital columns only in 2C. Preferences carry enable, mandatory, order, and nullable range overrides. Paired blood pressure uses `PairGroup` (`BP_SYS` and `BP_DIA`). BMI is `Computed` from weight and height. Sugar is one `Text` vital (`SUGAR`) because existing values look like `140 PP`. Clinics add fasting or post-prandial codes themselves if they want them.
+
+The backfill map is `SystolicBp` → `BP_SYS`, `DiastolicBp` → `BP_DIA`, `PulseBpm` → `PULSE`, `TemperatureF` → `TEMP_F`, `Spo2` → `SPO2`, `WeightKg` → `WEIGHT`, `HeightCm` → `HEIGHT`, `Bmi` → `BMI`, `Sugar` → `SUGAR`. Print and queue cards then read `VisitVitals`, and the old columns are dropped.
+
+Prescription lines keep `MedicineName`, `SaltComposition`, `Form`, `Dosage`, `Timing`, `DurationDays`, and `Instructions` in every part. That snapshot is what print shows if the formulary row later changes.
 
 ---
 
-## 6. Multi-Database Provider Strategy (Factory Pattern: MS SQL Server & PostgreSQL)
+## 8. Part 2D boundaries
 
-### A. Business & Developer Need
-- **Local Development**: Developer has Microsoft SQL Server locally on their laptop (offline, faster iteration, local SSMS tools).
-- **Cloud & Live Demos**: Cloud deployments and live product demos run on Supabase PostgreSQL.
-- **Requirement**: Ability to seamlessly switch between local MS SQL Server and cloud PostgreSQL using configuration without rewriting code.
+Labs need `LabTestMaster` and clinic-scoped `LabTestPanel` / `LabTestPanelItem`, because the panel UI (Fever Panel, Diabetic Review) has to persist a bundle. An ordered panel becomes one `PrescriptionLabOrders` row per test (`Ordered`, `Completed`).
 
-### B. Clean Architecture Compatibility
-Because DocOS strictly adheres to Clean Architecture:
-- `DocOS.Domain`: Entities (`Clinic`, `Patient`, `Visit`, `Prescription`) are plain POCOs with zero database vendor attributes.
-- `DocOS.Application`: Application business rules and MediatR handlers only interface with `IApplicationDbContext` abstractions.
-- `DocOS.Infrastructure`: The only layer referencing database provider packages.
+Advice snippets are `AdviceTemplateMaster` and `PrescriptionAdvice`, with the text copied onto the prescription row. `GeneralAdvice` stays for a typed line.
 
-### C. Factory Pattern Implementation
-1. **Configuration (`appsettings.json` / `appsettings.Development.json`)**:
-   ```json
-   {
-     "DatabaseProvider": "SqlServer", // Options: "SqlServer" or "PostgreSQL"
-     "ConnectionStrings": {
-       "SqlServer": "Server=localhost;Database=DocOS_V2;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true",
-       "PostgreSQL": "Host=db.xxx.supabase.co;Port=5432;Database=postgres;Username=postgres;Password=xxx;SSL Mode=Require;Trust Server Certificate=true"
-     }
-   }
-   ```
+After `IsPrinted` or the first `PRINT` audit, an edit creates a new prescription linked by `PreviousPrescriptionId`. The visit has one current row. The printed row is left as it was. The usage counter does not move again.
 
-2. **Provider Factory in `DependencyInjection.cs`**:
-   ```csharp
-   var provider = configuration["DatabaseProvider"] ?? "PostgreSQL";
+`PdfShareToken` is unique, unguessable (at least 128 bits of entropy), and has a required `ExpiresAt`. The public endpoint returns that prescription only and is rate-limited.
 
-   services.AddDbContext<ApplicationDbContext>(options =>
-   {
-       if (provider.Equals("SqlServer", StringComparison.OrdinalIgnoreCase))
-       {
-           var connStr = configuration.GetConnectionString("SqlServer");
-           options.UseSqlServer(connStr, b => 
-               b.MigrationsAssembly("DocOS.Infrastructure"));
-       }
-       else
-       {
-           var connStr = configuration.GetConnectionString("PostgreSQL");
-           options.UseNpgsql(connStr, b => 
-               b.MigrationsAssembly("DocOS.Infrastructure"));
-       }
-   });
-   ```
-
-3. **Provider-Specific Migration Organization**:
-   - `DocOS.Infrastructure/Migrations/SqlServer` (for local SQL Server)
-   - `DocOS.Infrastructure/Migrations/PostgreSQL` (for Supabase cloud)
-   - When generating migrations, output to the corresponding directory based on the active provider.
+`VisitPayment` (`Cash`, `UPI`) feeds the receptionist daily collection report.
 
 ---
 
-## 7. Granular Subscription Management, Metered vs. Unlimited Quotas & SaaS Owner Controls
+## 9. Explicitly later
 
-### A. Business Need & Context
-- Clinics in the Indian OPD ecosystem vary drastically in patient volume:
-  - Small, starting practices with 150–300 patient visits/month prefer lower-cost, capped/metered plans.
-  - Busy solo consultants or polyclinics with 1,000+ patient visits/month demand unlimited plans.
-- The SaaS Owner (`PlatformAdmin`) requires total operational flexibility:
-  - Both **Starter Clinic** and **Multi-Doctor Practice** tiers must offer both **Metered/Capped** and **Unlimited** options.
-  - The SaaS Owner must be able to customize or override visit limits for any specific clinic, add top-ups in multiples (`+250`, `+500`, `+1,000` visits), or toggle a clinic directly to Unlimited.
+WhatsApp and SMS; ABDM and the identifier columns (`AbhaNumber`, `AbhaAddress`, `IsAbhaVerified`, `HfrId`, `HprId`, `EnableAbdmIntegration`); subdomain routing; Kubernetes, Helm, and white-label packaging; analytics beyond the 2D collection table; complaint masters; dosage master tables; a pharmacist role; a PostgreSQL provider; auditing every view.
 
-### B. Core Decisions on Subscription Architecture
-1. **Dual-Track Plan Options (Metered vs. Unlimited)**:
-   - Every tier can be packaged as Capped or Unlimited.
-   - Plans in `SubscriptionPlanMaster` store `IsUnlimitedVisits` (bool) and `DefaultMonthlyVisits` (int?).
-2. **SaaS Owner Override Powers (`ClinicSubscription`)**:
-   - The active clinic subscription holds `MonthlyVisitQuota` (int?) and `AdditionalTopUpVisits` (int).
-   - The SaaS Owner can modify the quota for any clinic at will or grant extra visit top-up blocks.
-3. **Usage Metering (`ClinicMonthlyUsage`)**:
-   - Increments on completed consultations or generated prescriptions per billing cycle (`YearMonth`).
-4. **Clinical Safety Guarantee (Soft Buffer + Read-Only Protection)**:
-   - When a clinic reaches its quota, a soft safety buffer (+20 visits) allows in-progress clinics to finish without abrupt system locks.
-   - Even when hard capped, all historical patient records, past vitals, and past prescriptions remain 100% accessible in read-only mode to prevent medicolegal risks.
-5. **SaaS Owner UI (`/admin/clinics/{id}/subscription`)**:
-   - Visual usage percentage bar (`380 / 500 Visits (76%)`).
-   - One-click quick top-up buttons: `+250`, `+500`, `+1,000` visits.
-   - Unlimited toggle switch and base quota input.
-   - Offline payment recording (cash/UPI/cheque) with automatic receipt generation.
+Implementers do not add these tables while a Phase 2 part is in progress.
 
 ---
 
-## 8. Universal & Configurable ABDM (Ayushman Bharat Digital Mission) Architecture
+## 10. Exit criteria
 
-### A. Strategic Rationale
-- Initially, ABDM compliance was grouped under high-tier enterprise hospital plans.
-- **Decision**: DocOS is specifically designed for Indian solo doctors and multi-doctor outpatient clinics. The Government of India's ABDM mission is designed for grassroots adoption across private OPD clinics.
-- Therefore, **ABDM capabilities are elevated to a universal platform feature** available to **all clinic tiers** (Starter Clinic & Multi-Doctor Practice), rather than an enterprise-only add-on.
+Work the parts in order. Leave the previous part working. Do not start a later part’s tables early.
 
-### B. Configurable Clinic-Level Toggle
-Not all Indian doctors immediately adopt ABDM on day one. To prevent friction:
-1. **Configurable Flag (`EnableAbdmIntegration` on `Clinics`)**:
-   - Clinic Admin or Doctor can toggle ABDM ON or OFF in their Clinic Settings at any time.
-   - When **OFF**: The clinic operates cleanly as a rapid digital prescription generator without asking patients for ABHA OTPs or ABHA IDs.
-   - When **ON**: Patient registration & check-in displays optional ABHA verification fields, QR code scan for ABHA check-in, and HFR/HPR provider linking.
+### 2A — Identity and multi-doctor
 
-### C. Schema Entities Supporting Universal ABDM
-- **`Patients`**: `AbhaNumber` (14-digit identifier: `XX-XXXX-XXXX-XXXX`), `AbhaAddress` (PHR handle: `patient@abdm`), `IsAbhaVerified` (bool).
-- **`Clinics`**: `HfrId` (Health Facility Registry ID registered on the National Health Authority portal), `EnableAbdmIntegration` (bool).
-- **`AspNetUsers` (`DoctorProfile`)**: `HprId` (Healthcare Professional Registry ID of the consulting doctor).
-- **`SubscriptionPlanMaster`**: `HasAbdmIntegration` (bool, default `true` across all tiers).
+- [ ] `v1.0-mvp` tag exists. Branch `phase-2` uses a new SQL Server database and a single `Migrations` folder.
+- [ ] Six roles seeded. Multi-role users work. `Role` column removed. JWT lists every role.
+- [ ] Null `ClinicId` only for PlatformAdmin and SalesAgent. Clinic APIs reject them. Test “platform admin cannot read clinic clinical records” passes.
+- [ ] Per-doctor daily tokens, doctor required before `InConsultation`, `Prescription.DoctorId` required on save.
+- [ ] Letterhead uses the user profile and the clinic print flags. Print, queue, allergy banner, and formulary search still work.
+- [ ] Signing key comes from configuration. Access-token lifetime is short. Staff deactivate with `IsActive`.
 
----
+### 2B — Onboarding and entitlements
 
-## 9. Guided Doctor Onboarding Wizard & Field Sales Representative Module
+- [ ] Four-step wizard and on-screen handover with a login QR. SalesAgent sees only clinics they onboarded.
+- [ ] One `ClinicSubscription` per clinic. No status column on `Clinics`.
+- [ ] Usage row is per subscription period. Top-ups and unused quota do not roll forward.
+- [ ] Soft buffer of 20 completed visits, then new tokens block, history stays readable.
+- [ ] PlatformAdmin quota studio: meter, unlimited, quota, +250 / +500 / +1000, `MaxDoctorsOverride`, manual SaaS payment.
 
-### A. Business Context & Field Sales Realities
-- In the Indian healthcare software market, direct self-service signups have high drop-offs.
-- The highest conversion channel is **direct field sales**:
-  - Medical sales reps and growth associates visit doctors' OPD clinics in person.
-  - They conduct an on-the-spot demo and need to onboard the doctor in **under 3 minutes**.
-- **Architectural Solution**:
-  - Introduce the `SalesAgent` role with scoped onboarding access.
-  - Build a 4-step streamlined onboarding wizard (`/admin/onboard-doctor`).
-  - Track sales attribution via `OnboardedByUserId` on the `Clinics` table for commissions and performance auditing.
+### 2C — Dynamic vitals
 
-### B. The 4-Step Guided Flow
-1. **Clinic & Doctor Profile**: Name, subdomain slug, doctor name, degrees, council registration number, phone, email.
-2. **Subscription & Plan**: Starter vs Multi-Doctor, Capped (250/500/1000) vs Unlimited, 14/30-day Free Trial or instant UPI cash collection with UTR receipt.
-3. **Letterhead Mode**: Configure Blank A4 or physical pad offset margin (e.g. 65mm) so the doctor sees their real Rx immediately.
-4. **Instant Handover & 1-Click WhatsApp Welcome**:
-   - Generates credentials.
-   - 1-click button dispatches welcome WhatsApp message with portal URL directly to the doctor's phone.
-   - On-screen QR code allows doctor to immediately open their portal on an iPad/phone.
+- [ ] Historical readings copied, including free-text sugar. BMI computed. Blood pressure rendered as one pair.
+- [ ] Clinic preferences: enable, order, mandatory, custom vital, range override. Global catalog for PlatformAdmin.
+- [ ] Print and queue read `VisitVitals`. Old vital columns are no longer written, then dropped.
+
+### 2D — Labs, advice, link, OPD fees, audit, favorites
+
+- [ ] Panels expand to lab order rows. Advice snippets plus `GeneralAdvice` print.
+- [ ] Favorites are per user, not a flag on `Medicines`.
+- [ ] Public token opens one prescription, expires, and is rate-limited.
+- [ ] `VisitPayment` daily report is separate from SaaS invoices.
+- [ ] Audit covers create, update, delete, login, and print, and skips routine queue views. `ChangesJson` is a normal column.
+- [ ] A printed prescription is revised by inserting a row with `PreviousPrescriptionId`. Usage is not incremented again.
 
 ---
 
-## 10. Implementation Readiness Checklist
+## 11. How to read the set
 
-When you are ready to begin Phase 2 code execution:
-- [ ] Run Git commands to tag `v1.0-mvp` on `main` and checkout branch `phase-2`.
-- [ ] Install `Microsoft.EntityFrameworkCore.SqlServer` NuGet package in `DocOS.Infrastructure`.
-- [ ] Configure the `DatabaseProvider` toggle ("SqlServer" for local laptop, "PostgreSQL" for Supabase).
-- [ ] Implement Milestone 1: PlatformAdmin & SalesAgent authentication, `AspNetRoles` seeding (`PlatformAdmin`, `SalesAgent`, `ClinicAdmin`, `Doctor`, `Nurse`, `Receptionist`), and Super Admin dashboard.
-- [ ] Implement Milestone 2: Guided Doctor Onboarding Wizard (`/admin/onboard-doctor`) with 1-click WhatsApp handover and sales attribution (`OnboardedByUserId`).
-- [ ] Implement Milestone 3: `SubscriptionPlanMaster`, `ClinicSubscription`, and `ClinicMonthlyUsage` tables and SaaS Owner Quota Studio.
-- [ ] Implement Milestone 4: `VitalMaster` and `VisitVitals` schema, migrations for both providers, and `/admin/masters` UI.
-- [ ] Implement Milestone 5: Clinic tenant onboarding, multi-doctor queue routing, `/settings/vitals` configurator, and configurable ABDM settings (`EnableAbdmIntegration`).
-
-
+Start with [DocOS-(Phase 2).md](<DocOS-(Phase 2).md>) for the part you are building. Use [DocOS-Phase2-Database-Schema.md](DocOS-Phase2-Database-Schema.md) for columns and ERDs, including the “not in this schema” list. Keep [DocOS-(Phase 1).md](DocOS-(Phase%201).md) unchanged as the MVP baseline.
