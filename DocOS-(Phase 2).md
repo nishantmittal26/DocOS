@@ -32,7 +32,7 @@ DocOS Phase 2 expands the validated Phase 1 (MVP) single-clinic OPD platform int
   - Doctor-specific OPD queues and consultation rooms.
   - Separate letterhead credentials and council registration numbers per doctor.
 - **Role-Based Access Control (RBAC)**:
-  - Granular permissions: `PlatformAdmin`, `ClinicAdmin`, `Doctor`, `Nurse/Assistant`, `Receptionist`, `Pharmacist`.
+  - Granular permissions: `PlatformAdmin` (SaaS Owner), `SalesAgent` (Field Growth/Rep), `ClinicAdmin`, `Doctor`, `Nurse/Assistant`, `Receptionist`, `Pharmacist`.
   - Clinic Admin can invite staff members, reset staff passwords, and define access rights.
 
 ### C. Distribution, Packaging & Multi-Tenancy Architecture
@@ -334,3 +334,55 @@ Located in the Super Admin Portal:
 - Custom base quota input field.
 - Quick top-up buttons: `+250`, `+500`, `+1,000` visits.
 - Offline payment recorder (record direct bank transfers / UPI payments with invoice generation).
+
+---
+
+## 7. Guided Doctor Onboarding Wizard & Field Sales Module
+
+To facilitate fast doctor acquisition across Indian outpatient clinics, Phase 2 introduces a dedicated **Guided 3-Minute Doctor Onboarding Wizard** tailored for the SaaS Owner (`PlatformAdmin`) and Field Sales Representatives (`SalesAgent`).
+
+### A. Sales Representative Role (`SalesAgent`)
+- **Target User**: Field sales representatives, medical sales agents, and territory growth managers.
+- **Permissions**:
+  - Full access to the `/admin/onboard-doctor` wizard.
+  - Can view and manage *their own* onboarded clinics and monitor trial-to-paid conversion status.
+  - **Restricted**: Cannot tamper with global master catalogs, drug formulary seeds, or view clinics onboarded by other sales agents.
+- **Sales Attribution**: Every clinic records `OnboardedByUserId` (FK &rarr; `AspNetUsers`) for performance tracking and commission reconciliation.
+
+### B. 4-Step Guided Doctor Onboarding Wizard (`/admin/onboard-doctor`)
+
+```
+[ Step 1: Doctor & Clinic ] ──> [ Step 2: Plan & Quota ] ──> [ Step 3: Letterhead Setup ] ──> [ Step 4: Handover ]
+```
+
+#### Step 1: Clinic & Doctor Essentials
+- **Clinic Trade Name**: (e.g., *"Apex Diabetes & Heart Clinic"*).
+- **Subdomain Slug**: Auto-suggested from clinic name (e.g., `apexclinic.docos.in`).
+- **Primary Doctor Full Name**: (e.g., *"Dr. Rajiv Mehra"*).
+- **Qualifications / Degrees**: Quick multi-select chips (`MBBS`, `MD (Medicine)`, `MS`, `DNB`, `DGO`).
+- **Medical Council Reg. No.**: State Medical Council / MCI registration number.
+- **Doctor Mobile Number & Email**: 10-digit Indian mobile number for instant WhatsApp/SMS dispatch.
+- **Optional ABDM Registry**: Doctor's HPR ID and Clinic HFR ID.
+
+#### Step 2: Plan, Quota & Trial Assignment
+- **Tier Selection**: `Starter Clinic` (1 Doctor) or `Multi-Doctor Practice`.
+- **Quota Selection**:
+  - **Capped / Metered**: 250, 500, or 1,000 visits/month.
+  - **Unlimited Quota**.
+- **Activation Mode**:
+  - **Instant 14/30-Day Free Trial**: Zero friction, no upfront payment required.
+  - **Immediate Paid Activation**: Field agent can record on-the-spot UPI/Cash payment with bank UTR and generate an immediate digital receipt.
+
+#### Step 3: Letterhead & Print Configuration (Instant "Aha!" Preview)
+- Select print mode:
+  - **Mode A (Blank Paper)**: Generates full digital clinic letterhead with logo, address, phone, and council credentials.
+  - **Mode B (Physical Letterhead Pad)**: Configures top offset margin (e.g. `65mm`) to align prescriptions with the doctor's existing physical stationery.
+- Consultation Fee (e.g., `₹500`).
+
+#### Step 4: Instant Handover & 1-Click WhatsApp Welcome
+- Automatically initializes clinic tenant, doctor account, and seeds the 500+ Indian generic drug formulary.
+- **Instant Handover Card**:
+  - Displays generated credentials & personalized clinic portal URL.
+  - **1-Click WhatsApp Welcome Button**: Dispatches formatted WhatsApp message directly to doctor's phone:
+    > *"Namaste Dr. Rajiv! Welcome to DocOS. Your clinic portal is ready at: https://apexclinic.docos.in | Login: drrajiv@gmail.com"*
+  - **On-Screen QR Code**: Doctor can scan the QR code using their iPad or smartphone to immediately open the portal and write their first test prescription.

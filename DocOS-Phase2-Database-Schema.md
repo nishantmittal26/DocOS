@@ -87,7 +87,7 @@ Stores system role definitions.
 | Column | Type | Nullable | Constraints / Default | Description |
 | :--- | :--- | :---: | :--- | :--- |
 | `Id` | `string` / `varchar(450)` | No | PK | Role Identifier |
-| `Name` | `string` / `varchar(256)` | No | Unique | `PlatformAdmin`, `ClinicAdmin`, `Doctor`, `Nurse`, `Receptionist` |
+| `Name` | `string` / `varchar(256)` | No | Unique | `PlatformAdmin`, `SalesAgent`, `ClinicAdmin`, `Doctor`, `Nurse`, `Receptionist` |
 | `NormalizedName` | `string` / `varchar(256)` | No | Unique index | UPPERCASE normalized name |
 
 ### 2.3 `AspNetUserRoles` (`IdentityUserRole<string>`)
@@ -123,6 +123,8 @@ Represents independent medical practices or clinic facilities.
 | `MaxDoctorsAllowed` | `int` | No | `1` | Max concurrent doctors allowed by active subscription |
 | `HfrId` | `string` / `varchar(100)`| Yes | — | Health Facility Registry ID (ABDM Clinic ID) |
 | `EnableAbdmIntegration`| `bool` | No | `true` | Configurable ABDM toggle per clinic |
+| `OnboardedByUserId` | `string` / `varchar(450)`| Yes | FK &rarr; `AspNetUsers(Id)`| Field sales rep / agent who onboarded this clinic |
+| `SalesNotes` | `string` / `varchar(500)`| Yes | — | Notes on deal terms, clinic software replaced |
 | `LogoUrl` | `string` / `varchar(500)` | Yes | — | Header logo for blank paper print |
 | `PrintTopMarginMm` | `int` | No | `0` | Offset (0-120mm) for physical letterhead pads |
 | `PrintBottomMarginMm`| `int` | No | `0` | Bottom margin offset for stationery |

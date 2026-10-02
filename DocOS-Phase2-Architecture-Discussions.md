@@ -257,15 +257,39 @@ Not all Indian doctors immediately adopt ABDM on day one. To prevent friction:
 
 ---
 
-## 9. Implementation Readiness Checklist
+## 9. Guided Doctor Onboarding Wizard & Field Sales Representative Module
+
+### A. Business Context & Field Sales Realities
+- In the Indian healthcare software market, direct self-service signups have high drop-offs.
+- The highest conversion channel is **direct field sales**:
+  - Medical sales reps and growth associates visit doctors' OPD clinics in person.
+  - They conduct an on-the-spot demo and need to onboard the doctor in **under 3 minutes**.
+- **Architectural Solution**:
+  - Introduce the `SalesAgent` role with scoped onboarding access.
+  - Build a 4-step streamlined onboarding wizard (`/admin/onboard-doctor`).
+  - Track sales attribution via `OnboardedByUserId` on the `Clinics` table for commissions and performance auditing.
+
+### B. The 4-Step Guided Flow
+1. **Clinic & Doctor Profile**: Name, subdomain slug, doctor name, degrees, council registration number, phone, email.
+2. **Subscription & Plan**: Starter vs Multi-Doctor, Capped (250/500/1000) vs Unlimited, 14/30-day Free Trial or instant UPI cash collection with UTR receipt.
+3. **Letterhead Mode**: Configure Blank A4 or physical pad offset margin (e.g. 65mm) so the doctor sees their real Rx immediately.
+4. **Instant Handover & 1-Click WhatsApp Welcome**:
+   - Generates credentials.
+   - 1-click button dispatches welcome WhatsApp message with portal URL directly to the doctor's phone.
+   - On-screen QR code allows doctor to immediately open their portal on an iPad/phone.
+
+---
+
+## 10. Implementation Readiness Checklist
 
 When you are ready to begin Phase 2 code execution:
 - [ ] Run Git commands to tag `v1.0-mvp` on `main` and checkout branch `phase-2`.
 - [ ] Install `Microsoft.EntityFrameworkCore.SqlServer` NuGet package in `DocOS.Infrastructure`.
 - [ ] Configure the `DatabaseProvider` toggle ("SqlServer" for local laptop, "PostgreSQL" for Supabase).
-- [ ] Implement Milestone 1: PlatformAdmin authentication, `AspNetRoles` seeding (`PlatformAdmin`, `ClinicAdmin`, `Doctor`, `Nurse`, `Receptionist`), and Super Admin dashboard.
-- [ ] Implement Milestone 2: `SubscriptionPlanMaster`, `ClinicSubscription`, and `ClinicMonthlyUsage` tables and SaaS Owner Quota Studio.
-- [ ] Implement Milestone 3: `VitalMaster` and `VisitVitals` schema, migrations for both providers, and `/admin/masters` UI.
-- [ ] Implement Milestone 4: Clinic tenant onboarding, multi-doctor queue routing, `/settings/vitals` configurator, and configurable ABDM settings (`EnableAbdmIntegration`).
+- [ ] Implement Milestone 1: PlatformAdmin & SalesAgent authentication, `AspNetRoles` seeding (`PlatformAdmin`, `SalesAgent`, `ClinicAdmin`, `Doctor`, `Nurse`, `Receptionist`), and Super Admin dashboard.
+- [ ] Implement Milestone 2: Guided Doctor Onboarding Wizard (`/admin/onboard-doctor`) with 1-click WhatsApp handover and sales attribution (`OnboardedByUserId`).
+- [ ] Implement Milestone 3: `SubscriptionPlanMaster`, `ClinicSubscription`, and `ClinicMonthlyUsage` tables and SaaS Owner Quota Studio.
+- [ ] Implement Milestone 4: `VitalMaster` and `VisitVitals` schema, migrations for both providers, and `/admin/masters` UI.
+- [ ] Implement Milestone 5: Clinic tenant onboarding, multi-doctor queue routing, `/settings/vitals` configurator, and configurable ABDM settings (`EnableAbdmIntegration`).
 
 
