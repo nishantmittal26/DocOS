@@ -12,7 +12,56 @@ DocOS Phase 2 expands the validated Phase 1 (MVP) single-clinic OPD platform int
 
 ---
 
-## 2. Phase 2 (V2) Roadmap & Architecture Plan
+## 2. Technical Stack & Codebase Context (Inherited Baseline)
+
+Any AI assistant (Cursor, Claude, Antigravity) working on this codebase must adhere to the established architecture:
+
+### A. Technology Stack
+- **Backend**: .NET Core Web API targeting **.NET 10** (`net10.0`).
+  - **Architecture**: **Clean Architecture** (Domain, Application, Infrastructure, API).
+  - **Design Patterns**: **CQRS** with MediatR, FluentValidation pipeline behaviors, Result pattern.
+  - **Auth**: **ASP.NET Core Identity** with JWT Bearer token authentication & Refresh Tokens.
+  - **ORM**: **Entity Framework Core 10** with **Multi-Database Provider Factory** (PostgreSQL/Supabase & Microsoft SQL Server).
+- **Frontend**: **React 18+** with TypeScript, Vite, Tailwind CSS, Lucide React, TanStack Query (React Query v5), React Hook Form, Zod.
+- **Drug & Salt Engine**: Seed database of **500+ Indian generic salts and formulations** (e.g., *Paracetamol 650mg*, *Amoxicillin + Clavulanic Acid 625mg*, *Pantoprazole 40mg*).
+
+### B. Codebase Directory Map
+```
+DocOS/
+├── backend/
+│   ├── DocOS.slnx
+│   └── src/
+│       ├── DocOS.Domain/             # Core Entities (Clinic, Patient, Visit, Prescription, Medicine)
+│       ├── DocOS.Application/        # CQRS (MediatR Commands/Queries), DTOs, FluentValidators
+│       ├── DocOS.Infrastructure/     # EF Core DbContext, Identity, DB Provider Factory, Drug Seeder
+│       └── DocOS.API/                # Controllers, Middleware, Swagger, Program.cs
+└── frontend/                         # React 18 + Vite + TypeScript + Tailwind CSS
+    └── src/
+        ├── api/                      # Axios client & typed endpoints
+        ├── context/                  # AuthContext (JWT session & user roles)
+        ├── components/               # Navbar, NewPatientModal, VitalsModal, PrescriptionPrintModal
+        ├── pages/                    # Auth, OpdQueue, ConsultationRoom, History, Settings
+        └── types/                    # TypeScript interfaces matching backend models
+```
+
+### C. Companion Reference Documents
+- **Phase 1 MVP Baseline**: `DocOS-(Phase 1).md` (What was built in V1).
+- **Exact Database Schema & Mermaid ERD**: `DocOS-Phase2-Database-Schema.md`.
+- **Architectural Decision Record**: `DocOS-Phase2-Architecture-Discussions.md`.
+
+### D. AI Developer Guidelines (Cursor / Claude / Copilot Instructions)
+1. **Never Break Phase 1 Features**: Preserve existing patient registration, OPD queue lifecycle, and dual-mode prescription print engine (`@media print` CSS portal).
+2. **Follow Clean Architecture Strictly**:
+   - Entities go in `DocOS.Domain/Entities`.
+   - Business logic, DTOs, and CQRS handlers go in `DocOS.Application`.
+   - Database mappings and external services go in `DocOS.Infrastructure`.
+   - REST Controllers only dispatch MediatR commands/queries.
+3. **Use the Database Provider Factory**: Do not hardcode database-specific functions in domain or application logic. Both SQL Server (`UseSqlServer`) and PostgreSQL (`UseNpgsql`) must be supported.
+4. **Role Authorization**: Secure endpoints using standard `[Authorize(Roles = "...")]` attributes.
+
+---
+
+## 3. Phase 2 (V2) Roadmap & Architecture Plan
 
 ### A. Super Admin / Platform Admin Portal
 - **Platform-wide Super Admin Login**:

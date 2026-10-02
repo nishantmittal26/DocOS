@@ -11,50 +11,347 @@ This document contains the complete database design for **DocOS Phase 2**, incor
 
 ---
 
-## 1. High-Level Entity Relationship Diagram (Mermaid)
+## 1. Complete Entity Relationship Diagram (Mermaid)
 
 ```mermaid
 erDiagram
-    %% TENANCY & IDENTITY
-    Clinics ||--o{ AspNetUsers : "employs staff"
-    AspNetUsers ||--o{ AspNetUserRoles : "assigned"
-    AspNetRoles ||--o{ AspNetUserRoles : "maps to"
-    AspNetRoles ||--o{ AspNetRoleClaims : "has permissions"
-    AspNetUsers ||--o{ AspNetUserClaims : "has custom claims"
-    AspNetUsers ||--o{ AspNetUserTokens : "issues security tokens"
+    %% ==========================================
+    %% IDENTITY & RBAC
+    %% ==========================================
+    AspNetUsers {
+        string Id PK
+        string UserName
+        string Email
+        string FullName
+        guid ClinicId FK "null for PlatformAdmin"
+        string Qualifications "MBBS, MD"
+        string MedicalCouncilRegNo
+        string HprId "ABDM Doctor ID"
+        string Speciality
+        decimal ConsultationFee
+        bool IsActive
+        datetime CreatedAt
+    }
 
-    %% SUBSCRIPTIONS & QUOTA METERING
-    SubscriptionPlanMaster ||--o{ ClinicSubscription : "defines template for"
-    Clinics ||--o| ClinicSubscription : "holds active plan"
-    Clinics ||--o{ ClinicMonthlyUsage : "tracks monthly usage"
-    Clinics ||--o{ SubscriptionPaymentHistory : "generates invoices"
+    AspNetRoles {
+        string Id PK
+        string Name "PlatformAdmin, SalesAgent, ClinicAdmin, Doctor, Nurse, Receptionist"
+        string NormalizedName
+    }
 
-    %% CLINICAL MASTER DATA & CATALOGS
-    Clinics ||--o{ ClinicVitalPreference : "configures"
-    VitalMaster ||--o{ ClinicVitalPreference : "overridden by"
-    VitalMaster ||--o{ VisitVitals : "classifies"
-    LabTestMaster ||--o{ PrescriptionLabOrders : "ordered in"
-    ComplaintMaster ||--o{ VisitComplaints : "standardizes"
-    AdviceTemplateMaster ||--o{ PrescriptionAdvice : "templates"
+    AspNetUserRoles {
+        string UserId PK, FK
+        string RoleId PK, FK
+    }
 
+    AspNetRoleClaims {
+        int Id PK
+        string RoleId FK
+        string ClaimType "Permission"
+        string ClaimValue "Prescription.Write"
+    }
+
+    AspNetUserClaims {
+        int Id PK
+        string UserId FK
+        string ClaimType
+        string ClaimValue
+    }
+
+    AspNetUserTokens {
+        string UserId PK, FK
+        string LoginProvider
+        string Name "PasswordResetToken, 2FA"
+        string Value
+    }
+
+    %% ==========================================
+    %% MULTI-TENANT CLINIC CORE
+    %% ==========================================
+    Clinics {
+        guid Id PK
+        string Name "Clinic Trade Name"
+        string Subdomain "e.g. careclinic"
+        string Phone
+        string Address
+        string Status "Trial, Active, Suspended"
+        int MaxDoctorsAllowed
+        string HfrId "ABDM Facility ID"
+        bool EnableAbdmIntegration "Configurable toggle"
+        string OnboardedByUserId FK "Sales Rep attribution"
+        string SalesNotes
+        int PrintTopMarginMm "0-120mm offset"
+        int PrintBottomMarginMm
+        bool HideLetterheadOnPrint
+        datetime CreatedAt
+    }
+
+    %% ==========================================
+    %% SUBSCRIPTION & USAGE METERING
+    %% ==========================================
+    SubscriptionPlanMaster {
+        guid Id PK
+        string PlanCode "STARTER_500, MULTI_DOC_UNLIMITED"
+        string PlanName
+        string Tier "Starter, MultiDoctor, Enterprise"
+        bool IsUnlimitedVisits
+        int DefaultMonthlyVisits "null if unlimited"
+        int MaxDoctors
+        int MaxStaff
+        decimal PriceINR
+        string BillingCycle "Monthly, Annual"
+        bool HasCustomVitals
+        bool HasLabModule
+        bool HasAbdmIntegration
+        bool IsActive
+    }
+
+    ClinicSubscription {
+        guid Id PK
+        guid ClinicId FK
+        guid PlanId FK
+        bool IsUnlimitedVisits "SaaS Owner Override"
+        int MonthlyVisitQuota "SaaS Owner Custom Quota"
+        int AdditionalTopUpVisits "Top-up blocks (+250, +500, +1000)"
+        string Status "Trial, Active, GracePeriod, QuotaExceeded, Suspended"
+        datetime CurrentPeriodStart
+        datetime CurrentPeriodEnd
+        int GracePeriodDays
+    }
+
+    ClinicMonthlyUsage {
+        guid Id PK
+        guid ClinicId FK
+        string YearMonth "e.g. 2026-10"
+        int VisitsConducted "Real-time Rx/Visit counter"
+        datetime LastVisitRecordedAt
+    }
+
+    SubscriptionPaymentHistory {
+        guid Id PK
+        guid ClinicId FK
+        guid SubscriptionId FK
+        string InvoiceNumber "INV-2026-0042"
+        decimal Amount
+        string PaymentMethod "UPI, Card, Cash, Cheque"
+        string TransactionReference "Bank UTR / Gateway ID"
+        datetime PaymentDate
+        string Status "Success, Pending, Failed"
+    }
+
+    %% ==========================================
+    %% MASTER DATA & CLINICAL CATALOGS
+    %% ==========================================
+    VitalMaster {
+        guid Id PK
+        guid ClinicId FK "null = Global, non-null = Custom"
+        string Code "BP_SYS, PULSE, SUGAR_F, BMI"
+        string DisplayName
+        string Unit "mmHg, bpm, degF, mg/dL"
+        string InputType "Number, Decimal, Select"
+        decimal NormalRangeMin
+        decimal NormalRangeMax
+        int DefaultDisplayOrder
+        bool IsActive
+    }
+
+    ClinicVitalPreference {
+        guid Id PK
+        guid ClinicId FK
+        guid VitalMasterId FK
+        bool IsEnabled "Clinic toggle"
+        bool IsMandatory
+        int DisplayOrder "Drag-drop triage order"
+    }
+
+    VisitVitals {
+        guid Id PK
+        guid VisitId FK
+        guid PatientId FK
+        guid VitalMasterId FK
+        string Value "e.g. 120, 98.6"
+        string UnitSnapshot "mmHg"
+        bool IsAbnormal
+        datetime RecordedAt
+        string RecordedByUserId FK
+    }
+
+    LabTestMaster {
+        guid Id PK
+        guid ClinicId FK "null = Global"
+        string TestCode "CBC, HBA1C, LIPID"
+        string TestName
+        string Category "Biochemistry, Hematology"
+        string SampleType "Blood, Urine"
+        bool FastingRequired
+        bool IsActive
+    }
+
+    ComplaintMaster {
+        guid Id PK
+        guid ClinicId FK "null = Global"
+        string ComplaintText "Fever, Cough, Headache"
+        string DefaultDurationChips "['x 2 days', 'x 1 week']"
+        bool IsActive
+    }
+
+    VisitComplaints {
+        guid Id PK
+        guid VisitId FK
+        guid ComplaintMasterId FK
+        string ComplaintText
+        string Duration "e.g. 3 Days"
+        string Severity "Mild, Moderate, Severe"
+    }
+
+    AdviceTemplateMaster {
+        guid Id PK
+        guid ClinicId FK "null = Global"
+        string Category "Diet, Post-Op, General"
+        string Title
+        string InstructionsText
+        bool IsActive
+    }
+
+    %% ==========================================
     %% PATIENTS & ENCOUNTERS (MULTI-DOCTOR)
+    %% ==========================================
+    Patients {
+        guid Id PK
+        guid ClinicId FK
+        string PatientUid "DOC-2026-0001"
+        string FullName
+        string MobileNumber "10-digit Indian Mobile"
+        int Age
+        datetime DateOfBirth
+        string Gender "Male, Female, Other"
+        string BloodGroup "O+, B+"
+        string AbhaNumber "ABDM 14-digit ID"
+        string AbhaAddress "patient@abdm"
+        bool IsAbhaVerified
+        string Allergies "Drug allergy alert banner"
+        string Address
+        datetime CreatedAt
+    }
+
+    Visits {
+        guid Id PK
+        guid ClinicId FK
+        guid PatientId FK
+        string DoctorId FK "Assigned Consulting Doctor"
+        int TokenNumber "Daily token #1, #2..."
+        datetime VisitDate
+        string Status "Waiting, In-Consultation, Completed"
+        string Diagnosis "Clinical Impression"
+        string DoctorNotes
+        datetime FollowUpDate
+        datetime CreatedAt
+    }
+
+    %% ==========================================
+    %% PRESCRIPTIONS & FORMULARY
+    %% ==========================================
+    Prescriptions {
+        guid Id PK
+        guid VisitId FK
+        guid ClinicId FK
+        guid PatientId FK
+        string DoctorId FK "Signing Doctor"
+        datetime PrescriptionDate
+        string PdfShareToken "WhatsApp / QR Code viewer"
+        bool IsSigned
+    }
+
+    PrescriptionItems {
+        guid Id PK
+        guid PrescriptionId FK
+        guid MedicineId FK
+        string MedicineName "Brand name e.g. Augmentin 625"
+        string GenericName "Amoxicillin + Clavulanic Acid"
+        string Form "Tablet, Syrup, Drops"
+        string Dosage "1-0-1, SOS, STAT"
+        string Timing "After Food, Before Food"
+        string Duration "5 Days, 2 Weeks"
+        string Instructions "Take with warm water"
+        int DisplayOrder
+    }
+
+    PrescriptionLabOrders {
+        guid Id PK
+        guid PrescriptionId FK
+        guid LabTestMasterId FK
+        string SpecialInstructions
+    }
+
+    PrescriptionAdvice {
+        guid Id PK
+        guid PrescriptionId FK
+        string AdviceText
+    }
+
+    Medicines {
+        guid Id PK
+        guid ClinicId FK "null = 500+ Indian Formulary"
+        string BrandName "Dolo 650, Pan-D"
+        string GenericName "Paracetamol 650mg"
+        string Form "Tablet, Capsule"
+        string Strength "650mg"
+        string DefaultDosage "1-0-1"
+        string DefaultTiming "After Food"
+        bool IsDoctorFavorite
+    }
+
+    %% ==========================================
+    %% AUDIT
+    %% ==========================================
+    AuditLogs {
+        guid Id PK
+        guid ClinicId FK "null = Platform action"
+        string UserId FK
+        string Action "CREATE, UPDATE, DELETE, VIEW"
+        string EntityName "Prescription, Visit"
+        string EntityId
+        datetime Timestamp
+        string IpAddress
+        string ChangesJson
+    }
+
+    %% ==========================================
+    %% RELATIONSHIPS
+    %% ==========================================
+    Clinics ||--o{ AspNetUsers : "employs staff"
     Clinics ||--o{ Patients : "registers"
     Clinics ||--o{ Visits : "manages queue"
+    Clinics ||--o{ ClinicSubscription : "holds subscription"
+    Clinics ||--o{ ClinicMonthlyUsage : "tracks usage"
+    Clinics ||--o{ SubscriptionPaymentHistory : "invoiced"
+    Clinics ||--o{ ClinicVitalPreference : "configures vitals"
+    Clinics ||--o{ AuditLogs : "audit trail"
+
+    AspNetUsers ||--o{ AspNetUserRoles : "assigned roles"
+    AspNetRoles ||--o{ AspNetUserRoles : "maps to"
+    AspNetRoles ||--o{ AspNetRoleClaims : "has permissions"
+    AspNetUsers ||--o{ AspNetUserClaims : "has claims"
+    AspNetUsers ||--o{ AspNetUserTokens : "issues tokens"
+
+    SubscriptionPlanMaster ||--o{ ClinicSubscription : "template for"
+
     Patients ||--o{ Visits : "attends"
-    AspNetUsers ||--o{ Visits : "assigned consulting doctor"
-    Visits ||--o{ VisitVitals : "records observations"
+    AspNetUsers ||--o{ Visits : "consults as doctor"
+    Visits ||--o| Prescriptions : "generates"
+    Visits ||--o{ VisitVitals : "records vitals"
     Visits ||--o{ VisitComplaints : "records complaints"
-    Visits ||--o| Prescriptions : "results in"
 
-    %% PRESCRIPTIONS & MEDICINES
-    AspNetUsers ||--o{ Prescriptions : "prescribed by doctor"
-    Prescriptions ||--o{ PrescriptionItems : "contains medications"
-    Medicines ||--o{ PrescriptionItems : "selected from formulary"
-    Prescriptions ||--o{ PrescriptionLabOrders : "orders lab tests"
-    Prescriptions ||--o{ PrescriptionAdvice : "advises patient"
+    VitalMaster ||--o{ ClinicVitalPreference : "overrides"
+    VitalMaster ||--o{ VisitVitals : "categorizes"
+    ComplaintMaster ||--o{ VisitComplaints : "standardizes"
 
-    %% AUDIT
-    Clinics ||--o{ AuditLogs : "tracked in"
+    AspNetUsers ||--o{ Prescriptions : "signed by doctor"
+    Prescriptions ||--o{ PrescriptionItems : "prescribes"
+    Medicines ||--o{ PrescriptionItems : "formulary link"
+    Prescriptions ||--o{ PrescriptionLabOrders : "orders tests"
+    LabTestMaster ||--o{ PrescriptionLabOrders : "categorizes"
+    Prescriptions ||--o{ PrescriptionAdvice : "advises"
 ```
 
 ---
