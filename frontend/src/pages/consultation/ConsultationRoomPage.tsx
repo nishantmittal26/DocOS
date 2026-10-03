@@ -10,6 +10,7 @@ import {
   PrescriptionDetail,
 } from '../../types';
 import { PrescriptionPrintModal } from '../../components/PrescriptionPrintModal';
+import { VitalsModal } from '../../components/VitalsModal';
 import {
   ArrowLeft,
   Search,
@@ -22,7 +23,8 @@ import {
   Pill,
   Calendar,
   Sparkles,
-  Info
+  Info,
+  Activity,
 } from 'lucide-react';
 
 export const ConsultationRoomPage: React.FC = () => {
@@ -59,38 +61,38 @@ export const ConsultationRoomPage: React.FC = () => {
   // Modals / submission
   const [submitting, setSubmitting] = useState(false);
   const [completedPrescription, setCompletedPrescription] = useState<PrescriptionDetail | null>(null);
+  const [isVitalsModalOpen, setIsVitalsModalOpen] = useState(false);
+
+  const loadVisit = async () => {
+    if (!visitId) return;
+    try {
+      const queue = await visitsApi.getTodayQueue();
+      const current = queue.find((q) => q.id === visitId);
+      if (current) {
+        setVisit(current);
+        if (current.chiefComplaints) setChiefComplaints(current.chiefComplaints);
+        if (current.diagnosis) setDiagnosis(current.diagnosis);
+        if (current.clinicalNotes) setClinicalNotes(current.clinicalNotes);
+
+        // If prescription exists, load it
+        if (current.hasPrescription) {
+          const rx = await visitsApi.getPrescription(current.id);
+          if (rx) {
+            setRxItems(rx.items);
+            if (rx.generalAdvice) setGeneralAdvice(rx.generalAdvice);
+            if (rx.followUpDate) setFollowUpDate(rx.followUpDate.split('T')[0]);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load visit details', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Load visit details
   useEffect(() => {
-    if (!visitId) return;
-
-    const loadVisit = async () => {
-      try {
-        const queue = await visitsApi.getTodayQueue();
-        const current = queue.find((q) => q.id === visitId);
-        if (current) {
-          setVisit(current);
-          if (current.chiefComplaints) setChiefComplaints(current.chiefComplaints);
-          if (current.diagnosis) setDiagnosis(current.diagnosis);
-          if (current.clinicalNotes) setClinicalNotes(current.clinicalNotes);
-
-          // If prescription exists, load it
-          if (current.hasPrescription) {
-            const rx = await visitsApi.getPrescription(current.id);
-            if (rx) {
-              setRxItems(rx.items);
-              if (rx.generalAdvice) setGeneralAdvice(rx.generalAdvice);
-              if (rx.followUpDate) setFollowUpDate(rx.followUpDate.split('T')[0]);
-            }
-          }
-        }
-      } catch (err) {
-        console.error('Failed to load visit details', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadVisit();
   }, [visitId]);
 
@@ -266,52 +268,133 @@ export const ConsultationRoomPage: React.FC = () => {
           </div>
 
           {/* Vitals Ribbon */}
-          {vitals && (
-            <div className="flex flex-wrap items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-xs">
-              {(vitals.systolicBp || vitals.diastolicBp) && (
-                <div className="px-2 py-1 bg-white rounded-lg border border-slate-200 font-mono">
-                  <span className="text-slate-400 text-[10px] block">BP</span>
-                  <span className="font-bold text-slate-800">{vitals.systolicBp}/{vitals.diastolicBp}</span>
-                </div>
-              )}
-              {vitals.pulseBpm && (
-                <div className="px-2 py-1 bg-white rounded-lg border border-slate-200 font-mono">
-                  <span className="text-slate-400 text-[10px] block">PULSE</span>
-                  <span className="font-bold text-slate-800">{vitals.pulseBpm} bpm</span>
-                </div>
-              )}
-              {vitals.temperatureF && (
-                <div className="px-2 py-1 bg-white rounded-lg border border-slate-200 font-mono">
-                  <span className="text-slate-400 text-[10px] block">TEMP</span>
-                  <span className="font-bold text-slate-800">{vitals.temperatureF}°F</span>
-                </div>
-              )}
-              {vitals.spo2 && (
-                <div className="px-2 py-1 bg-white rounded-lg border border-slate-200 font-mono">
-                  <span className="text-slate-400 text-[10px] block">SPO2</span>
-                  <span className="font-bold text-slate-800">{vitals.spo2}%</span>
-                </div>
-              )}
-              {vitals.sugar && (
-                <div className="px-2 py-1 bg-white rounded-lg border border-slate-200 font-mono">
-                  <span className="text-slate-400 text-[10px] block">SUGAR</span>
-                  <span className="font-bold text-slate-800">{vitals.sugar}</span>
-                </div>
-              )}
-              {vitals.weightKg && (
-                <div className="px-2 py-1 bg-white rounded-lg border border-slate-200 font-mono">
-                  <span className="text-slate-400 text-[10px] block">WT</span>
-                  <span className="font-bold text-slate-800">{vitals.weightKg} kg</span>
-                </div>
-              )}
-              {vitals.bmi && (
-                <div className="px-2 py-1 bg-white rounded-lg border border-slate-200 font-mono">
-                  <span className="text-slate-400 text-[10px] block">BMI</span>
-                  <span className="font-bold text-slate-800">{vitals.bmi}</span>
-                </div>
-              )}
-            </div>
-          )}
+          <div className="flex flex-wrap items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-xs">
+            {vitals?.recordedVitals && vitals.recordedVitals.length > 0 ? (
+              <>
+                {/* Check for paired BP */}
+                {(() => {
+                  const bpItems = vitals.recordedVitals.filter((v) => v.pairGroup === 'BP');
+                  const nonBp = vitals.recordedVitals.filter((v) => v.pairGroup !== 'BP');
+                  const hasAbnormalBp = bpItems.some((v) => v.isAbnormal);
+
+                  return (
+                    <>
+                      {bpItems.length > 0 && (
+                        <div
+                          className={`px-2 py-1 rounded-lg border font-mono ${
+                            hasAbnormalBp
+                              ? 'bg-rose-50 border-rose-300 text-rose-800 font-bold'
+                              : 'bg-white border-slate-200 text-slate-800'
+                          }`}
+                        >
+                          <span className={`text-[10px] block ${hasAbnormalBp ? 'text-rose-500 font-bold' : 'text-slate-400'}`}>
+                            BP {hasAbnormalBp ? '(!)' : ''}
+                          </span>
+                          <span className="font-bold">
+                            {bpItems.find((v) => v.code.toUpperCase().includes('SYS'))?.valueNumeric ??
+                             bpItems.find((v) => v.code.toUpperCase().includes('SYS'))?.valueText ??
+                             '-'}
+                            /
+                            {bpItems.find((v) => v.code.toUpperCase().includes('DIA'))?.valueNumeric ??
+                             bpItems.find((v) => v.code.toUpperCase().includes('DIA'))?.valueText ??
+                             '-'} mmHg
+                          </span>
+                        </div>
+                      )}
+
+                      {nonBp.map((item) => (
+                        <div
+                          key={item.code}
+                          className={`px-2 py-1 rounded-lg border font-mono ${
+                            item.isAbnormal
+                              ? 'bg-rose-50 border-rose-300 text-rose-800 font-bold'
+                              : 'bg-white border-slate-200 text-slate-800'
+                          }`}
+                        >
+                          <span className={`text-[10px] block uppercase ${item.isAbnormal ? 'text-rose-500 font-bold' : 'text-slate-400'}`}>
+                            {item.displayName} {item.isAbnormal ? '(!)' : ''}
+                          </span>
+                          <span className="font-bold">
+                            {item.valueNumeric !== undefined ? item.valueNumeric : item.valueText}
+                            {item.unitSnapshot ? ` ${item.unitSnapshot}` : ''}
+                          </span>
+                        </div>
+                      ))}
+                    </>
+                  );
+                })()}
+              </>
+            ) : (vitals && (vitals.systolicBp || vitals.diastolicBp || vitals.pulseBpm || vitals.temperatureF || vitals.spo2 || vitals.sugar || vitals.weightKg || vitals.bmi)) ? (
+              /* Fallback for legacy vitals */
+              <>
+                {(vitals.systolicBp || vitals.diastolicBp) && (
+                  <div className="px-2 py-1 bg-white rounded-lg border border-slate-200 font-mono">
+                    <span className="text-slate-400 text-[10px] block">BP</span>
+                    <span className="font-bold text-slate-800">{vitals.systolicBp}/{vitals.diastolicBp}</span>
+                  </div>
+                )}
+                {vitals.pulseBpm && (
+                  <div className="px-2 py-1 bg-white rounded-lg border border-slate-200 font-mono">
+                    <span className="text-slate-400 text-[10px] block">PULSE</span>
+                    <span className="font-bold text-slate-800">{vitals.pulseBpm} bpm</span>
+                  </div>
+                )}
+                {vitals.temperatureF && (
+                  <div className="px-2 py-1 bg-white rounded-lg border border-slate-200 font-mono">
+                    <span className="text-slate-400 text-[10px] block">TEMP</span>
+                    <span className="font-bold text-slate-800">{vitals.temperatureF}°F</span>
+                  </div>
+                )}
+                {vitals.spo2 && (
+                  <div className="px-2 py-1 bg-white rounded-lg border border-slate-200 font-mono">
+                    <span className="text-slate-400 text-[10px] block">SPO2</span>
+                    <span className="font-bold text-slate-800">{vitals.spo2}%</span>
+                  </div>
+                )}
+                {vitals.sugar && (
+                  <div className="px-2 py-1 bg-white rounded-lg border border-slate-200 font-mono">
+                    <span className="text-slate-400 text-[10px] block">SUGAR</span>
+                    <span className="font-bold text-slate-800">{vitals.sugar}</span>
+                  </div>
+                )}
+                {vitals.weightKg && (
+                  <div className="px-2 py-1 bg-white rounded-lg border border-slate-200 font-mono">
+                    <span className="text-slate-400 text-[10px] block">WT</span>
+                    <span className="font-bold text-slate-800">{vitals.weightKg} kg</span>
+                  </div>
+                )}
+                {vitals.bmi && (
+                  <div className="px-2 py-1 bg-white rounded-lg border border-slate-200 font-mono">
+                    <span className="text-slate-400 text-[10px] block">BMI</span>
+                    <span className="font-bold text-slate-800">{vitals.bmi}</span>
+                  </div>
+                )}
+              </>
+            ) : (
+              <span className="text-slate-400 text-xs italic">No vitals recorded for this visit yet.</span>
+            )}
+
+            {/* Button to record / edit vitals in consultation room */}
+            <button
+              type="button"
+              onClick={() => setIsVitalsModalOpen(true)}
+              className="ml-auto inline-flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold transition-colors"
+            >
+              <HeartPulse className="w-3.5 h-3.5 text-emerald-600" />
+              <span>
+                {vitals &&
+                ((vitals.recordedVitals && vitals.recordedVitals.length > 0) ||
+                  vitals.systolicBp ||
+                  vitals.pulseBpm ||
+                  vitals.temperatureF ||
+                  vitals.spo2 ||
+                  vitals.sugar ||
+                  vitals.weightKg)
+                  ? 'Update Vitals'
+                  : '+ Record Vitals'}
+              </span>
+            </button>
+          </div>
         </div>
 
         {/* ALLERGY WARNING ALERT */}
@@ -706,6 +789,17 @@ export const ConsultationRoomPage: React.FC = () => {
         onClose={() => {
           setCompletedPrescription(null);
           navigate('/');
+        }}
+      />
+
+      {/* Vitals Recording Modal */}
+      <VitalsModal
+        isOpen={isVitalsModalOpen}
+        visit={visit}
+        onClose={() => setIsVitalsModalOpen(false)}
+        onSaved={() => {
+          setIsVitalsModalOpen(false);
+          loadVisit();
         }}
       />
     </div>

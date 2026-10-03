@@ -225,47 +225,92 @@ export const PrescriptionPrintModal: React.FC<PrescriptionPrintModalProps> = ({
                       Vitals Recorded
                     </span>
                     <div className="grid grid-cols-3 gap-2 text-slate-600">
-                      {(vitals.systolicBp || vitals.diastolicBp) && (
-                        <div>
-                          <span className="text-slate-400 text-[10px] block">BP</span>
-                          <span className="font-semibold text-slate-800">{vitals.systolicBp}/{vitals.diastolicBp} mmHg</span>
-                        </div>
-                      )}
-                      {vitals.pulseBpm && (
-                        <div>
-                          <span className="text-slate-400 text-[10px] block">Pulse</span>
-                          <span className="font-semibold text-slate-800">{vitals.pulseBpm} bpm</span>
-                        </div>
-                      )}
-                      {vitals.temperatureF && (
-                        <div>
-                          <span className="text-slate-400 text-[10px] block">Temp</span>
-                          <span className="font-semibold text-slate-800">{vitals.temperatureF} °F</span>
-                        </div>
-                      )}
-                      {vitals.spo2 && (
-                        <div>
-                          <span className="text-slate-400 text-[10px] block">SpO2</span>
-                          <span className="font-semibold text-slate-800">{vitals.spo2} %</span>
-                        </div>
-                      )}
-                      {vitals.sugar && (
-                        <div>
-                          <span className="text-slate-400 text-[10px] block">Sugar</span>
-                          <span className="font-semibold text-slate-800">{vitals.sugar}</span>
-                        </div>
-                      )}
-                      {vitals.weightKg && (
-                        <div>
-                          <span className="text-slate-400 text-[10px] block">Weight</span>
-                          <span className="font-semibold text-slate-800">{vitals.weightKg} kg</span>
-                        </div>
-                      )}
-                      {vitals.bmi && (
-                        <div>
-                          <span className="text-slate-400 text-[10px] block">BMI</span>
-                          <span className="font-semibold text-slate-800">{vitals.bmi}</span>
-                        </div>
+                      {vitals.recordedVitals && vitals.recordedVitals.length > 0 ? (
+                        <>
+                          {(() => {
+                            const bpItems = vitals.recordedVitals.filter((v) => v.pairGroup === 'BP');
+                            const nonBp = vitals.recordedVitals.filter((v) => v.pairGroup !== 'BP');
+                            const hasAbnormalBp = bpItems.some((v) => v.isAbnormal);
+
+                            return (
+                              <>
+                                {bpItems.length > 0 && (
+                                  <div>
+                                    <span className={`text-[10px] block ${hasAbnormalBp ? 'text-rose-600 font-bold' : 'text-slate-400'}`}>
+                                      BP {hasAbnormalBp ? '*' : ''}
+                                    </span>
+                                    <span className={`font-semibold ${hasAbnormalBp ? 'text-rose-700' : 'text-slate-800'}`}>
+                                      {bpItems.find((v) => v.code.toUpperCase().includes('SYS'))?.valueNumeric ??
+                                       bpItems.find((v) => v.code.toUpperCase().includes('SYS'))?.valueText ??
+                                       '-'}
+                                      /
+                                      {bpItems.find((v) => v.code.toUpperCase().includes('DIA'))?.valueNumeric ??
+                                       bpItems.find((v) => v.code.toUpperCase().includes('DIA'))?.valueText ??
+                                       '-'} mmHg
+                                    </span>
+                                  </div>
+                                )}
+
+                                {nonBp.map((item) => (
+                                  <div key={item.code}>
+                                    <span className={`text-[10px] block uppercase ${item.isAbnormal ? 'text-rose-600 font-bold' : 'text-slate-400'}`}>
+                                      {item.displayName} {item.isAbnormal ? '*' : ''}
+                                    </span>
+                                    <span className={`font-semibold ${item.isAbnormal ? 'text-rose-700' : 'text-slate-800'}`}>
+                                      {item.valueNumeric !== undefined ? item.valueNumeric : item.valueText}
+                                      {item.unitSnapshot ? ` ${item.unitSnapshot}` : ''}
+                                    </span>
+                                  </div>
+                                ))}
+                              </>
+                            );
+                          })()}
+                        </>
+                      ) : (
+                        <>
+                          {(vitals.systolicBp || vitals.diastolicBp) && (
+                            <div>
+                              <span className="text-slate-400 text-[10px] block">BP</span>
+                              <span className="font-semibold text-slate-800">{vitals.systolicBp}/{vitals.diastolicBp} mmHg</span>
+                            </div>
+                          )}
+                          {vitals.pulseBpm && (
+                            <div>
+                              <span className="text-slate-400 text-[10px] block">Pulse</span>
+                              <span className="font-semibold text-slate-800">{vitals.pulseBpm} bpm</span>
+                            </div>
+                          )}
+                          {vitals.temperatureF && (
+                            <div>
+                              <span className="text-slate-400 text-[10px] block">Temp</span>
+                              <span className="font-semibold text-slate-800">{vitals.temperatureF} °F</span>
+                            </div>
+                          )}
+                          {vitals.spo2 && (
+                            <div>
+                              <span className="text-slate-400 text-[10px] block">SpO2</span>
+                              <span className="font-semibold text-slate-800">{vitals.spo2} %</span>
+                            </div>
+                          )}
+                          {vitals.sugar && (
+                            <div>
+                              <span className="text-slate-400 text-[10px] block">Sugar</span>
+                              <span className="font-semibold text-slate-800">{vitals.sugar}</span>
+                            </div>
+                          )}
+                          {vitals.weightKg && (
+                            <div>
+                              <span className="text-slate-400 text-[10px] block">Weight</span>
+                              <span className="font-semibold text-slate-800">{vitals.weightKg} kg</span>
+                            </div>
+                          )}
+                          {vitals.bmi && (
+                            <div>
+                              <span className="text-slate-400 text-[10px] block">BMI</span>
+                              <span className="font-semibold text-slate-800">{vitals.bmi}</span>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>

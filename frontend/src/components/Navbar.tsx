@@ -20,6 +20,7 @@ import {
   CreditCard,
   ShieldCheck,
   Clock,
+  Activity,
 } from 'lucide-react';
 import { ChangePasswordModal } from './ChangePasswordModal';
 
@@ -149,6 +150,19 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenNewPatient }) => {
                       <UserPlus className="w-4 h-4" />
                       <span>Onboard Clinic</span>
                     </Link>
+                    {hasRole('PlatformAdmin') && (
+                      <Link
+                        to="/admin/masters/vitals"
+                        className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          isActive('/admin/masters/vitals')
+                            ? 'bg-emerald-50 text-emerald-700 font-bold'
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                        }`}
+                      >
+                        <Activity className="w-4 h-4" />
+                        <span>Global Vitals</span>
+                      </Link>
+                    )}
                   </>
                 ) : (
                   <>
@@ -184,6 +198,17 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenNewPatient }) => {
                     >
                       <Users className="w-4 h-4" />
                       <span>Patients</span>
+                    </Link>
+                    <Link
+                      to="/settings/vitals"
+                      className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        isActive('/settings/vitals')
+                          ? 'bg-emerald-50 text-emerald-700'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                      }`}
+                    >
+                      <Activity className="w-4 h-4" />
+                      <span>Vitals</span>
                     </Link>
                     <Link
                       to="/settings"

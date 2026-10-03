@@ -20,15 +20,17 @@ public record RecordVitalsRequest(
 );
 
 public record VitalsDto(
-    int? SystolicBp,
-    int? DiastolicBp,
-    int? PulseBpm,
-    decimal? TemperatureF,
-    int? Spo2,
-    decimal? WeightKg,
-    decimal? HeightCm,
-    decimal? Bmi,
-    string? Sugar
+    int? SystolicBp = null,
+    int? DiastolicBp = null,
+    int? PulseBpm = null,
+    decimal? TemperatureF = null,
+    int? Spo2 = null,
+    decimal? WeightKg = null,
+    decimal? HeightCm = null,
+    decimal? Bmi = null,
+    string? Sugar = null,
+    List<DocOS.Application.Vitals.VisitVitalItemDto>? RecordedVitals = null,
+    bool HasAbnormal = false
 );
 
 public record PrescriptionItemDto(

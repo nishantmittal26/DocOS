@@ -64,6 +64,13 @@ public static class RoleSeeder
                 await userManager.AddToRoleAsync(adminUser, Roles.PlatformAdmin);
                 logger?.LogInformation("Assigned PlatformAdmin role to existing user: {Email}", adminEmail);
             }
+
+            if (!await userManager.CheckPasswordAsync(adminUser, "Admin@123"))
+            {
+                adminUser.PasswordHash = userManager.PasswordHasher.HashPassword(adminUser, "Admin@123");
+                await userManager.UpdateAsync(adminUser);
+                logger?.LogInformation("Reset PlatformAdmin password to default for: {Email}", adminEmail);
+            }
         }
     }
 }

@@ -95,6 +95,19 @@ export interface PatientSearchResult {
   todayVisitStatus?: VisitStatus;
 }
 
+export interface VisitVitalItem {
+  vitalMasterId: string;
+  code: string;
+  displayName: string;
+  valueText: string;
+  valueNumeric?: number;
+  unitSnapshot: string;
+  isAbnormal: boolean;
+  inputType: string;
+  pairGroup?: string;
+  recordedAt: string;
+}
+
 export interface Vitals {
   systolicBp?: number;
   diastolicBp?: number;
@@ -105,6 +118,82 @@ export interface Vitals {
   heightCm?: number;
   bmi?: number;
   sugar?: string;
+  recordedVitals?: VisitVitalItem[];
+  hasAbnormal?: boolean;
+}
+
+export interface VitalMaster {
+  id: string;
+  clinicId?: string;
+  code: string;
+  displayName: string;
+  unit: string;
+  inputType: 'Number' | 'Decimal' | 'Text' | 'Select' | 'Computed' | 'Paired';
+  pairGroup?: string;
+  normalRangeMin?: number;
+  normalRangeMax?: number;
+  defaultDisplayOrder: number;
+  isActive: boolean;
+  isCustom: boolean;
+}
+
+export interface ClinicVitalPreference {
+  id: string;
+  vitalMasterId: string;
+  code: string;
+  displayName: string;
+  unit: string;
+  inputType: 'Number' | 'Decimal' | 'Text' | 'Select' | 'Computed' | 'Paired';
+  pairGroup?: string;
+  masterRangeMin?: number;
+  masterRangeMax?: number;
+  normalRangeMinOverride?: number;
+  normalRangeMaxOverride?: number;
+  effectiveRangeMin?: number;
+  effectiveRangeMax?: number;
+  isEnabled: boolean;
+  isMandatory: boolean;
+  displayOrder: number;
+  isCustom: boolean;
+}
+
+export interface UpdateVitalPreferenceItem {
+  vitalMasterId: string;
+  isEnabled: boolean;
+  isMandatory: boolean;
+  displayOrder: number;
+  normalRangeMinOverride?: number | null;
+  normalRangeMaxOverride?: number | null;
+}
+
+export interface CreateCustomVitalRequest {
+  code: string;
+  displayName: string;
+  unit: string;
+  inputType: string;
+  pairGroup?: string;
+  normalRangeMin?: number;
+  normalRangeMax?: number;
+  displayOrder?: number;
+  isMandatory?: boolean;
+}
+
+export interface CreateGlobalVitalMasterRequest {
+  code: string;
+  displayName: string;
+  unit: string;
+  inputType: string;
+  pairGroup?: string;
+  normalRangeMin?: number;
+  normalRangeMax?: number;
+  defaultDisplayOrder: number;
+}
+
+export interface RecordVisitVitalItemRequest {
+  vitalMasterId?: string;
+  code?: string;
+  valueText?: string;
+  valueNumeric?: number;
 }
 
 export interface PrescriptionItem {

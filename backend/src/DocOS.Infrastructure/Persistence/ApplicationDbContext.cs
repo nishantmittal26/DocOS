@@ -22,6 +22,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
     public DbSet<ClinicSubscription> ClinicSubscriptions => Set<ClinicSubscription>();
     public DbSet<ClinicPeriodUsage> ClinicPeriodUsages => Set<ClinicPeriodUsage>();
     public DbSet<SubscriptionPaymentHistory> SubscriptionPayments => Set<SubscriptionPaymentHistory>();
+    public DbSet<VitalMaster> VitalMasters => Set<VitalMaster>();
+    public DbSet<ClinicVitalPreference> ClinicVitalPreferences => Set<ClinicVitalPreference>();
+    public DbSet<VisitVitals> VisitVitals => Set<VisitVitals>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -95,12 +98,6 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
             entity.Property(v => v.DoctorId).HasMaxLength(450);
             entity.Property(v => v.VisitDate).HasColumnType("date");
 
-            // Preserved vitals precision as per Phase 2 schema
-            entity.Property(v => v.TemperatureF).HasPrecision(12, 4);
-            entity.Property(v => v.WeightKg).HasPrecision(12, 4);
-            entity.Property(v => v.HeightCm).HasPrecision(12, 4);
-            entity.Property(v => v.Bmi).HasPrecision(12, 4);
-            entity.Property(v => v.Sugar).HasMaxLength(100);
             entity.Property(v => v.Diagnosis).HasMaxLength(500);
 
             // Foreign keys
@@ -256,6 +253,90 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
                 .WithMany(s => s.PaymentHistories)
                 .HasForeignKey(p => p.SubscriptionId)
                 .OnDelete(DeleteBehavior.Restrict); // Prevent cyclic cascade in SQL Server
+        });
+
+        // VitalMaster configuration (Phase 2C)
+        builder.Entity<VitalMaster>(entity =>
+        {
+            entity.HasKey(v => v.Id);
+            entity.Property(v => v.Code).HasMaxLength(50).IsRequired();
+            entity.Property(v => v.DisplayName).HasMaxLength(100).IsRequired();
+            entity.Property(v => v.Unit).HasMaxLength(30).IsRequired();
+            entity.Property(v => v.InputType).HasMaxLength(20).IsRequired();
+            entity.Property(v => v.PairGroup).HasMaxLength(50);
+            entity.Property(v => v.NormalRangeMin).HasPrecision(12, 4);
+            entity.Property(v => v.NormalRangeMax).HasPrecision(12, 4);
+            entity.Property(v => v.DefaultDisplayOrder).HasDefaultValue(0);
+            entity.Property(v => v.IsActive).HasDefaultValue(true);
+
+            entity.HasOne(v => v.Clinic)
+                .WithMany(c => c.CustomVitals)
+                .HasForeignKey(v => v.ClinicId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(v => v.Code)
+                .IsUnique()
+                .HasFilter("[ClinicId] IS NULL");
+
+            entity.HasIndex(v => new { v.ClinicId, v.Code })
+                .IsUnique()
+                .HasFilter("[ClinicId] IS NOT NULL");
+        });
+
+        // ClinicVitalPreference configuration (Phase 2C)
+        builder.Entity<ClinicVitalPreference>(entity =>
+        {
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.IsEnabled).HasDefaultValue(true);
+            entity.Property(p => p.IsMandatory).HasDefaultValue(false);
+            entity.Property(p => p.DisplayOrder).HasDefaultValue(0);
+            entity.Property(p => p.NormalRangeMinOverride).HasPrecision(12, 4);
+            entity.Property(p => p.NormalRangeMaxOverride).HasPrecision(12, 4);
+
+            entity.HasOne(p => p.Clinic)
+                .WithMany(c => c.VitalPreferences)
+                .HasForeignKey(p => p.ClinicId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(p => p.VitalMaster)
+                .WithMany(v => v.ClinicPreferences)
+                .HasForeignKey(p => p.VitalMasterId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(p => new { p.ClinicId, p.VitalMasterId }).IsUnique();
+        });
+
+        // VisitVitals configuration (Phase 2C)
+        builder.Entity<VisitVitals>(entity =>
+        {
+            entity.HasKey(v => v.Id);
+            entity.Property(v => v.ValueText).HasMaxLength(100).IsRequired();
+            entity.Property(v => v.ValueNumeric).HasPrecision(12, 4);
+            entity.Property(v => v.UnitSnapshot).HasMaxLength(30).IsRequired();
+            entity.Property(v => v.IsAbnormal).HasDefaultValue(false);
+            entity.Property(v => v.RecordedByUserId).HasMaxLength(450);
+
+            entity.HasOne(v => v.Visit)
+                .WithMany(vis => vis.Vitals)
+                .HasForeignKey(v => v.VisitId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(v => v.Patient)
+                .WithMany()
+                .HasForeignKey(v => v.PatientId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(v => v.VitalMaster)
+                .WithMany(vm => vm.VisitVitals)
+                .HasForeignKey(v => v.VitalMasterId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(v => v.RecordedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(v => new { v.VisitId, v.VitalMasterId });
         });
     }
 }

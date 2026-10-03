@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { visitsApi } from '../../api/client';
-import { VisitQueueItem, PrescriptionDetail } from '../../types';
+import { VisitQueueItem, PrescriptionDetail, Vitals } from '../../types';
 import { VitalsModal } from '../../components/VitalsModal';
 import { PrescriptionPrintModal } from '../../components/PrescriptionPrintModal';
 import {
@@ -148,6 +148,54 @@ export const OpdHistoryPage: React.FC = () => {
   const waitingCount = visits.filter(
     (v) => v.status === 'Waiting' || v.status === 'InConsultation'
   ).length;
+
+  const hasVitals = (vitals?: Vitals) => {
+    if (!vitals) return false;
+    return !!(
+      (vitals.recordedVitals && vitals.recordedVitals.length > 0) ||
+      vitals.systolicBp ||
+      vitals.pulseBpm ||
+      vitals.temperatureF ||
+      vitals.sugar ||
+      vitals.spo2 ||
+      vitals.weightKg
+    );
+  };
+
+  const renderVitalsSummary = (vitals?: Vitals) => {
+    if (!vitals) return null;
+    if (vitals.recordedVitals && vitals.recordedVitals.length > 0) {
+      const bpItems = vitals.recordedVitals.filter((v) => v.pairGroup === 'BP');
+      const nonBpItems = vitals.recordedVitals.filter((v) => v.pairGroup !== 'BP');
+      const parts: string[] = [];
+      if (bpItems.length > 0) {
+        const sys = bpItems.find((v) => v.code.toUpperCase().includes('SYS'))?.valueNumeric ??
+                    bpItems.find((v) => v.code.toUpperCase().includes('SYS'))?.valueText;
+        const dia = bpItems.find((v) => v.code.toUpperCase().includes('DIA'))?.valueNumeric ??
+                    bpItems.find((v) => v.code.toUpperCase().includes('DIA'))?.valueText;
+        if (sys || dia) {
+          parts.push(`${sys || '-'}/${dia || '-'} BP`);
+        }
+      }
+      nonBpItems.forEach((item) => {
+        const val = item.valueNumeric !== undefined ? item.valueNumeric : item.valueText;
+        if (val !== undefined && val !== null && val !== '') {
+          parts.push(`${item.displayName} ${val}${item.unitSnapshot ? ' ' + item.unitSnapshot : ''}`);
+        }
+      });
+      return parts.slice(0, 4).join(' • ') + (parts.length > 4 ? ` (+${parts.length - 4})` : '');
+    }
+
+    const parts: string[] = [];
+    if (vitals.systolicBp || vitals.diastolicBp) parts.push(`${vitals.systolicBp || '-'}/${vitals.diastolicBp || '-'} BP`);
+    if (vitals.pulseBpm) parts.push(`${vitals.pulseBpm} bpm`);
+    if (vitals.temperatureF) parts.push(`${vitals.temperatureF}°F`);
+    if (vitals.sugar) parts.push(`Sugar ${vitals.sugar}`);
+    if (vitals.spo2) parts.push(`${vitals.spo2}% SpO2`);
+    if (vitals.weightKg) parts.push(`${vitals.weightKg} kg`);
+    if (vitals.bmi) parts.push(`BMI ${vitals.bmi}`);
+    return parts.slice(0, 4).join(' • ');
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -408,27 +456,26 @@ export const OpdHistoryPage: React.FC = () => {
 
                     {/* Vitals Summary Pill */}
                     <div className="flex flex-wrap items-center gap-2 pt-0.5">
-                      {item.vitals &&
-                      (item.vitals.systolicBp ||
-                        item.vitals.pulseBpm ||
-                        item.vitals.temperatureF ||
-                        item.vitals.sugar ||
-                        item.vitals.spo2 ||
-                        item.vitals.weightKg) ? (
+                      {hasVitals(item.vitals) ? (
                         <button
                           onClick={() => setSelectedVisitForVitals(item)}
-                          className="inline-flex items-center space-x-1.5 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg transition-colors"
+                          className={`inline-flex items-center space-x-1.5 text-xs px-2.5 py-1 rounded-lg transition-colors ${
+                            item.vitals?.hasAbnormal
+                              ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300 font-medium shadow-sm'
+                              : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                          }`}
                         >
-                          <HeartPulse className="w-3.5 h-3.5 text-rose-500" />
-                          <span>
-                            {item.vitals.systolicBp
-                              ? `${item.vitals.systolicBp}/${item.vitals.diastolicBp} BP`
-                              : ''}
-                            {item.vitals.pulseBpm ? ` • ${item.vitals.pulseBpm} bpm` : ''}
-                            {item.vitals.temperatureF ? ` • ${item.vitals.temperatureF}°F` : ''}
-                            {item.vitals.sugar ? ` • Sugar ${item.vitals.sugar}` : ''}
-                            {item.vitals.bmi ? ` • BMI ${item.vitals.bmi}` : ''}
-                          </span>
+                          {item.vitals?.hasAbnormal ? (
+                            <AlertTriangle className="w-3.5 h-3.5 text-rose-600 flex-shrink-0 animate-pulse" />
+                          ) : (
+                            <HeartPulse className="w-3.5 h-3.5 text-rose-500 flex-shrink-0" />
+                          )}
+                          <span>{renderVitalsSummary(item.vitals)}</span>
+                          {item.vitals?.hasAbnormal && (
+                            <span className="ml-1 px-1.5 py-0.5 bg-rose-200 text-rose-900 text-[10px] font-bold rounded">
+                              Abnormal
+                            </span>
+                          )}
                         </button>
                       ) : (
                         <span className="text-[11px] text-slate-400 italic">No vitals recorded</span>

@@ -1,4 +1,5 @@
 using DocOS.Application.Common.Interfaces;
+using DocOS.Application.Vitals;
 using DocOS.Domain.Common;
 using DocOS.Domain.Entities;
 using DocOS.Domain.Enums;
@@ -50,15 +51,18 @@ public class VisitHandlers :
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUser;
     private readonly IIdentityService _identityService;
+    private readonly IMediator? _mediator;
 
     public VisitHandlers(
         IApplicationDbContext context,
         ICurrentUserService currentUser,
-        IIdentityService identityService)
+        IIdentityService identityService,
+        IMediator? mediator = null)
     {
         _context = context;
         _currentUser = currentUser;
         _identityService = identityService;
+        _mediator = mediator;
     }
 
     public async Task<VisitQueueDto> Handle(AddToQueueCommand request, CancellationToken cancellationToken)
@@ -298,27 +302,26 @@ public class VisitHandlers :
             ?? throw new UnauthorizedAccessException("Active clinic context is required to access clinic clinical records");
 
         var req = request.Request;
-        var visit = await _context.Visits
-            .FirstOrDefaultAsync(v => v.Id == req.VisitId && v.ClinicId == clinicId, cancellationToken)
-            ?? throw new InvalidOperationException("Visit not found");
+        var items = new List<RecordVisitVitalItemRequest>();
+        if (req.SystolicBp.HasValue) items.Add(new RecordVisitVitalItemRequest(null, "BP_SYS", req.SystolicBp.Value.ToString(), req.SystolicBp.Value));
+        if (req.DiastolicBp.HasValue) items.Add(new RecordVisitVitalItemRequest(null, "BP_DIA", req.DiastolicBp.Value.ToString(), req.DiastolicBp.Value));
+        if (req.PulseBpm.HasValue) items.Add(new RecordVisitVitalItemRequest(null, "PULSE", req.PulseBpm.Value.ToString(), req.PulseBpm.Value));
+        if (req.TemperatureF.HasValue) items.Add(new RecordVisitVitalItemRequest(null, "TEMP_F", req.TemperatureF.Value.ToString(), req.TemperatureF.Value));
+        if (req.Spo2.HasValue) items.Add(new RecordVisitVitalItemRequest(null, "SPO2", req.Spo2.Value.ToString(), req.Spo2.Value));
+        if (req.WeightKg.HasValue) items.Add(new RecordVisitVitalItemRequest(null, "WEIGHT", req.WeightKg.Value.ToString(), req.WeightKg.Value));
+        if (req.HeightCm.HasValue) items.Add(new RecordVisitVitalItemRequest(null, "HEIGHT", req.HeightCm.Value.ToString(), req.HeightCm.Value));
+        if (!string.IsNullOrWhiteSpace(req.Sugar)) items.Add(new RecordVisitVitalItemRequest(null, "SUGAR", req.Sugar.Trim(), null));
 
-        visit.SystolicBp = req.SystolicBp;
-        visit.DiastolicBp = req.DiastolicBp;
-        visit.PulseBpm = req.PulseBpm;
-        visit.TemperatureF = req.TemperatureF;
-        visit.Spo2 = req.Spo2;
-        visit.WeightKg = req.WeightKg;
-        visit.HeightCm = req.HeightCm;
-        visit.Sugar = string.IsNullOrWhiteSpace(req.Sugar) ? null : req.Sugar.Trim();
-
-        if (req.WeightKg.HasValue && req.HeightCm.HasValue && req.HeightCm > 0)
+        if (_mediator != null)
         {
-            var heightInMeters = req.HeightCm.Value / 100m;
-            visit.Bmi = Math.Round(req.WeightKg.Value / (heightInMeters * heightInMeters), 1);
+            await _mediator.Send(new RecordVisitVitalsCommand(req.VisitId, new RecordVisitVitalsRequest(items)), cancellationToken);
+        }
+        else
+        {
+            var handler = new VitalHandlers(_context, _currentUser);
+            await handler.Handle(new RecordVisitVitalsCommand(req.VisitId, new RecordVisitVitalsRequest(items)), cancellationToken);
         }
 
-        visit.UpdatedAt = DateTime.UtcNow;
-        await _context.SaveChangesAsync(cancellationToken);
         return true;
     }
 
@@ -333,6 +336,8 @@ public class VisitHandlers :
             .AsNoTracking()
             .Include(v => v.Patient)
             .Include(v => v.Prescription)
+            .Include(v => v.Vitals)
+                .ThenInclude(vt => vt.VitalMaster)
             .Where(v => v.ClinicId == clinicId && v.VisitDate == today);
 
         if (!string.IsNullOrWhiteSpace(request.DoctorId))
@@ -363,17 +368,7 @@ public class VisitHandlers :
             v.TokenNumber,
             v.Status,
             v.VisitDate,
-            new VitalsDto(
-                v.SystolicBp,
-                v.DiastolicBp,
-                v.PulseBpm,
-                v.TemperatureF,
-                v.Spo2,
-                v.WeightKg,
-                v.HeightCm,
-                v.Bmi,
-                v.Sugar
-            ),
+            VitalsMapper.MapToVitalsDto(v.Vitals),
             v.ChiefComplaints,
             v.Diagnosis,
             v.ClinicalNotes,
@@ -397,6 +392,8 @@ public class VisitHandlers :
             .Include(v => v.Prescription)
                 .ThenInclude(p => p!.Items)
             .Include(v => v.Clinic)
+            .Include(v => v.Vitals)
+                .ThenInclude(vt => vt.VitalMaster)
             .FirstOrDefaultAsync(v => v.Id == req.VisitId && v.ClinicId == clinicId, cancellationToken)
             ?? throw new InvalidOperationException("Visit not found");
 
@@ -529,17 +526,7 @@ public class VisitHandlers :
             doctorProfile?.FullName ?? "Doctor",
             prescription.PrescribedAt,
             visit.FollowUpDate,
-            new VitalsDto(
-                visit.SystolicBp,
-                visit.DiastolicBp,
-                visit.PulseBpm,
-                visit.TemperatureF,
-                visit.Spo2,
-                visit.WeightKg,
-                visit.HeightCm,
-                visit.Bmi,
-                visit.Sugar
-            ),
+            VitalsMapper.MapToVitalsDto(visit.Vitals),
             visit.ChiefComplaints,
             visit.Diagnosis,
             visit.ClinicalNotes,
@@ -568,6 +555,8 @@ public class VisitHandlers :
             .Include(v => v.Clinic)
             .Include(v => v.Prescription)
                 .ThenInclude(p => p!.Items)
+            .Include(v => v.Vitals)
+                .ThenInclude(vt => vt.VitalMaster)
             .FirstOrDefaultAsync(v => v.Id == request.VisitId && v.ClinicId == clinicId, cancellationToken);
 
         if (visit?.Prescription == null) return null;
@@ -610,17 +599,7 @@ public class VisitHandlers :
             doctorProfile?.FullName ?? "Doctor",
             prescription.PrescribedAt,
             visit.FollowUpDate,
-            new VitalsDto(
-                visit.SystolicBp,
-                visit.DiastolicBp,
-                visit.PulseBpm,
-                visit.TemperatureF,
-                visit.Spo2,
-                visit.WeightKg,
-                visit.HeightCm,
-                visit.Bmi,
-                visit.Sugar
-            ),
+            VitalsMapper.MapToVitalsDto(visit.Vitals),
             visit.ChiefComplaints,
             visit.Diagnosis,
             visit.ClinicalNotes,
@@ -647,6 +626,8 @@ public class VisitHandlers :
             .AsNoTracking()
             .Include(v => v.Patient)
             .Include(v => v.Prescription)
+            .Include(v => v.Vitals)
+                .ThenInclude(vt => vt.VitalMaster)
             .Where(v => v.ClinicId == clinicId);
 
         if (request.FromDate.HasValue)
@@ -708,17 +689,7 @@ public class VisitHandlers :
             v.TokenNumber,
             v.Status,
             v.VisitDate,
-            new VitalsDto(
-                v.SystolicBp,
-                v.DiastolicBp,
-                v.PulseBpm,
-                v.TemperatureF,
-                v.Spo2,
-                v.WeightKg,
-                v.HeightCm,
-                v.Bmi,
-                v.Sugar
-            ),
+            VitalsMapper.MapToVitalsDto(v.Vitals),
             v.ChiefComplaints,
             v.Diagnosis,
             v.ClinicalNotes,

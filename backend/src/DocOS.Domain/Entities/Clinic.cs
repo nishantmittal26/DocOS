@@ -25,4 +25,6 @@ public class Clinic : BaseEntity
     public ClinicSubscription? Subscription { get; set; }
     public ICollection<ClinicPeriodUsage> PeriodUsages { get; set; } = new List<ClinicPeriodUsage>();
     public ICollection<SubscriptionPaymentHistory> SubscriptionPayments { get; set; } = new List<SubscriptionPaymentHistory>();
+    public ICollection<ClinicVitalPreference> VitalPreferences { get; set; } = new List<ClinicVitalPreference>();
+    public ICollection<VitalMaster> CustomVitals { get; set; } = new List<VitalMaster>();
 }

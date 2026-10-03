@@ -19,6 +19,13 @@ import {
   UpdateClinicSubscriptionRequest,
   ClinicQuotaStatus,
   SubscriptionPayment,
+  VitalMaster,
+  ClinicVitalPreference,
+  UpdateVitalPreferenceItem,
+  CreateCustomVitalRequest,
+  CreateGlobalVitalMasterRequest,
+  RecordVisitVitalItemRequest,
+  VisitVitalItem,
 } from '../types';
 
 const api = axios.create({
@@ -331,6 +338,41 @@ export const adminApi = {
     }
   ) => {
     const res = await api.post<boolean>(`/admin/clinics/${clinicId}/subscription/payments`, data);
+    return res.data;
+  },
+  getGlobalVitals: async () => {
+    const res = await api.get<VitalMaster[]>('/admin/masters/vitals');
+    return res.data;
+  },
+  createGlobalVital: async (data: CreateGlobalVitalMasterRequest) => {
+    const res = await api.post<VitalMaster>('/admin/masters/vitals', data);
+    return res.data;
+  },
+  updateGlobalVital: async (id: string, data: Partial<VitalMaster>) => {
+    const res = await api.put<VitalMaster>(`/admin/masters/vitals/${id}`, data);
+    return res.data;
+  },
+};
+
+export const vitalsApi = {
+  getPreferences: async () => {
+    const res = await api.get<ClinicVitalPreference[]>('/vitals/preferences');
+    return res.data;
+  },
+  updatePreferences: async (preferences: UpdateVitalPreferenceItem[]) => {
+    const res = await api.put<boolean>('/vitals/preferences', { preferences });
+    return res.data;
+  },
+  createCustomVital: async (data: CreateCustomVitalRequest) => {
+    const res = await api.post<ClinicVitalPreference>('/vitals/masters/custom', data);
+    return res.data;
+  },
+  getVisitVitals: async (visitId: string) => {
+    const res = await api.get<VisitVitalItem[]>(`/visits/${visitId}/vitals`);
+    return res.data;
+  },
+  recordVisitVitals: async (visitId: string, vitals: RecordVisitVitalItemRequest[]) => {
+    const res = await api.put<Vitals>(`/visits/${visitId}/vitals`, { vitals });
     return res.data;
   },
 };

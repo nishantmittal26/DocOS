@@ -15,6 +15,9 @@ public interface IApplicationDbContext
     DbSet<ClinicSubscription> ClinicSubscriptions { get; }
     DbSet<ClinicPeriodUsage> ClinicPeriodUsages { get; }
     DbSet<SubscriptionPaymentHistory> SubscriptionPayments { get; }
+    DbSet<VitalMaster> VitalMasters { get; }
+    DbSet<ClinicVitalPreference> ClinicVitalPreferences { get; }
+    DbSet<VisitVitals> VisitVitals { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

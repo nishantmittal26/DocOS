@@ -10,9 +10,11 @@ import { OpdHistoryPage } from './pages/history/OpdHistoryPage';
 import { ConsultationRoomPage } from './pages/consultation/ConsultationRoomPage';
 import { PatientsPage } from './pages/patients/PatientsPage';
 import { SettingsPage } from './pages/settings/SettingsPage';
+import { VitalsSettingsPage } from './pages/settings/VitalsSettingsPage';
 import { OnboardDoctorPage } from './pages/admin/OnboardDoctorPage';
 import { AdminClinicsPage } from './pages/admin/AdminClinicsPage';
 import { ClinicSubscriptionPage } from './pages/admin/ClinicSubscriptionPage';
+import { AdminVitalsPage } from './pages/admin/AdminVitalsPage';
 
 // Automatically use HashRouter on GitHub Pages to prevent 404s on subpath page reloads
 const isGitHubPages = typeof window !== 'undefined' && window.location.hostname.endsWith('github.io');
@@ -52,6 +54,16 @@ const AppContent: React.FC = () => {
               <Route path="/admin/clinics" element={<AdminClinicsPage />} />
               <Route path="/admin/onboard-doctor" element={<OnboardDoctorPage />} />
               <Route
+                path="/admin/masters/vitals"
+                element={
+                  isPlatformAdmin ? (
+                    <AdminVitalsPage />
+                  ) : (
+                    <Navigate to="/admin/clinics" replace />
+                  )
+                }
+              />
+              <Route
                 path="/admin/clinics/:clinicId/subscription"
                 element={
                   isPlatformAdmin ? (
@@ -77,6 +89,7 @@ const AppContent: React.FC = () => {
               />
               <Route path="/consultation/:visitId" element={<ConsultationRoomPage />} />
               <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/settings/vitals" element={<VitalsSettingsPage />} />
               <Route path="/admin/*" element={<Navigate to="/" replace />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </>

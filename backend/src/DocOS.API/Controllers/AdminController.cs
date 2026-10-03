@@ -1,4 +1,5 @@
 using DocOS.Application.Subscriptions;
+using DocOS.Application.Vitals;
 using DocOS.Domain.Common;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -72,5 +73,48 @@ public class AdminController : ControllerBase
     {
         var result = await _mediator.Send(new RecordSubscriptionPaymentCommand(clinicId, request));
         return Ok(result);
+    }
+
+    [HttpGet("masters/vitals")]
+    [Authorize(Roles = Roles.PlatformAdmin)]
+    public async Task<ActionResult<List<VitalMasterDto>>> GetGlobalVitals(CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new GetGlobalVitalMastersQuery(), cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpPost("masters/vitals")]
+    [Authorize(Roles = Roles.PlatformAdmin)]
+    public async Task<ActionResult<VitalMasterDto>> CreateGlobalVital(
+        [FromBody] CreateGlobalVitalMasterRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _mediator.Send(new CreateGlobalVitalMasterCommand(request), cancellationToken);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("masters/vitals/{id:guid}")]
+    [Authorize(Roles = Roles.PlatformAdmin)]
+    public async Task<ActionResult<VitalMasterDto>> UpdateGlobalVital(
+        Guid id,
+        [FromBody] UpdateGlobalVitalMasterRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _mediator.Send(new UpdateGlobalVitalMasterCommand(id, request), cancellationToken);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 }

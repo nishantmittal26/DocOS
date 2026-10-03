@@ -19,14 +19,16 @@ import {
   Shield,
   Clock,
   ToggleLeft,
-  ToggleRight
+  ToggleRight,
+  Activity,
 } from 'lucide-react';
 import { AddCustomMedicineModal } from '../../components/AddCustomMedicineModal';
+import { VitalsSettingsPage } from './VitalsSettingsPage';
 
 export const SettingsPage: React.FC = () => {
   const { user, updateUserClinicInfo, hasRole } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<'clinic' | 'doctor' | 'staff' | 'medicines'>('clinic');
+  const [activeTab, setActiveTab] = useState<'clinic' | 'doctor' | 'staff' | 'medicines' | 'vitals'>('clinic');
 
   // Clinic config state
   const [profile, setProfile] = useState<ClinicProfile | null>(null);
@@ -345,6 +347,18 @@ export const SettingsPage: React.FC = () => {
         >
           <Pill className="w-4 h-4" />
           <span>Clinic Medicines ({customMedicines.length})</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('vitals')}
+          className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center space-x-2 transition-all ${
+            activeTab === 'vitals'
+              ? 'border-emerald-600 text-emerald-800'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Activity className="w-4 h-4" />
+          <span>Vitals Setup</span>
         </button>
       </div>
 
@@ -997,6 +1011,13 @@ export const SettingsPage: React.FC = () => {
               }}
             />
           )}
+        </div>
+      )}
+
+      {/* Tab 5: Dynamic Vitals Setup */}
+      {activeTab === 'vitals' && (
+        <div className="pt-2">
+          <VitalsSettingsPage />
         </div>
       )}
     </div>
