@@ -87,6 +87,12 @@ export interface PatientSearchResult {
   mobileNumber: string;
   allergies?: string;
   lastVisitDate?: string;
+  lastDoctorId?: string;
+  lastDoctorName?: string;
+  todayVisitDoctorId?: string;
+  todayVisitDoctorName?: string;
+  todayVisitTokenNumber?: number;
+  todayVisitStatus?: VisitStatus;
 }
 
 export interface Vitals {

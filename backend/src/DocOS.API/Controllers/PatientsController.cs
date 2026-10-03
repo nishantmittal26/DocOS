@@ -25,9 +25,9 @@ public class PatientsController : ControllerBase
     }
 
     [HttpGet("search")]
-    public async Task<ActionResult<List<PatientSearchResultDto>>> SearchPatients([FromQuery] string? q)
+    public async Task<ActionResult<List<PatientSearchResultDto>>> SearchPatients([FromQuery] string? q, [FromQuery] string? doctorId)
     {
-        var result = await _mediator.Send(new SearchPatientsQuery(q ?? string.Empty));
+        var result = await _mediator.Send(new SearchPatientsQuery(q ?? string.Empty, doctorId));
         return Ok(result);
     }
 

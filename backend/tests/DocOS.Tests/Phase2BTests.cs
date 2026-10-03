@@ -1,4 +1,5 @@
 using DocOS.Application.Common.Interfaces;
+using DocOS.Application.Patients;
 using DocOS.Application.Subscriptions;
 using DocOS.Application.Visits;
 using DocOS.Domain.Common;
@@ -449,4 +450,110 @@ public class Phase2BTests
         await duplicateAct.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*has already been recorded*");
     }
+
+    [Fact]
+    public async Task SearchPatients_Can_Filter_By_Doctor_And_Enrich_Queue_Status_With_Doctor_Name()
+    {
+        // Arrange
+        using var context = CreateInMemoryDbContext();
+        var clinicId = Guid.NewGuid();
+        var doc1Id = "doctor-1";
+        var doc2Id = "doctor-2";
+
+        var mockCurrentUser = new Mock<ICurrentUserService>();
+        mockCurrentUser.Setup(u => u.ClinicId).Returns(clinicId);
+        mockCurrentUser.Setup(u => u.UserId).Returns("receptionist-1");
+
+        var mockIdentityService = new Mock<IIdentityService>();
+        mockIdentityService.Setup(i => i.GetDoctorNamesAsync(It.IsAny<IEnumerable<string>>()))
+            .ReturnsAsync(new Dictionary<string, string>
+            {
+                { doc1Id, "Dr. Ramesh Gupta" },
+                { doc2Id, "Dr. Priya Sharma" }
+            });
+
+        // Patients
+        var patient1 = new Patient
+        {
+            Id = Guid.NewGuid(),
+            ClinicId = clinicId,
+            PatientUid = "DOC-2026-0001",
+            FullName = "Aarav Patel",
+            Age = 35,
+            Gender = Gender.Male,
+            MobileNumber = "9988776655"
+        };
+        var patient2 = new Patient
+        {
+            Id = Guid.NewGuid(),
+            ClinicId = clinicId,
+            PatientUid = "DOC-2026-0002",
+            FullName = "Ananya Singh",
+            Age = 28,
+            Gender = Gender.Female,
+            MobileNumber = "9988776644"
+        };
+        context.Patients.AddRange(patient1, patient2);
+
+        // Previous visits linking patient1 to doc1, patient2 to doc2
+        context.Visits.Add(new Visit
+        {
+            Id = Guid.NewGuid(),
+            ClinicId = clinicId,
+            PatientId = patient1.Id,
+            DoctorId = doc1Id,
+            TokenNumber = 1,
+            VisitDate = DateTime.UtcNow.Date.AddDays(-2),
+            Status = VisitStatus.Completed
+        });
+        context.Visits.Add(new Visit
+        {
+            Id = Guid.NewGuid(),
+            ClinicId = clinicId,
+            PatientId = patient2.Id,
+            DoctorId = doc2Id,
+            TokenNumber = 1,
+            VisitDate = DateTime.UtcNow.Date.AddDays(-1),
+            Status = VisitStatus.Completed
+        });
+
+        // Today's active queue visit for patient 1 with doctor 1
+        context.Visits.Add(new Visit
+        {
+            Id = Guid.NewGuid(),
+            ClinicId = clinicId,
+            PatientId = patient1.Id,
+            DoctorId = doc1Id,
+            TokenNumber = 5,
+            VisitDate = DateTime.UtcNow.Date,
+            Status = VisitStatus.Waiting
+        });
+
+        await context.SaveChangesAsync();
+
+        var patientHandlers = new PatientHandlers(context, mockCurrentUser.Object, mockIdentityService.Object);
+
+        // Act 1: Search filtered by doc1 -> Only patient 1 should be returned
+        var doc1Patients = await patientHandlers.Handle(new SearchPatientsQuery(string.Empty, doc1Id), CancellationToken.None);
+        doc1Patients.Should().HaveCount(1);
+        doc1Patients[0].FullName.Should().Be("Aarav Patel");
+        doc1Patients[0].LastDoctorId.Should().Be(doc1Id);
+        doc1Patients[0].LastDoctorName.Should().Be("Dr. Ramesh Gupta");
+        doc1Patients[0].TodayVisitDoctorId.Should().Be(doc1Id);
+        doc1Patients[0].TodayVisitDoctorName.Should().Be("Dr. Ramesh Gupta");
+        doc1Patients[0].TodayVisitTokenNumber.Should().Be(5);
+        doc1Patients[0].TodayVisitStatus.Should().Be("Waiting");
+
+        // Act 2: Search filtered by doc2 -> Only patient 2 should be returned
+        var doc2Patients = await patientHandlers.Handle(new SearchPatientsQuery(string.Empty, doc2Id), CancellationToken.None);
+        doc2Patients.Should().HaveCount(1);
+        doc2Patients[0].FullName.Should().Be("Ananya Singh");
+        doc2Patients[0].LastDoctorName.Should().Be("Dr. Priya Sharma");
+        doc2Patients[0].TodayVisitDoctorId.Should().BeNull();
+
+        // Act 3: Clinic-wide search without doctor filter -> returns all
+        var allPatients = await patientHandlers.Handle(new SearchPatientsQuery(string.Empty), CancellationToken.None);
+        allPatients.Should().HaveCount(2);
+    }
 }
+

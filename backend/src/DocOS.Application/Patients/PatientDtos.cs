@@ -38,5 +38,11 @@ public record PatientSearchResultDto(
     Gender Gender,
     string MobileNumber,
     string? Allergies,
-    DateTime? LastVisitDate
+    DateTime? LastVisitDate,
+    string? LastDoctorId = null,
+    string? LastDoctorName = null,
+    string? TodayVisitDoctorId = null,
+    string? TodayVisitDoctorName = null,
+    int? TodayVisitTokenNumber = null,
+    string? TodayVisitStatus = null
 );

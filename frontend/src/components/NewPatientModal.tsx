@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { X, UserPlus, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { patientsApi, visitsApi } from '../api/client';
-import { Gender, Patient } from '../types';
+import React, { useState, useEffect } from 'react';
+import { X, UserPlus, AlertCircle, CheckCircle2, Stethoscope } from 'lucide-react';
+import { patientsApi, visitsApi, authApi } from '../api/client';
+import { Gender, Patient, DoctorProfile } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 interface NewPatientModalProps {
   isOpen: boolean;
@@ -14,6 +15,8 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({
   onClose,
   onPatientAdded,
 }) => {
+  const { user } = useAuth();
+
   const [fullName, setFullName] = useState('');
   const [age, setAge] = useState('');
   const [gender, setGender] = useState<Gender>('Male');
@@ -25,8 +28,28 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({
   const [medicalHistory, setMedicalHistory] = useState('');
   const [addToQueue, setAddToQueue] = useState(true);
 
+  // Multi-doctor state
+  const [doctors, setDoctors] = useState<DoctorProfile[]>([]);
+  const [selectedDoctorId, setSelectedDoctorId] = useState<string>('');
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Fetch clinic doctors on open
+  useEffect(() => {
+    if (isOpen) {
+      authApi
+        .getClinicDoctors()
+        .then((docs) => {
+          setDoctors(docs);
+          if (docs.length > 0) {
+            const currentDoc = docs.find((d) => d.userId === user?.userId);
+            setSelectedDoctorId(currentDoc ? currentDoc.userId : docs[0].userId);
+          }
+        })
+        .catch((err) => console.error('Failed to load clinic doctors in NewPatientModal', err));
+    }
+  }, [isOpen, user]);
 
   if (!isOpen) return null;
 
@@ -63,7 +86,10 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({
 
       let queued = false;
       if (addToQueue) {
-        await visitsApi.addToQueue(patient.id);
+        await visitsApi.addToQueue({
+          patientId: patient.id,
+          doctorId: selectedDoctorId || undefined,
+        });
         queued = true;
       }
 
@@ -247,6 +273,34 @@ export const NewPatientModal: React.FC<NewPatientModalProps> = ({
               <span>Generate Token & Add to Today's OPD Queue immediately</span>
             </label>
           </div>
+
+          {/* Doctor Assignment Selector (Tied to Specific Doctor for multi-doctor clinic) */}
+          {addToQueue && doctors.length > 0 && (
+            <div className="p-3.5 bg-emerald-50/70 rounded-xl border border-emerald-200/80 space-y-1.5 animate-in fade-in">
+              <label className="block text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+                <Stethoscope className="w-3.5 h-3.5 text-emerald-700" />
+                <span>Assign Doctor for OPD Queue Check-in <span className="text-red-500">*</span></span>
+              </label>
+              <select
+                value={selectedDoctorId}
+                onChange={(e) => setSelectedDoctorId(e.target.value)}
+                className="w-full px-3 py-2 bg-white border border-emerald-300 rounded-lg text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-emerald-500/20 cursor-pointer"
+                required
+              >
+                {doctors.map((d) => (
+                  <option key={d.userId} value={d.userId}>
+                    Dr. {d.fullName} {d.speciality ? `(${d.speciality})` : ''}
+                  </option>
+                ))}
+              </select>
+              {doctors.find((d) => d.userId === selectedDoctorId) && (
+                <p className="text-[11px] text-emerald-800 font-medium">
+                  The patient will be issued their token in{' '}
+                  <strong>Dr. {doctors.find((d) => d.userId === selectedDoctorId)?.fullName}'s</strong> queue.
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Submit buttons */}
           <div className="pt-4 flex items-center justify-end space-x-3 border-t border-slate-100">

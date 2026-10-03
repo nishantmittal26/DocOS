@@ -151,9 +151,9 @@ export const patientsApi = {
     const res = await api.post<Patient>('/patients', data);
     return res.data;
   },
-  search: async (q: string) => {
+  search: async (q: string, doctorId?: string) => {
     const res = await api.get<PatientSearchResult[]>('/patients/search', {
-      params: { q },
+      params: { q, doctorId: doctorId || undefined },
     });
     return res.data;
   },

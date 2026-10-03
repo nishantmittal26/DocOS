@@ -7,7 +7,7 @@ namespace DocOS.Application.Patients;
 
 public record CreatePatientCommand(CreatePatientRequest Request) : IRequest<PatientDto>;
 
-public record SearchPatientsQuery(string Query) : IRequest<List<PatientSearchResultDto>>;
+public record SearchPatientsQuery(string Query, string? DoctorId = null) : IRequest<List<PatientSearchResultDto>>;
 
 public record GetPatientByIdQuery(Guid Id) : IRequest<PatientDto?>;
 
@@ -18,11 +18,16 @@ public class PatientHandlers :
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUser;
+    private readonly IIdentityService? _identityService;
 
-    public PatientHandlers(IApplicationDbContext context, ICurrentUserService currentUser)
+    public PatientHandlers(
+        IApplicationDbContext context,
+        ICurrentUserService currentUser,
+        IIdentityService? identityService = null)
     {
         _context = context;
         _currentUser = currentUser;
+        _identityService = identityService;
     }
 
     public async Task<PatientDto> Handle(CreatePatientCommand request, CancellationToken cancellationToken)
@@ -87,6 +92,12 @@ public class PatientHandlers :
             .AsNoTracking()
             .Where(p => p.ClinicId == clinicId);
 
+        // Filter by doctor if requested (patients who have had visits with this doctor)
+        if (!string.IsNullOrWhiteSpace(request.DoctorId))
+        {
+            queryable = queryable.Where(p => p.Visits.Any(v => v.DoctorId == request.DoctorId));
+        }
+
         if (!string.IsNullOrWhiteSpace(q))
         {
             queryable = queryable.Where(p =>
@@ -95,10 +106,55 @@ public class PatientHandlers :
                 p.FullName.ToLower().Contains(q));
         }
 
-        var results = await queryable
+        var patients = await queryable
             .OrderByDescending(p => p.CreatedAt)
             .Take(30)
-            .Select(p => new PatientSearchResultDto(
+            .ToListAsync(cancellationToken);
+
+        if (patients.Count == 0)
+        {
+            return new List<PatientSearchResultDto>();
+        }
+
+        var patientIds = patients.Select(p => p.Id).ToList();
+        var today = DateTime.UtcNow.Date;
+
+        var visits = await _context.Visits
+            .AsNoTracking()
+            .Where(v => v.ClinicId == clinicId && patientIds.Contains(v.PatientId))
+            .OrderByDescending(v => v.VisitDate)
+            .ThenByDescending(v => v.TokenNumber)
+            .ToListAsync(cancellationToken);
+
+        var doctorIds = visits
+            .Where(v => !string.IsNullOrWhiteSpace(v.DoctorId))
+            .Select(v => v.DoctorId!)
+            .Distinct()
+            .ToList();
+
+        var doctorNames = _identityService != null
+            ? (await _identityService.GetDoctorNamesAsync(doctorIds) ?? new Dictionary<string, string>())
+            : new Dictionary<string, string>();
+
+        var results = patients.Select(p =>
+        {
+            var pVisits = visits.Where(v => v.PatientId == p.Id).ToList();
+            var todayVisit = pVisits.FirstOrDefault(v => v.VisitDate == today);
+            var lastVisit = pVisits.FirstOrDefault();
+
+            string? lastDoctorName = null;
+            if (lastVisit?.DoctorId != null && doctorNames.TryGetValue(lastVisit.DoctorId, out var ldName))
+            {
+                lastDoctorName = ldName;
+            }
+
+            string? todayDoctorName = null;
+            if (todayVisit?.DoctorId != null && doctorNames.TryGetValue(todayVisit.DoctorId, out var tdName))
+            {
+                todayDoctorName = tdName;
+            }
+
+            return new PatientSearchResultDto(
                 p.Id,
                 p.PatientUid,
                 p.FullName,
@@ -106,9 +162,15 @@ public class PatientHandlers :
                 p.Gender,
                 p.MobileNumber,
                 p.Allergies,
-                p.Visits.OrderByDescending(v => v.VisitDate).Select(v => (DateTime?)v.VisitDate).FirstOrDefault()
-            ))
-            .ToListAsync(cancellationToken);
+                lastVisit?.VisitDate,
+                lastVisit?.DoctorId,
+                lastDoctorName,
+                todayVisit?.DoctorId,
+                todayDoctorName,
+                todayVisit?.TokenNumber,
+                todayVisit?.Status.ToString()
+            );
+        }).ToList();
 
         return results;
     }

@@ -27,6 +27,7 @@ The build order and the done-when lists live in the master spec. This record is 
 | `Clinics.Status`, tier, expiry, and max doctors copied onto the clinic row | The clinic lifecycle lives only on `ClinicSubscription`. Doctor cap is the plan’s `MaxDoctors`, overridable with `MaxDoctorsOverride` |
 | `IsDoctorFavorite` on `Medicines` | `DoctorMedicineFavorite` is unique on `(UserId, MedicineId)` |
 | `DoctorId` as `uniqueidentifier` | `Visit.DoctorId` and `Prescription.DoctorId` are `nvarchar(450)`, the Identity user id |
+| Unassigned queueing and untied clinic-wide patient search | Patient registration with queueing and check-in require explicit doctor assignment. Patient search supports filtering by doctor (`doctorId`) while surfacing last doctor and today's active token/status across the clinic |
 
 ---
 
@@ -35,6 +36,8 @@ The build order and the done-when lists live in the master spec. This record is 
 **One database provider.** Two migration sets mean every schema change is written, reviewed, and repaired twice, and the folders drift. Phase 2 development and the hosted deployment both use SQL Server. The Phase 1 PostgreSQL database stays the tagged MVP snapshot. It is not altered in place, and Phase 2 does not point at it.
 
 **Four parts.** The October 2 scope was larger than one release: roles, onboarding, quotas, dynamic vitals, labs, a public link, payments, and audit. A part is allowed to ship only when the previous part still runs. Identity and multi-doctor queues (2A) stand alone before billing (2B). Vitals stay columns until 2C. Labs and the public link wait until 2D.
+
+**Doctor-tied patient binding.** In a single-doctor clinic, patient search and queue check-in implicitly route to the sole doctor. In a multi-doctor clinic, patients still belong to the clinic (`ClinicId`), but queue check-in and patient registration must explicitly bind to a specific doctor (`DoctorId`) to prevent unassigned visits or token collisions. Doctors need their own queue and patient directory filtered to their own patients (`p.Visits.Any(v => v.DoctorId == doctorId)`), while receptionists retain clinic-wide visibility and can route patients to any doctor. Search results expose the patient's last consulting doctor and active daily token status across the clinic to prevent duplicate check-ins.
 
 **Free-text complaints and stable dosage shorthand.** Indian OPD notes are written as a line such as “Fever x 3 days, dry cough x 1 week,” and the printed dose is already `1-0-1` plus a meal timing. Dictionary tables on that path add lookups and do not change the paper. Those masters are on the Later list.
 

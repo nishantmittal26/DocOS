@@ -59,9 +59,15 @@ export const OpdQueuePage: React.FC<OpdQueuePageProps> = ({ onOpenNewPatient }) 
       .getClinicDoctors()
       .then((docs) => {
         setDoctors(docs);
-        if (docs.length > 0 && !checkInDoctorId) {
+        if (docs.length > 0) {
           const myDoc = docs.find((d) => d.userId === user?.userId);
-          setCheckInDoctorId(myDoc ? myDoc.userId : docs[0].userId);
+          const defaultDocId = myDoc ? myDoc.userId : docs[0].userId;
+          if (!checkInDoctorId) {
+            setCheckInDoctorId(defaultDocId);
+          }
+          if (hasRole('Doctor') && myDoc && !selectedDoctorFilter) {
+            setSelectedDoctorFilter(myDoc.userId);
+          }
         }
       })
       .catch((err) => console.error('Failed to load clinic doctors', err));
@@ -109,7 +115,7 @@ export const OpdQueuePage: React.FC<OpdQueuePageProps> = ({ onOpenNewPatient }) 
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const handleAddToQueue = async (patientId: string) => {
+  const handleAddToQueue = async (patientId: string, targetDoctorId?: string) => {
     if (quota && !quota.canIssueTokens) {
       alert(
         quota.isSuspended
@@ -119,10 +125,12 @@ export const OpdQueuePage: React.FC<OpdQueuePageProps> = ({ onOpenNewPatient }) 
       return;
     }
 
+    const docId = targetDoctorId || checkInDoctorId || selectedDoctorFilter || doctors[0]?.userId;
+
     try {
       await visitsApi.addToQueue({
         patientId,
-        doctorId: checkInDoctorId || undefined,
+        doctorId: docId || undefined,
       });
       setSearchQuery('');
       setSearchResults([]);
@@ -287,19 +295,27 @@ export const OpdQueuePage: React.FC<OpdQueuePageProps> = ({ onOpenNewPatient }) 
 
         {/* Search Results Dropdown */}
         {searchResults.length > 0 && (
-          <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-slate-200 z-20 max-h-72 overflow-y-auto divide-y divide-slate-100">
+          <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-slate-200 z-20 max-h-80 overflow-y-auto divide-y divide-slate-100">
             {searchResults.map((patient) => {
               const existingQueueItem = queue.find((q) => q.patientId === patient.id);
               const isWaitingOrInConsultation =
-                existingQueueItem &&
-                (existingQueueItem.status === 'Waiting' ||
-                  existingQueueItem.status === 'InConsultation');
-              const isCompleted = existingQueueItem && existingQueueItem.status === 'Completed';
+                patient.todayVisitStatus === 'Waiting' ||
+                patient.todayVisitStatus === 'InConsultation' ||
+                (existingQueueItem &&
+                  (existingQueueItem.status === 'Waiting' ||
+                    existingQueueItem.status === 'InConsultation'));
+              const isCompleted =
+                patient.todayVisitStatus === 'Completed' ||
+                (existingQueueItem && existingQueueItem.status === 'Completed');
+
+              const tokenNum = patient.todayVisitTokenNumber || existingQueueItem?.tokenNumber;
+              const docName = patient.todayVisitDoctorName || existingQueueItem?.doctorName;
+              const checkInDoc = doctors.find((d) => d.userId === checkInDoctorId);
 
               return (
                 <div
                   key={patient.id}
-                  className="p-3.5 hover:bg-slate-50 flex items-center justify-between transition-colors"
+                  className="p-3.5 hover:bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-2 transition-colors"
                 >
                   <div>
                     <div className="flex items-center space-x-2">
@@ -311,42 +327,60 @@ export const OpdQueuePage: React.FC<OpdQueuePageProps> = ({ onOpenNewPatient }) 
                         {patient.age} Yrs / {patient.gender}
                       </span>
                     </div>
-                    <div className="text-xs text-slate-500 mt-0.5">
-                      Phone: <span className="font-mono font-medium text-slate-700">{patient.mobileNumber}</span>
+                    <div className="text-xs text-slate-500 mt-0.5 flex flex-wrap items-center gap-x-2">
+                      <span>
+                        Phone: <span className="font-mono font-medium text-slate-700">{patient.mobileNumber}</span>
+                      </span>
+                      {patient.lastDoctorName && (
+                        <span className="text-slate-500 font-medium">
+                          • Last Consulted: <strong className="text-slate-700">Dr. {patient.lastDoctorName}</strong>
+                        </span>
+                      )}
                       {patient.allergies && (
-                        <span className="ml-2 text-rose-600 font-medium">• Allergies: {patient.allergies}</span>
+                        <span className="text-rose-600 font-medium">• Allergies: {patient.allergies}</span>
                       )}
                     </div>
                   </div>
 
-                  {isWaitingOrInConsultation ? (
-                    <span className="inline-flex items-center space-x-1 px-3 py-1.5 bg-amber-50 text-amber-800 text-xs font-bold rounded-lg border border-amber-200">
-                      <Clock className="w-3.5 h-3.5 text-amber-600" />
-                      <span>Already in Queue (#{existingQueueItem.tokenNumber})</span>
-                    </span>
-                  ) : isCompleted ? (
-                    <span className="inline-flex items-center space-x-1 px-3 py-1.5 bg-emerald-50 text-emerald-800 text-xs font-bold rounded-lg border border-emerald-200">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>Completed Today (#{existingQueueItem.tokenNumber})</span>
-                    </span>
-                  ) : quota && !quota.canIssueTokens ? (
-                    <button
-                      disabled
-                      className="inline-flex items-center space-x-1 px-3 py-1.5 bg-slate-100 text-slate-400 text-xs font-bold rounded-lg cursor-not-allowed"
-                      title="New check-in tokens paused due to quota limit or account suspension"
-                    >
-                      <Lock className="w-3 h-3" />
-                      <span>Tokens Paused</span>
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => handleAddToQueue(patient.id)}
-                      className="inline-flex items-center space-x-1 px-3 py-1.5 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 text-xs font-bold rounded-lg transition-colors"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Add to Queue</span>
-                    </button>
-                  )}
+                  <div className="flex items-center gap-2 self-end sm:self-center">
+                    {isWaitingOrInConsultation ? (
+                      <span className="inline-flex items-center space-x-1 px-3 py-1.5 bg-amber-50 text-amber-800 text-xs font-bold rounded-lg border border-amber-200">
+                        <Clock className="w-3.5 h-3.5 text-amber-600" />
+                        <span>
+                          In Queue (#{tokenNum})
+                          {docName ? ` • Dr. ${docName}` : ''}
+                        </span>
+                      </span>
+                    ) : isCompleted ? (
+                      <span className="inline-flex items-center space-x-1 px-3 py-1.5 bg-emerald-50 text-emerald-800 text-xs font-bold rounded-lg border border-emerald-200">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>
+                          Completed Today (#{tokenNum})
+                          {docName ? ` • Dr. ${docName}` : ''}
+                        </span>
+                      </span>
+                    ) : quota && !quota.canIssueTokens ? (
+                      <button
+                        disabled
+                        className="inline-flex items-center space-x-1 px-3 py-1.5 bg-slate-100 text-slate-400 text-xs font-bold rounded-lg cursor-not-allowed"
+                        title="New check-in tokens paused due to quota limit or account suspension"
+                      >
+                        <Lock className="w-3 h-3" />
+                        <span>Tokens Paused</span>
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleAddToQueue(patient.id, checkInDoctorId)}
+                        className="inline-flex items-center space-x-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm"
+                        title={`Issue token in Dr. ${checkInDoc?.fullName || 'Doctor'}'s queue`}
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>
+                          Add to Dr. {checkInDoc ? checkInDoc.fullName.split(' ')[0] : 'Queue'}
+                        </span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               );
             })}
@@ -378,13 +412,19 @@ export const OpdQueuePage: React.FC<OpdQueuePageProps> = ({ onOpenNewPatient }) 
             <span className="text-xs font-semibold text-slate-500">Filter Queue by:</span>
             <select
               value={selectedDoctorFilter}
-              onChange={(e) => setSelectedDoctorFilter(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSelectedDoctorFilter(val);
+                if (val) {
+                  setCheckInDoctorId(val);
+                }
+              }}
               className="text-xs font-bold text-slate-800 bg-white border border-slate-200 rounded-xl px-3 py-1.5 outline-none shadow-sm cursor-pointer"
             >
               <option value="">All Doctors ({queue.length})</option>
               {doctors.map((d) => (
                 <option key={d.userId} value={d.userId}>
-                  Dr. {d.fullName}
+                  Dr. {d.fullName} {d.speciality ? `(${d.speciality})` : ''}
                 </option>
               ))}
             </select>

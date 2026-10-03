@@ -23,6 +23,7 @@ Column-level detail is in [DocOS-Phase2-Database-Schema.md](DocOS-Phase2-Databas
 5. **Clinic lifecycle.** Subscription status, plan, quota, and doctor cap live on `ClinicSubscription` and `SubscriptionPlanMaster` (part 2B). The `Clinics` table has no status, tier, expiry, or max-doctors column.
 6. **Clinical speed stays.** Through 2A and 2B, vitals remain columns on `Visit`, chief complaints remain free text, and dosage remains the existing shorthand string plus the `DosageTiming` enum. Prescription lines keep a snapshot of what was printed. Dynamic vitals arrive in 2C. Complaint dictionaries, dosage master tables, and a pharmacist role are deferred.
 7. **Print, queue, formulary.** The React print portal (`@media print`), the visit status lifecycle, the allergy banner, and formulary search (global medicines where `ClinicId` is null, plus that clinic’s custom medicines) keep working after every part.
+8. **Doctor-tied patient workflows.** In multi-doctor clinics, patients are owned by the clinic (`ClinicId`), but clinical operational touchpoints (patient search, patient registration into the queue, check-in, and the patient directory) are tied to a specific doctor. Visits are never queued unassigned. Searching patients supports filtering by `doctorId` (patients who have visits with that doctor) while surfacing clinic-wide status (today's token number, status, assigned doctor) and the patient's last consulting doctor. Doctors default to viewing and queueing to their own patient list.
 
 ---
 
@@ -65,7 +66,7 @@ Domain entities use `BaseEntity`: `Id` (`uniqueidentifier`), `CreatedAt`, `Updat
 
 - **ApplicationUser:** `FullName`, non-null `ClinicId`, and a string `Role` of `Doctor` or `Receptionist`. `AspNetRoles` exists and is unused until 2A. JWT today emits one role claim and `ClinicId`. Handlers filter by the caller’s `ClinicId`. There is no EF global query filter.
 - **Clinic:** `Name`, `DoctorName`, `RegNumber`, `Qualifications`, `Specialization`, `Phone`, `Email`, `Address`, `LogoUrl`, `LetterheadMarginTopMm` (default 60), `PatientIdPrefix` (default `DOC`), `LastPatientSequence`. One doctor’s letterhead identity sits on the clinic.
-- **Patient:** `ClinicId`, `PatientUid`, `FullName`, `Age` (no date of birth), `Gender`, `MobileNumber`, `Email`, `BloodGroup`, `Address`, `Allergies`, `MedicalHistory`. Unique `(ClinicId, PatientUid)`.
+- **Patient:** `ClinicId`, `PatientUid`, `FullName`, `Age` (no date of birth), `Gender`, `MobileNumber`, `Email`, `BloodGroup`, `Address`, `Allergies`, `MedicalHistory`. Unique `(ClinicId, PatientUid)`. In multi-doctor clinics, `Patient` records remain clinic-scoped so receptionists can find existing patients across the clinic, but clinical workflows (queue check-in, patient registration into the queue, patient search, and patient directory filtering) are explicitly tied to specific doctors.
 - **Visit:** vital columns `SystolicBp`, `DiastolicBp`, `PulseBpm`, `TemperatureF`, `Spo2`, `WeightKg`, `HeightCm`, `Bmi`, and `Sugar` (one free-text string). Clinical columns: `ChiefComplaints`, `Diagnosis`, `ClinicalNotes`, `FollowUpDate`, `TokenNumber`, `VisitDate`, `Status` (`Waiting`, `InConsultation`, `Completed`, `Cancelled`). No `DoctorId` yet.
 - **Prescription:** `VisitId`, `PatientId`, `ClinicId`, `PrescribedAt`, `GeneralAdvice`. No `DoctorId`.
 - **PrescriptionItem:** `MedicineName`, `SaltComposition`, `Form`, `Dosage` (for example `1-0-1`), `Timing` (`DosageTiming`), `DurationDays` (`int`), `Instructions`. No required medicine foreign key. Print uses these snapshot columns.
@@ -74,7 +75,7 @@ Domain entities use `BaseEntity`: `Id` (`uniqueidentifier`), `CreatedAt`, `Updat
 ### Rules for implementers
 
 1. Implement the earliest part whose done-when list is still open. Do not pull a later part’s tables forward. Deferred columns and tables stay in the Later section until a future spec promotes them.
-2. Preserve Phase 1 behavior that this spec keeps: patient registration and `PatientUid` sequencing, queue statuses, allergy banner, brand-plus-salt formulary search, dosage shorthand, and the dual-mode letterhead print engine (blank A4 and pre-printed pad).
+2. Preserve Phase 1 behavior that this spec keeps: patient registration and `PatientUid` sequencing, queue statuses, allergy banner, brand-plus-salt formulary search, dosage shorthand, and the dual-mode letterhead print engine (blank A4 and pre-printed pad). In multi-doctor clinics, ensure patient registration and check-in enforce doctor assignment, and patient search supports filtering by doctor.
 3. Put entities in `DocOS.Domain`, handlers and DTOs in `DocOS.Application`, EF mappings and SQL Server in `DocOS.Infrastructure`, and controllers that only dispatch MediatR in `DocOS.API`.
 4. Authorize with `[Authorize(Roles = "...")]` against `ClaimTypes.Role`. Clinic-scoped handlers also require a non-null `ClinicId` and filter every query by that id.
 5. Configure SQL Server with a single connection string and `UseSqlServer`. Generate migrations only under `DocOS.Infrastructure/Migrations`.
@@ -96,6 +97,9 @@ Domain entities use `BaseEntity`: `Id` (`uniqueidentifier`), `CreatedAt`, `Updat
 - Drop clinic columns `DoctorName`, `RegNumber`, `Qualifications`, and `Specialization`.
 - `Visit.DoctorId` and `Prescription.DoctorId`: `nvarchar(450)` foreign keys to `AspNetUsers.Id`. `Prescription.DoctorId` is required when a consult is saved. `Visit.DoctorId` is nullable until check-in assigns a doctor, and required before status `InConsultation`. The prescription’s doctor is the visit’s assigned doctor.
 - Token numbers are per doctor, per clinic, per calendar day. Unique index `(ClinicId, DoctorId, VisitDate, TokenNumber)` for rows that have a doctor. The receptionist chooses the doctor at check-in. Each doctor has a separate queue.
+- **Doctor assignment on patient registration (Add Patient):** When registering a patient with "Add to Today's OPD Queue" (in `NewPatientModal`), a target doctor must be selected (dropdown of active clinic doctors, prefilled with signed-in doctor if user is a `Doctor`). The visit is immediately assigned to that doctor and issued that doctor's next token for today. Visits are never queued unassigned in a multi-doctor clinic.
+- **Doctor-tied patient search & directory:** `GET /api/patients/search` accepts an optional `doctorId` query parameter to filter search results to patients associated with that doctor (`p.Visits.Any(v => v.DoctorId == doctorId)`). When a doctor logs in, their patient directory (`/patients`) and queue search (`/`) default to their assigned doctor, isolating their active patient context from other doctors. When `doctorId` is omitted, search queries all clinic patients (for receptionists / clinic admins). Search results return the patient's last consulting doctor (`LastDoctorId`, `LastDoctorName`) and current today visit status (`Waiting`, `InConsultation`, `Completed`) along with `TodayVisitDoctorId`, `TodayVisitDoctorName`, and `TodayVisitTokenNumber` to give staff instant clinic-wide visibility and prevent duplicate check-ins.
+- **Doctor-tied queue check-in:** When checking in an existing patient from search or `/patients`, staff selects the target doctor (labeled dynamically e.g. `Add to Dr. [Name]`). Queueing without a doctor is prohibited in multi-doctor clinics.
 - Staff invite and deactivate. `ClinicAdmin` invites `Doctor`, `Nurse`, and `Receptionist`. `IsActive` on the user; deactivating hides login and does not delete rows or historical visits.
 - Tenant guard described in section 1. `SalesAgent` can be seeded and can sign in. Clinic onboarding UI is part 2B, so `Clinics.OnboardedByUserId` is not added in 2A.
 - Auth hardening: the JWT signing key is read from configuration only (remove the in-code fallback secret). Access tokens use a short lifetime suitable for a staff session.
@@ -122,9 +126,10 @@ Unchanged in shape: `Patients`, `PrescriptionItems`, `Medicines`, and the visit 
 
 | Screen | Who | Behavior |
 | :--- | :--- | :--- |
-| `/` queue | Receptionist, Nurse, Doctor, ClinicAdmin | Doctor picker at check-in. Queue filtered by doctor. Status flow unchanged. |
+| `/` queue | Receptionist, Nurse, Doctor, ClinicAdmin | Doctor picker at check-in. Queue filtered by doctor. When a doctor logs in, the queue filter and check-in default to that doctor. Patient search filters by doctor when selected, shows last consulting doctor, and displays today's active queue token and doctor name across the clinic. Status flow unchanged. |
 | `/consultation/:visitId` | Doctor (and ClinicAdmin who is also a Doctor) | Letterhead identity comes from the assigned doctor user. Print portal unchanged in structure. |
-| `/patients`, `/history` | Clinic staff | Still scoped to `ClinicId`. Allergy banner still reads `Patient.Allergies`. |
+| `/patients`, `/history` | Clinic staff | Still scoped to `ClinicId`. Patient directory includes doctor filter dropdown (`[All Clinic Patients \| Dr. X \| Dr. Y]`), defaulting to the signed-in doctor for Doctor roles. Card check-in explicitly assigns the target doctor (`Add to Dr. [Name]`). Search results display last consulting doctor, today's visit status, and assigned doctor. Allergy banner still reads `Patient.Allergies`. |
+| New Patient Modal | Receptionist, Nurse, Doctor, ClinicAdmin | When "Generate Token & Add to Today's OPD Queue" is checked, receptionist/staff chooses the target doctor, defaulting to the signed-in doctor if caller is a Doctor. |
 | `/settings` | ClinicAdmin | Clinic name, contacts, timings, logo, prefix, and print margins / hide-letterhead. |
 | `/settings/staff` | ClinicAdmin | Invite Doctor, Nurse, or Receptionist. Deactivate with `IsActive`. |
 | Doctor profile | ClinicAdmin, that Doctor | Qualifications, council number, speciality, consultation fee. |
@@ -139,6 +144,9 @@ Nurse records vitals on the existing columns and can see the clinic queue. Presc
 - [ ] PlatformAdmin and SalesAgent have null `ClinicId` and receive an authorization failure from patient, visit, and prescription APIs. The test “platform admin cannot read clinic clinical records” passes.
 - [ ] Clinic staff cannot be saved without `ClinicId`.
 - [ ] Two doctors in one clinic have independent token sequences on the same calendar day. A visit cannot enter `InConsultation` without `DoctorId`. A saved prescription has `DoctorId`.
+- [ ] Registering a new patient with queue check-in (`NewPatientModal`) or queueing from `/patients` requires or assigns a specific doctor. Visits are never queued unassigned.
+- [ ] Patient search (`GET /api/patients/search`) supports filtering by `doctorId` and enriches results with `LastDoctorName`, `TodayVisitTokenNumber`, `TodayVisitDoctorName`, and `TodayVisitStatus`.
+- [ ] In multi-doctor clinics, doctors default to their own queue and patient directory, while receptionists can toggle between all doctors or a specific doctor.
 - [ ] Print still supports blank A4 and pad margin, using the doctor’s qualifications and council number and the clinic’s logo, margins, and hide-letterhead flag.
 - [ ] Deactivated staff cannot sign in. Their past visits still display.
 - [ ] Formulary search, allergy banner, free-text complaints, vital columns, and `1-0-1` dosage lines still work.
