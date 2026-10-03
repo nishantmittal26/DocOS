@@ -117,6 +117,9 @@ public record ClinicSubscriptionDetailDto(
     int? RemainingVisits,
     DateTime? LastVisitRecordedAt,
     string? Notes,
+    bool? LabModuleOverride,
+    bool PlanHasLabModule,
+    bool EffectiveHasLabModule,
     List<SubscriptionPaymentDto> PaymentHistory
 );
 
@@ -126,7 +129,8 @@ public record UpdateClinicSubscriptionRequest(
     int? MaxDoctorsOverride,
     string Status,
     int GracePeriodDays,
-    string? Notes
+    string? Notes,
+    bool? LabModuleOverride
 );
 
 public record AddTopUpVisitsRequest(
@@ -159,5 +163,7 @@ public record ClinicQuotaStatusDto(
     bool IsGracePeriod,
     bool IsSuspended,
     DateTime PeriodEnd,
-    bool CanIssueTokens
+    bool CanIssueTokens,
+    bool HasLabModule,
+    bool HasCustomVitals
 );

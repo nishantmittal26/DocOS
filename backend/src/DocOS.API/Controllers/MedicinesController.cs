@@ -39,9 +39,9 @@ public class MedicinesController : ControllerBase
     }
 
     [HttpGet("custom")]
-    public async Task<ActionResult<List<MedicineDto>>> GetCustomMedicines()
+    public async Task<ActionResult<List<MedicineDto>>> GetCustomMedicines([FromQuery] bool includeGlobalCatalog = false)
     {
-        var result = await _mediator.Send(new GetCustomMedicinesQuery());
+        var result = await _mediator.Send(new GetCustomMedicinesQuery(includeGlobalCatalog));
         return Ok(result);
     }
 

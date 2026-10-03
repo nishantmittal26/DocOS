@@ -23,6 +23,7 @@ import {
   Activity,
 } from 'lucide-react';
 import { AddCustomMedicineModal } from '../../components/AddCustomMedicineModal';
+import { CatalogScopeFilter, CatalogSourceBadge, CatalogScope } from '../../components/CatalogScopeFilter';
 import { VitalsSettingsPage } from './VitalsSettingsPage';
 
 export const SettingsPage: React.FC = () => {
@@ -77,6 +78,7 @@ export const SettingsPage: React.FC = () => {
   const [editingMedicine, setEditingMedicine] = useState<Medicine | null>(null);
   const [medSearchQuery, setMedSearchQuery] = useState('');
   const [medFormFilter, setMedFormFilter] = useState('All');
+  const [medCatalogScope, setMedCatalogScope] = useState<CatalogScope>('clinic');
   const [medSuccessMsg, setMedSuccessMsg] = useState<string | null>(null);
 
   const loadClinicProfile = async () => {
@@ -124,10 +126,10 @@ export const SettingsPage: React.FC = () => {
     }
   };
 
-  const loadCustomMedicines = async () => {
+  const loadCustomMedicines = async (scope: CatalogScope = medCatalogScope) => {
     setLoadingMedicines(true);
     try {
-      const data = await medicinesApi.getCustom();
+      const data = await medicinesApi.getCustom(scope === 'clinicAndGlobal');
       setCustomMedicines(data);
     } catch (err) {
       console.error('Failed to load custom medicines', err);
@@ -140,8 +142,14 @@ export const SettingsPage: React.FC = () => {
     loadClinicProfile();
     loadDoctorProfile();
     loadStaffList();
-    loadCustomMedicines();
+    loadCustomMedicines('clinic');
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'medicines') {
+      loadCustomMedicines(medCatalogScope);
+    }
+  }, [activeTab, medCatalogScope]);
 
   const handleSaveClinicSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -270,6 +278,8 @@ export const SettingsPage: React.FC = () => {
     }
   };
 
+  const clinicMedicineCount = customMedicines.filter((m) => !!m.clinicId).length;
+
   const filteredMedicines = customMedicines.filter((m) => {
     const q = medSearchQuery.trim().toLowerCase();
     const matchesSearch =
@@ -346,7 +356,7 @@ export const SettingsPage: React.FC = () => {
           }`}
         >
           <Pill className="w-4 h-4" />
-          <span>Clinic Medicines ({customMedicines.length})</span>
+          <span>Clinic Medicines ({clinicMedicineCount})</span>
         </button>
 
         <button
@@ -919,6 +929,8 @@ export const SettingsPage: React.FC = () => {
                 <option value="Drops">Drops</option>
                 <option value="Inhaler">Inhaler</option>
               </select>
+
+              <CatalogScopeFilter value={medCatalogScope} onChange={setMedCatalogScope} />
             </div>
 
             {medSuccessMsg && (
@@ -932,9 +944,9 @@ export const SettingsPage: React.FC = () => {
               <div className="text-center py-10 text-xs text-slate-500">Loading custom formulary...</div>
             ) : filteredMedicines.length === 0 ? (
               <div className="text-center py-10 text-xs text-slate-500">
-                {customMedicines.length === 0
-                  ? 'No custom medicines added yet. The pre-seeded Indian Formulary is available in consultation.'
-                  : 'No custom medicines match your filter.'}
+                {clinicMedicineCount === 0 && medCatalogScope === 'clinic'
+                  ? 'No clinic medicines added yet. Turn on “Include global catalog” to browse the pre-seeded formulary (view-only), or add a custom medicine.'
+                  : 'No medicines match your filter.'}
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -946,6 +958,7 @@ export const SettingsPage: React.FC = () => {
                       <th className="py-2.5 px-3">Form</th>
                       <th className="py-2.5 px-3">Strength</th>
                       <th className="py-2.5 px-3">Manufacturer</th>
+                      <th className="py-2.5 px-3">Source</th>
                       <th className="py-2.5 px-3 text-right">Actions</th>
                     </tr>
                   </thead>
@@ -961,22 +974,31 @@ export const SettingsPage: React.FC = () => {
                         </td>
                         <td className="py-3 px-3 font-mono text-slate-700">{m.strength}</td>
                         <td className="py-3 px-3 text-slate-500">{m.manufacturer || '—'}</td>
+                        <td className="py-3 px-3">
+                          <CatalogSourceBadge isClinicOwned={!!m.clinicId} />
+                        </td>
                         <td className="py-3 px-3 text-right space-x-1">
-                          <button
-                            onClick={() => {
-                              setEditingMedicine(m);
-                              setIsAddMedModalOpen(true);
-                            }}
-                            className="p-1.5 text-slate-400 hover:text-emerald-700 rounded-lg hover:bg-emerald-50 transition-colors"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteMedicine(m.id, m.brandName)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          {m.clinicId ? (
+                            <>
+                              <button
+                                onClick={() => {
+                                  setEditingMedicine(m);
+                                  setIsAddMedModalOpen(true);
+                                }}
+                                className="p-1.5 text-slate-400 hover:text-emerald-700 rounded-lg hover:bg-emerald-50 transition-colors"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteMedicine(m.id, m.brandName)}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition-colors"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          ) : (
+                            <span className="text-[10px] text-slate-400 font-medium pr-1">View only</span>
+                          )}
                         </td>
                       </tr>
                     ))}

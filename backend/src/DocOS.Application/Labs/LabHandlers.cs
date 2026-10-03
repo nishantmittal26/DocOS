@@ -49,7 +49,7 @@ public class LabHandlers :
             .Include(s => s.Plan)
             .FirstOrDefaultAsync(s => s.ClinicId == clinicId, cancellationToken);
 
-        if (subscription?.Plan?.HasLabModule != true)
+        if (subscription?.EffectiveHasLabModule != true)
         {
             throw new InvalidOperationException("The Lab Module is not included in your clinic's current subscription plan. Please upgrade to access lab tests and panels.");
         }

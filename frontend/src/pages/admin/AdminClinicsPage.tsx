@@ -312,6 +312,11 @@ export const AdminClinicsPage: React.FC = () => {
                       <h3 className="font-black text-slate-900 text-base leading-snug line-clamp-1">
                         {clinic.clinicName}
                       </h3>
+                      {isPlatformAdmin && (
+                        <p className="text-[10px] font-mono text-slate-400 mt-0.5 truncate" title={clinic.clinicId}>
+                          {clinic.clinicId}
+                        </p>
+                      )}
                       <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1.5">
                         <Users className="w-3 h-3 text-slate-400" />
                         <span>

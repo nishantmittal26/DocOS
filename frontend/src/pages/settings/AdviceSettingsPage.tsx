@@ -9,15 +9,21 @@ import {
   AlertCircle,
   Edit2,
   Trash2,
-  Tag,
   BookOpen,
 } from 'lucide-react';
+import {
+  CatalogScopeFilter,
+  CatalogSourceBadge,
+  CatalogScope,
+  matchesCatalogScope,
+} from '../../components/CatalogScopeFilter';
 
 export const AdviceSettingsPage: React.FC = () => {
   const [templates, setTemplates] = useState<AdviceTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [catalogScope, setCatalogScope] = useState<CatalogScope>('clinic');
 
   // Add / Edit Modal
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -104,7 +110,12 @@ export const AdviceSettingsPage: React.FC = () => {
 
   const categories = ['All', 'Dietary', 'General', 'Medication', 'Lifestyle', 'Precautions'];
 
+  const clinicTemplateCount = templates.filter((t) => t.isCustom).length;
+
   const filtered = templates.filter((t) => {
+    if (!matchesCatalogScope(t.isCustom, catalogScope)) {
+      return false;
+    }
     const matchesCat = categoryFilter === 'All' || t.category === categoryFilter;
     const q = searchQuery.trim().toLowerCase();
     const matchesQuery =
@@ -167,20 +178,23 @@ export const AdviceSettingsPage: React.FC = () => {
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5">
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setCategoryFilter(cat)}
-              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                categoryFilter === cat
-                  ? 'bg-emerald-600 text-white shadow-sm'
-                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setCategoryFilter(cat)}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                  categoryFilter === cat
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+          <CatalogScopeFilter value={catalogScope} onChange={setCatalogScope} />
         </div>
       </div>
 
@@ -192,7 +206,9 @@ export const AdviceSettingsPage: React.FC = () => {
           <FileText className="w-12 h-12 text-slate-300 mx-auto" />
           <h3 className="font-bold text-slate-800 text-sm">No Advice Templates Found</h3>
           <p className="text-xs text-slate-500 max-w-sm mx-auto">
-            Create instructions like "Diabetic Dietary Guidelines", "Hypertension Salt Reduction", or "Fever & Hydration Precautions".
+            {clinicTemplateCount === 0 && catalogScope === 'clinic'
+              ? 'No clinic custom advice yet. Turn on “Include global catalog” to browse standard templates (view-only), or add your own.'
+              : 'No templates match your filters. Create snippets like "Diabetic Dietary Guidelines" or adjust search/category.'}
           </p>
           <button
             onClick={() => handleOpenModal()}
@@ -227,14 +243,10 @@ export const AdviceSettingsPage: React.FC = () => {
                     >
                       {tmpl.category}
                     </span>
-                    {tmpl.isCustom && (
-                      <span className="text-[10px] font-bold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200">
-                        Custom
-                      </span>
-                    )}
+                    <CatalogSourceBadge isClinicOwned={tmpl.isCustom} />
                   </div>
 
-                  {tmpl.isCustom && (
+                  {tmpl.isCustom ? (
                     <div className="flex items-center space-x-1">
                       <button
                         onClick={() => handleOpenModal(tmpl)}
@@ -251,6 +263,8 @@ export const AdviceSettingsPage: React.FC = () => {
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
+                  ) : (
+                    <span className="text-[10px] text-slate-400 font-medium">View only</span>
                   )}
                 </div>
 
@@ -260,8 +274,8 @@ export const AdviceSettingsPage: React.FC = () => {
                 </p>
               </div>
 
-              <div className="pt-2 text-[10px] text-slate-400 font-mono">
-                {tmpl.isCustom ? 'Clinic Customized Snippet' : 'Standard Clinical Guideline'}
+              <div className="pt-2 text-[10px] text-slate-400">
+                {tmpl.isCustom ? 'Editable clinic template' : 'Global catalog — read-only in settings'}
               </div>
             </div>
           ))}

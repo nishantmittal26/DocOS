@@ -8,7 +8,7 @@ namespace DocOS.Application.Medicines;
 
 public record SearchMedicinesQuery(string Query, bool OnlyFavorites = false) : IRequest<List<MedicineDto>>;
 
-public record GetCustomMedicinesQuery() : IRequest<List<MedicineDto>>;
+public record GetCustomMedicinesQuery(bool IncludeGlobalCatalog = false) : IRequest<List<MedicineDto>>;
 
 public record AddCustomMedicineCommand(AddCustomMedicineRequest Request) : IRequest<MedicineDto>;
 
@@ -92,7 +92,8 @@ public class MedicineHandlers :
             m.IsCustom,
             m.DefaultDosage,
             m.DefaultTiming,
-            userFavoriteIds.Contains(m.Id)
+            userFavoriteIds.Contains(m.Id),
+            m.ClinicId
         )).ToList();
     }
 
@@ -115,7 +116,8 @@ public class MedicineHandlers :
                 f.Medicine.IsCustom,
                 f.Medicine.DefaultDosage,
                 f.Medicine.DefaultTiming,
-                true
+                true,
+                f.Medicine.ClinicId
             ))
             .ToListAsync(cancellationToken);
 
@@ -183,7 +185,8 @@ public class MedicineHandlers :
             medicine.IsCustom,
             medicine.DefaultDosage,
             medicine.DefaultTiming,
-            false
+            false,
+            medicine.ClinicId
         );
     }
 
@@ -224,7 +227,8 @@ public class MedicineHandlers :
             medicine.IsCustom,
             medicine.DefaultDosage,
             medicine.DefaultTiming,
-            false
+            false,
+            medicine.ClinicId
         );
     }
 
@@ -235,8 +239,9 @@ public class MedicineHandlers :
 
         var results = await _context.Medicines
             .AsNoTracking()
-            .Where(m => m.ClinicId == clinicId)
-            .OrderBy(m => m.BrandName)
+            .Where(m => m.ClinicId == clinicId || (request.IncludeGlobalCatalog && m.ClinicId == null))
+            .OrderBy(m => m.ClinicId == null)
+            .ThenBy(m => m.BrandName)
             .Select(m => new MedicineDto(
                 m.Id,
                 m.BrandName,
@@ -247,7 +252,8 @@ public class MedicineHandlers :
                 m.IsCustom,
                 m.DefaultDosage,
                 m.DefaultTiming,
-                false
+                false,
+                m.ClinicId
             ))
             .ToListAsync(cancellationToken);
 

@@ -140,6 +140,16 @@ export const ConsultationRoomPage: React.FC = () => {
 
   // Load lab masters & advice templates
   useEffect(() => {
+    let labModuleEnabled = true;
+
+    clinicsApi
+      .getCurrentSubscriptionQuota()
+      .then((quota) => {
+        labModuleEnabled = quota.hasLabModule;
+        setHasLabModule(labModuleEnabled);
+      })
+      .catch(() => {});
+
     labsApi
       .getTests()
       .then((tests) => {

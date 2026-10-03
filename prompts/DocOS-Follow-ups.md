@@ -12,6 +12,7 @@ Add items as you find them. No need for ADR unless behavior or schema changes.
 | :--- | :--- | :--- | :--- |
 | B01 | **Rx print / PDF** | Printed PDF does **not** match the prescription **modal** layout: boxes stack one per line and waste space on paper. Align **modal preview**, **browser print**, and **PDF** to the same compact box/grid styling where possible. | `done` |
 | B02 | **Rx print / public link** | After a share **Rx URL** is generated, **Print prescription** produces a **blank** page (content missing in print/PDF path). | `done` |
+| B03 | **Admin / subscription** | **Manage Quota & Billing** showed a generic “not found” when the API failed (403/401/missing subscription) or the clinic link was invalid; auto-provision legacy clinics without `ClinicSubscriptions`. | `done` |
 
 ---
 
@@ -19,17 +20,18 @@ Add items as you find them. No need for ADR unless behavior or schema changes.
 
 | ID | Area | Description | Status |
 | :--- | :--- | :--- | :--- |
-| E01 | **Date/time** | Display and handle all user-facing `datetime2` values in **India Standard Time (IST)**. Audit each date-time column and API/DTO surface (store UTC vs local policy documented in ADR if it changes). | `in-progress` — verify in UI |
-| E02 | **Login / auth** | Remove **Onboard New Clinic** tab from the login page. Onboarding is **Platform Admin only** (Phase 1 self-serve tab is obsolete). | `idea` |
-| E03 | **Navigation / queue** | Remove top header **New Patient** button; registration remains via **OPD Queue → Today’s OPD Queue** (New Patient Registration). | `idea` |
-| E04 | **Medicines settings** | Clinic option/filter to **include global formulary** (`ClinicId` null) in the medicines grid **view-only** (no edit/delete of global rows). | `idea` |
-| E05 | **Lab tests settings** | Clinic option/filter to **include global lab tests** in the grid **view-only**. | `idea` |
-| E06 | **Advice settings** | Clinic option/filter to **include global advice master catalog** in the grid **view-only**. | `idea` |
-| E07 | **Visits** | `VisitDate` (or equivalent) stores **date + time**: default time **00:00:00** on check-in/token; update to actual time when consultation starts (**Start Consultation**). Align SQL type (`date` → `datetime2` or separate time field) and migrations. | `idea` |
+| E01 | **Date/time** | Display and handle all user-facing `datetime2` values in **India Standard Time (IST)**. Audit each date-time column and API/DTO surface (store UTC vs local policy documented in ADR if it changes). | `done` |
+| E02 | **Login / auth** | Remove **Onboard New Clinic** tab from the login page. Onboarding is **Platform Admin only** (Phase 1 self-serve tab is obsolete). | `done` |
+| E03 | **Navigation / queue** | Remove top header **New Patient** button; registration remains via **OPD Queue → Today’s OPD Queue** (New Patient Registration). | `done` |
+| E04 | **Medicines settings** | Clinic option/filter to **include global formulary** (`ClinicId` null) in the medicines grid **view-only** (no edit/delete of global rows). | `in-progress` — verify in UI |
+| E05 | **Lab tests settings** | Clinic option/filter to **include global lab tests** in the grid **view-only**. | `in-progress` — verify in UI |
+| E06 | **Advice settings** | Clinic option/filter to **include global advice master catalog** in the grid **view-only**. | `in-progress` — verify in UI |
+| E07 | **Visits** | `VisitDate` (or equivalent) stores **date + time**: default time **00:00:00** on check-in/token; update to actual time when consultation starts (**Start Consultation**). Align SQL type (`date` → `datetime2` or separate time field) and migrations. | `in-progress` — verify in UI |
 | E08 | **Onboarding / patients** | **Platform Admin** can set **patient ID prefix** during clinic onboarding (existing `PatientIdPrefix`); default = **first 4 letters of clinic name, uppercase** (current default behavior documented if different today). | `idea` |
 | E09 | **Onboarding UI** | Show onboarding wizard steps as a **horizontal timeline** with a connecting line; **emphasize/darken** steps whose data is already saved. | `idea` |
 | E10 | **Patients list** | Support **grid view** in addition to existing **card view**; user can switch between both. | `idea` |
 | E11 | **Patients** | **Edit patient** flow (demographics and related fields per clinic scope). | `idea` |
+| E12 | **Subscriptions / lab module** | Per-clinic **`ClinicSubscriptions.LabModuleOverride`** (`null` = plan default, `true`/`false` = force on/off). Platform Admin sets it on **Manage Quota & Billing**; API quota exposes effective `hasLabModule`. **Still open:** change `PlanId` from admin UI; show `hasLabModule` on onboarding plan cards. | `done` — override shipped; plan picker remains backlog |
 
 ---
 

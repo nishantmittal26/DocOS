@@ -395,6 +395,32 @@ public class Phase2BTests
     }
 
     [Fact]
+    public async Task PlatformAdmin_GetClinicSubscriptionDetail_Auto_Provisions_Missing_Subscription()
+    {
+        using var context = CreateInMemoryDbContext();
+        var plan = SeedStarterPlan(context);
+
+        var clinicId = Guid.NewGuid();
+        context.Clinics.Add(new Clinic { Id = clinicId, Name = "Legacy Clinic Without Subscription", Phone = "9999999999" });
+        await context.SaveChangesAsync();
+
+        var mockCurrentUser = new Mock<ICurrentUserService>();
+        mockCurrentUser.Setup(u => u.IsInRole(Roles.PlatformAdmin)).Returns(true);
+
+        var mockIdentityService = new Mock<IIdentityService>();
+        var handlers = new SubscriptionHandlers(context, mockCurrentUser.Object, mockIdentityService.Object);
+
+        var detail = await handlers.Handle(new GetClinicSubscriptionDetailQuery(clinicId), CancellationToken.None);
+
+        detail.ClinicName.Should().Be("Legacy Clinic Without Subscription");
+        detail.PlanId.Should().Be(plan.Id);
+
+        var saved = await context.ClinicSubscriptions.FirstOrDefaultAsync(s => s.ClinicId == clinicId);
+        saved.Should().NotBeNull();
+        saved!.PlanId.Should().Be(plan.Id);
+    }
+
+    [Fact]
     public async Task PlatformAdmin_Can_Record_SaaS_Payment_Invoice()
     {
         // Arrange

@@ -86,6 +86,17 @@ When adding a **new** date or datetime column: document it in [DocOS-Database-Sc
 
 Newest first. One block per decision or schema change.
 
+### 2026-10-03 — E07 `Visits.VisitDate` as IST `datetime2`
+
+- **Schema:** `VisitDate` changed from `date` to `datetime2` (IST wall-clock). Added stored computed `VisitDay` (`CONVERT(date, VisitDate)`) and unique index `(ClinicId, DoctorId, VisitDay, TokenNumber)` so token numbers stay unique per doctor per IST day after consultation updates the time.
+- **Behavior:** Check-in sets `VisitDate` to `IndiaTime.Today` (midnight). Transition to `InConsultation` sets `VisitDate` to `IndiaTime.Now`. Queue and token logic filter by `IndiaTime.DayRange`.
+- **Migration:** `20261003134018_VisitDate_Datetime2`.
+
+### 2026-10-03 — Per-clinic lab module override on `ClinicSubscription`
+
+- **Decision:** Add nullable `ClinicSubscriptions.LabModuleOverride` (`bit`, null = inherit plan). Effective entitlement is `LabModuleOverride ?? SubscriptionPlanMaster.HasLabModule`. Platform Admin edits via **Manage Quota & Billing**; clinic quota API returns effective `hasLabModule`.
+- **Rationale:** Legacy clinics may sit on Starter/MultiDoctor plans while needing labs without changing the shared plan row or re-onboarding. Mirrors `MaxDoctorsOverride` pattern.
+
 ### 2026-10-03 — Slim ADR split from master spec
 
 - **Decision:** Keep a dedicated ADR file for superseded drafts and rationale; scope and done-when lists stay in `DocOS-(Phase 2).md`; columns stay in `DocOS-Database-Schema.md`.

@@ -15,6 +15,7 @@ public class Visit : BaseEntity
     public string? DoctorId { get; set; }
 
     public int TokenNumber { get; set; }
+    /// <summary>IST wall-clock: midnight on check-in; updated to actual time when consultation starts.</summary>
     public DateTime VisitDate { get; set; } = IndiaTime.Today;
     public VisitStatus Status { get; set; } = VisitStatus.Waiting;
 

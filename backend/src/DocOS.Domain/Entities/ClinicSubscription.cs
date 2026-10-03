@@ -14,6 +14,8 @@ public class ClinicSubscription : BaseEntity
     public int? MonthlyVisitQuota { get; set; }
     public int AdditionalTopUpVisits { get; set; } = 0;
     public int? MaxDoctorsOverride { get; set; }
+    /// <summary>When set, overrides <see cref="SubscriptionPlanMaster.HasLabModule"/> for this clinic only.</summary>
+    public bool? LabModuleOverride { get; set; }
     public string Status { get; set; } = SubscriptionStatuses.Active;
     public DateTime CurrentPeriodStart { get; set; }
     public DateTime CurrentPeriodEnd { get; set; }
@@ -27,4 +29,5 @@ public class ClinicSubscription : BaseEntity
     public bool HasUnlimitedVisits => IsUnlimitedVisits || (Plan != null && Plan.IsUnlimitedVisits);
     public int? TotalAllowedVisits => HasUnlimitedVisits ? null : ((MonthlyVisitQuota ?? Plan?.DefaultMonthlyVisits ?? 0) + AdditionalTopUpVisits);
     public int EffectiveMaxDoctors => MaxDoctorsOverride ?? Plan?.MaxDoctors ?? 1;
+    public bool EffectiveHasLabModule => LabModuleOverride ?? Plan?.HasLabModule ?? false;
 }

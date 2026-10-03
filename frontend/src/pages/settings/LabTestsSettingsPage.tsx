@@ -11,11 +11,14 @@ import {
   Lock,
   Edit2,
   Trash2,
-  Filter,
   Check,
-  Sparkles,
-  ExternalLink,
 } from 'lucide-react';
+import {
+  CatalogScopeFilter,
+  CatalogSourceBadge,
+  CatalogScope,
+  matchesCatalogScope,
+} from '../../components/CatalogScopeFilter';
 
 export const LabTestsSettingsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'tests' | 'panels'>('panels');
@@ -28,6 +31,7 @@ export const LabTestsSettingsPage: React.FC = () => {
   // Search & Filter
   const [testSearch, setTestSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
+  const [testCatalogScope, setTestCatalogScope] = useState<CatalogScope>('clinic');
 
   // Custom Test Modal
   const [isTestModalOpen, setIsTestModalOpen] = useState(false);
@@ -59,20 +63,24 @@ export const LabTestsSettingsPage: React.FC = () => {
         labsApi.getPanels(),
       ]);
 
+      let labModuleEnabled = true;
+
       if (quotaData.status === 'fulfilled') {
         setQuota(quotaData.value);
+        labModuleEnabled = quotaData.value.hasLabModule;
       }
 
       if (testsData.status === 'fulfilled') {
         setTests(testsData.value);
-        setHasLabModule(true);
-      } else {
-        // Check if 403 entitlement error
+        labModuleEnabled = true;
+      } else if (testsData.status === 'rejected') {
         const err = testsData.reason;
-        if (err.response?.status === 403) {
-          setHasLabModule(false);
+        if (err?.response?.status === 403) {
+          labModuleEnabled = false;
         }
       }
+
+      setHasLabModule(labModuleEnabled);
 
       if (panelsData.status === 'fulfilled') {
         setPanels(panelsData.value);
@@ -183,7 +191,12 @@ export const LabTestsSettingsPage: React.FC = () => {
 
   const categories = Array.from(new Set(tests.map((t) => t.category))).filter(Boolean);
 
+  const clinicLabTestCount = tests.filter((t) => t.isCustom).length;
+
   const filteredTests = tests.filter((t) => {
+    if (!matchesCatalogScope(t.isCustom, testCatalogScope)) {
+      return false;
+    }
     const q = testSearch.trim().toLowerCase();
     const matchesQuery = !q || t.testName.toLowerCase().includes(q) || t.testCode.toLowerCase().includes(q);
     const matchesCat = categoryFilter === 'All' || t.category === categoryFilter;
@@ -280,7 +293,7 @@ export const LabTestsSettingsPage: React.FC = () => {
           }`}
         >
           <FlaskConical className="w-4 h-4" />
-          <span>Lab Tests Formulary ({tests.length})</span>
+          <span>Lab Tests Formulary ({clinicLabTestCount})</span>
         </button>
       </div>
 
@@ -391,8 +404,7 @@ export const LabTestsSettingsPage: React.FC = () => {
               />
             </div>
 
-            <div className="flex items-center space-x-2">
-              <Filter className="w-3.5 h-3.5 text-slate-400" />
+            <div className="flex flex-wrap items-center gap-2">
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
@@ -405,6 +417,7 @@ export const LabTestsSettingsPage: React.FC = () => {
                   </option>
                 ))}
               </select>
+              <CatalogScopeFilter value={testCatalogScope} onChange={setTestCatalogScope} />
             </div>
           </div>
 
@@ -422,6 +435,15 @@ export const LabTestsSettingsPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
+                  {filteredTests.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="py-10 text-center text-xs text-slate-500">
+                        {clinicLabTestCount === 0 && testCatalogScope === 'clinic'
+                          ? 'No clinic custom lab tests yet. Use “Include global catalog” to browse standard tests (view-only), or add a custom test.'
+                          : 'No lab tests match your filters.'}
+                      </td>
+                    </tr>
+                  )}
                   {filteredTests.map((test) => (
                     <tr key={test.id} className="hover:bg-slate-50/70 transition-colors">
                       <td className="py-3 px-4 font-mono font-bold text-indigo-700">{test.testCode}</td>
@@ -442,15 +464,7 @@ export const LabTestsSettingsPage: React.FC = () => {
                         )}
                       </td>
                       <td className="py-3 px-4">
-                        {test.isCustom ? (
-                          <span className="text-[10px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
-                            Clinic Custom
-                          </span>
-                        ) : (
-                          <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                            Standard
-                          </span>
-                        )}
+                        <CatalogSourceBadge isClinicOwned={test.isCustom} />
                       </td>
                     </tr>
                   ))}

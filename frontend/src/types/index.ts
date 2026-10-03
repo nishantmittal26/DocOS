@@ -443,6 +443,7 @@ export interface Medicine {
   defaultDosage?: string;
   defaultTiming?: DosageTiming;
   isFavorite?: boolean;
+  clinicId?: string;
 }
 
 export interface ClinicProfile {
@@ -576,8 +577,14 @@ export interface ClinicSubscriptionDetail {
   remainingVisits?: number;
   lastVisitRecordedAt?: string;
   notes?: string;
+  labModuleOverride?: boolean | null;
+  planHasLabModule: boolean;
+  effectiveHasLabModule: boolean;
   paymentHistory: SubscriptionPayment[];
 }
+
+/** inherit = use plan default; enabled/disabled = per-clinic override */
+export type LabModuleSetting = 'inherit' | 'enabled' | 'disabled';
 
 export interface UpdateClinicSubscriptionRequest {
   isUnlimitedVisits: boolean;
@@ -586,6 +593,7 @@ export interface UpdateClinicSubscriptionRequest {
   status: SubscriptionStatus;
   gracePeriodDays: number;
   notes?: string;
+  labModuleOverride?: boolean | null;
 }
 
 export interface ClinicQuotaStatus {
@@ -606,5 +614,7 @@ export interface ClinicQuotaStatus {
   isSuspended: boolean;
   periodEnd: string;
   canIssueTokens: boolean;
+  hasLabModule: boolean;
+  hasCustomVitals: boolean;
 }
 

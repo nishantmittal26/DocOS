@@ -1,6 +1,7 @@
 using DocOS.Application.Common.Interfaces;
 using DocOS.Domain.Common;
 using DocOS.Domain.Entities;
+using DocOS.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -258,20 +259,28 @@ public class SubscriptionHandlers :
 
         var clinic = await _context.Clinics
             .AsNoTracking()
-            .Include(c => c.Subscription)
-                .ThenInclude(s => s!.Plan)
-            .Include(c => c.Subscription)
-                .ThenInclude(s => s!.PaymentHistories)
-            .Include(c => c.PeriodUsages)
             .FirstOrDefaultAsync(c => c.Id == request.ClinicId, cancellationToken)
             ?? throw new KeyNotFoundException("Clinic was not found");
 
-        var sub = clinic.Subscription
-            ?? throw new InvalidOperationException("Clinic does not have an active subscription record");
+        await EnsureClinicSubscriptionAsync(clinic.Id, cancellationToken);
 
-        var currentUsage = clinic.PeriodUsages
+        var sub = await _context.ClinicSubscriptions
+            .AsNoTracking()
+            .Include(s => s.Plan)
+            .Include(s => s.PaymentHistories)
+            .FirstAsync(s => s.ClinicId == request.ClinicId, cancellationToken);
+
+        if (sub.Plan == null)
+        {
+            throw new InvalidOperationException(
+                "Subscription plan is missing or invalid for this clinic. Assign an active plan and try again.");
+        }
+
+        var currentUsage = await _context.ClinicPeriodUsages
+            .AsNoTracking()
+            .Where(u => u.ClinicId == request.ClinicId)
             .OrderByDescending(u => u.PeriodStart)
-            .FirstOrDefault();
+            .FirstOrDefaultAsync(cancellationToken);
 
         var visitsConducted = currentUsage?.VisitsConducted ?? 0;
         var totalAllowed = sub.TotalAllowedVisits;
@@ -313,6 +322,9 @@ public class SubscriptionHandlers :
             RemainingVisits: remaining,
             LastVisitRecordedAt: currentUsage?.LastVisitRecordedAt,
             Notes: sub.Notes,
+            LabModuleOverride: sub.LabModuleOverride,
+            PlanHasLabModule: sub.Plan.HasLabModule,
+            EffectiveHasLabModule: sub.EffectiveHasLabModule,
             PaymentHistory: payments
         );
     }
@@ -336,6 +348,7 @@ public class SubscriptionHandlers :
         sub.Status = req.Status;
         sub.GracePeriodDays = req.GracePeriodDays;
         sub.Notes = req.Notes;
+        sub.LabModuleOverride = req.LabModuleOverride;
         sub.UpdatedAt = IndiaTime.Now;
 
         await _context.SaveChangesAsync(cancellationToken);
@@ -450,7 +463,9 @@ public class SubscriptionHandlers :
                 IsGracePeriod: false,
                 IsSuspended: false,
                 PeriodEnd: IndiaTime.Now.AddDays(30),
-                CanIssueTokens: true
+                CanIssueTokens: true,
+                HasLabModule: false,
+                HasCustomVitals: false
             );
         }
 
@@ -506,7 +521,64 @@ public class SubscriptionHandlers :
             IsGracePeriod: isGracePeriod,
             IsSuspended: isSuspended,
             PeriodEnd: sub.CurrentPeriodEnd,
-            CanIssueTokens: canIssueTokens
+            CanIssueTokens: canIssueTokens,
+            HasLabModule: sub.EffectiveHasLabModule,
+            HasCustomVitals: sub.Plan?.HasCustomVitals == true
         );
+    }
+
+    private async Task EnsureClinicSubscriptionAsync(Guid clinicId, CancellationToken cancellationToken)
+    {
+        var hasSubscription = await _context.ClinicSubscriptions
+            .AnyAsync(s => s.ClinicId == clinicId, cancellationToken);
+        if (hasSubscription)
+        {
+            return;
+        }
+
+        var starterPlan = await _context.SubscriptionPlans
+            .Where(p => p.IsActive && p.PlanCode == "STARTER_MONTHLY")
+            .FirstOrDefaultAsync(cancellationToken)
+            ?? await _context.SubscriptionPlans
+                .Where(p => p.IsActive)
+                .OrderBy(p => p.PriceINR)
+                .FirstOrDefaultAsync(cancellationToken)
+            ?? throw new InvalidOperationException(
+                "No active subscription plans are configured. Seed plans before opening clinic billing.");
+
+        var periodStart = IndiaTime.Now;
+        var periodEnd = periodStart.AddDays(30);
+
+        var subscription = new ClinicSubscription
+        {
+            ClinicId = clinicId,
+            PlanId = starterPlan.Id,
+            IsUnlimitedVisits = false,
+            MonthlyVisitQuota = starterPlan.DefaultMonthlyVisits,
+            AdditionalTopUpVisits = 0,
+            MaxDoctorsOverride = null,
+            Status = SubscriptionStatuses.Active,
+            CurrentPeriodStart = periodStart,
+            CurrentPeriodEnd = periodEnd,
+            GracePeriodDays = 5,
+            Notes = "Auto-provisioned Starter subscription when opening quota & billing"
+        };
+
+        _context.ClinicSubscriptions.Add(subscription);
+
+        var completedCount = await _context.Visits
+            .CountAsync(v => v.ClinicId == clinicId && v.Status == VisitStatus.Completed, cancellationToken);
+
+        _context.ClinicPeriodUsages.Add(new ClinicPeriodUsage
+        {
+            ClinicId = clinicId,
+            Subscription = subscription,
+            PeriodStart = periodStart,
+            PeriodEnd = periodEnd,
+            VisitsConducted = completedCount,
+            LastVisitRecordedAt = completedCount > 0 ? IndiaTime.Now : null
+        });
+
+        await _context.SaveChangesAsync(cancellationToken);
     }
 }

@@ -1,4 +1,5 @@
 using DocOS.Application.Common.Interfaces;
+using DocOS.Application.Visits;
 using DocOS.Domain.Common;
 using DocOS.Domain.Entities;
 using MediatR;
@@ -140,7 +141,7 @@ public class PatientHandlers :
         var results = patients.Select(p =>
         {
             var pVisits = visits.Where(v => v.PatientId == p.Id).ToList();
-            var todayVisit = pVisits.FirstOrDefault(v => v.VisitDate == today);
+            var todayVisit = pVisits.FirstOrDefault(v => VisitDateQuery.IsOnIstCalendarDay(v.VisitDate, today));
             var lastVisit = pVisits.FirstOrDefault();
 
             string? lastDoctorName = null;

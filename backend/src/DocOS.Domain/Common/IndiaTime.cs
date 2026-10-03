@@ -11,7 +11,7 @@ public static class IndiaTime
     /// <summary>Current date and time in IST for database columns and business logic.</summary>
     public static DateTime Now => TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, Ist);
 
-    /// <summary>Calendar date in IST (for VisitDate and queue "today").</summary>
+    /// <summary>Calendar date at midnight IST (check-in VisitDate default; queue "today").</summary>
     public static DateTime Today => Now.Date;
 
     /// <summary>Inclusive start and exclusive end of one IST calendar day.</summary>

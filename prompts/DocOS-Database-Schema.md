@@ -259,7 +259,8 @@ Vital columns from section 2 remain on this table until 2C. Clinical columns sta
 | `PatientId` | `uniqueidentifier` | No | FK `Patients(Id)` |
 | `DoctorId` | `nvarchar(450)` | Yes | FK `AspNetUsers(Id)`. Set at check-in. Required before `InConsultation` |
 | `TokenNumber` | `int` | No | Sequence for that doctor that day |
-| `VisitDate` | `date` | No | Calendar day of the queue. Phase 1 stored a timestamp; 2A stores the day so the token index is per day. Check-in time remains `CreatedAt` |
+| `VisitDate` | `datetime2` | No | IST wall-clock. **Check-in / token:** date at `00:00:00`. **Start consultation:** updated to actual IST time. Queue “today” and token uniqueness use computed `VisitDay` (`CONVERT(date, VisitDate)`) |
+| `VisitDay` | `date` | No | Persisted computed column from `VisitDate`; used in unique token index per IST calendar day |
 | `Status` | `int` | No | `VisitStatus`. Default `Waiting` |
 | `ChiefComplaints` | `nvarchar(max)` | Yes | Free text |
 | `Diagnosis` | `nvarchar(500)` | Yes | |
@@ -270,7 +271,7 @@ Vital columns from section 2 remain on this table until 2C. Clinical columns sta
 
 Vitals are **not** columns on `Visits` after 2C; see `VisitVitals` in section 5.4.
 
-Unique index `(ClinicId, DoctorId, VisitDate, TokenNumber)` filtered to `DoctorId IS NOT NULL`. Queue lookup index `(ClinicId, VisitDate, DoctorId, Status)`.
+Unique index `(ClinicId, DoctorId, VisitDay, TokenNumber)` filtered to `DoctorId IS NOT NULL`. Queue lookup index `(ClinicId, VisitDate, DoctorId, Status)`.
 
 ### 3.6 `Prescriptions`
 
@@ -378,6 +379,7 @@ One row per clinic. Lifecycle status lives here.
 | `MonthlyVisitQuota` | `int` | Yes | Null when this clinic is unlimited |
 | `AdditionalTopUpVisits` | `int` | No | Default 0. Current period only |
 | `MaxDoctorsOverride` | `int` | Yes | Null means use the plan’s `MaxDoctors` |
+| `LabModuleOverride` | `bit` | Yes | Null = inherit `SubscriptionPlanMaster.HasLabModule`; `0`/`1` = per-clinic force off/on |
 | `Status` | `nvarchar(30)` | No | `Trial`, `Active`, `GracePeriod`, `QuotaExceeded`, `Suspended` |
 | `CurrentPeriodStart` | `datetime2` | No | |
 | `CurrentPeriodEnd` | `datetime2` | No | |
@@ -386,7 +388,7 @@ One row per clinic. Lifecycle status lives here.
 | `CreatedAt` | `datetime2` | No | |
 | `UpdatedAt` | `datetime2` | Yes | |
 
-`TotalAllowed` is unlimited when `IsUnlimitedVisits` is true, otherwise `MonthlyVisitQuota + AdditionalTopUpVisits`. The extra 20 completed visits are a buffer beyond `TotalAllowed`, not a stored column.
+`TotalAllowed` is unlimited when `IsUnlimitedVisits` is true, otherwise `MonthlyVisitQuota + AdditionalTopUpVisits`. The extra 20 completed visits are a buffer beyond `TotalAllowed`, not a stored column. Lab access uses `LabModuleOverride ?? plan.HasLabModule` (see ADR change log).
 
 ### 4.5 `ClinicPeriodUsage`
 

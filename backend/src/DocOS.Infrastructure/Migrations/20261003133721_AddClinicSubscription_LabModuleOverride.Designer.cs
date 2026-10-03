@@ -4,6 +4,7 @@ using DocOS.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace DocOS.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261003133721_AddClinicSubscription_LabModuleOverride")]
+    partial class AddClinicSubscription_LabModuleOverride
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -985,12 +988,7 @@ namespace DocOS.Infrastructure.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<DateTime>("VisitDate")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("VisitDay")
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("date")
-                        .HasComputedColumnSql("CONVERT(date, [VisitDate])", true);
+                        .HasColumnType("date");
 
                     b.HasKey("Id");
 
@@ -998,9 +996,8 @@ namespace DocOS.Infrastructure.Migrations
 
                     b.HasIndex("PatientId");
 
-                    b.HasIndex("ClinicId", "DoctorId", "VisitDay", "TokenNumber")
+                    b.HasIndex("ClinicId", "DoctorId", "VisitDate", "TokenNumber")
                         .IsUnique()
-                        .HasDatabaseName("IX_Visits_ClinicId_DoctorId_VisitDay_TokenNumber")
                         .HasFilter("[DoctorId] IS NOT NULL");
 
                     b.HasIndex("ClinicId", "VisitDate", "DoctorId", "Status");

@@ -86,6 +86,34 @@ api.interceptors.response.use(
   }
 );
 
+export function getApiErrorMessage(err: unknown, fallback: string): string {
+  if (!axios.isAxiosError(err)) {
+    return fallback;
+  }
+
+  const data = err.response?.data;
+  const message =
+    typeof data === 'object' &&
+    data !== null &&
+    'message' in data &&
+    typeof (data as { message?: string }).message === 'string'
+      ? (data as { message: string }).message
+      : undefined;
+
+  const status = err.response?.status;
+  if (status === 401) {
+    return message ?? 'Your session has expired. Please sign in again.';
+  }
+  if (status === 403) {
+    return message ?? 'You do not have permission to manage clinic subscriptions.';
+  }
+  if (status === 404) {
+    return message ?? 'The requested clinic or subscription could not be found.';
+  }
+
+  return message ?? fallback;
+}
+
 export const authApi = {
   login: async (credentials: { email: string; password: string }) => {
     const res = await api.post<AuthResponse>('/auth/login', credentials);
@@ -289,8 +317,10 @@ export const medicinesApi = {
     const res = await api.post<Medicine>('/medicines/custom', data);
     return res.data;
   },
-  getCustom: async () => {
-    const res = await api.get<Medicine[]>('/medicines/custom');
+  getCustom: async (includeGlobalCatalog = false) => {
+    const res = await api.get<Medicine[]>('/medicines/custom', {
+      params: { includeGlobalCatalog },
+    });
     return res.data;
   },
   updateCustom: async (

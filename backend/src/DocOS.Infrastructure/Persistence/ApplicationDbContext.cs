@@ -107,7 +107,11 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
         {
             entity.HasKey(v => v.Id);
             entity.Property(v => v.DoctorId).HasMaxLength(450);
-            entity.Property(v => v.VisitDate).HasColumnType("date");
+            entity.Property(v => v.VisitDate).HasColumnType("datetime2");
+
+            entity.Property<DateTime>("VisitDay")
+                .HasColumnType("date")
+                .HasComputedColumnSql("CONVERT(date, [VisitDate])", stored: true);
 
             entity.Property(v => v.Diagnosis).HasMaxLength(500);
 
@@ -127,9 +131,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
                 .HasForeignKey(v => v.DoctorId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Phase 2A Indexes: Unique token index per (ClinicId, DoctorId, VisitDate, TokenNumber)
-            entity.HasIndex(v => new { v.ClinicId, v.DoctorId, v.VisitDate, v.TokenNumber })
+            // Phase 2A token uniqueness per IST calendar day (VisitDay computed from VisitDate datetime2)
+            entity.HasIndex("ClinicId", "DoctorId", "VisitDay", "TokenNumber")
                 .IsUnique()
+                .HasDatabaseName("IX_Visits_ClinicId_DoctorId_VisitDay_TokenNumber")
                 .HasFilter("[DoctorId] IS NOT NULL");
 
             entity.HasIndex(v => new { v.ClinicId, v.VisitDate, v.DoctorId, v.Status });

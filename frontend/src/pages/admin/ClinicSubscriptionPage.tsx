@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { adminApi } from '../../api/client';
+import { adminApi, getApiErrorMessage } from '../../api/client';
 import {
   ClinicSubscriptionDetail,
   UpdateClinicSubscriptionRequest,
+  LabModuleSetting,
   SubscriptionStatus,
   PaymentMethod,
   PaymentStatus,
@@ -28,8 +29,30 @@ import {
   TrendingUp,
   RefreshCw,
   Hash,
+  FlaskConical,
 } from 'lucide-react';
 import { formatDateIST, formatDateTimeIST, getIstDateInputValue } from '../../utils/dateTime';
+
+function labSettingFromOverride(override: boolean | null | undefined): LabModuleSetting {
+  if (override === true) return 'enabled';
+  if (override === false) return 'disabled';
+  return 'inherit';
+}
+
+function labOverrideFromSetting(setting: LabModuleSetting): boolean | null {
+  switch (setting) {
+    case 'inherit':
+      return null;
+    case 'enabled':
+      return true;
+    case 'disabled':
+      return false;
+    default: {
+      const unreachable: never = setting;
+      return unreachable;
+    }
+  }
+}
 
 export const ClinicSubscriptionPage: React.FC = () => {
   const { clinicId } = useParams<{ clinicId: string }>();
@@ -48,6 +71,7 @@ export const ClinicSubscriptionPage: React.FC = () => {
   const [status, setStatus] = useState<SubscriptionStatus>('Active');
   const [gracePeriodDays, setGracePeriodDays] = useState<number>(5);
   const [notes, setNotes] = useState<string>('');
+  const [labModuleSetting, setLabModuleSetting] = useState<LabModuleSetting>('inherit');
 
   // Top-up custom state
   const [customTopUp, setCustomTopUp] = useState<number>(100);
@@ -64,7 +88,12 @@ export const ClinicSubscriptionPage: React.FC = () => {
   const [paymentSubmitting, setPaymentSubmitting] = useState<boolean>(false);
 
   const fetchSubscription = async () => {
-    if (!clinicId) return;
+    if (!clinicId) {
+      setLoading(false);
+      setDetail(null);
+      setError('Invalid clinic link — missing clinic ID in the URL.');
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -77,14 +106,16 @@ export const ClinicSubscriptionPage: React.FC = () => {
       setStatus(data.status);
       setGracePeriodDays(data.gracePeriodDays);
       setNotes(data.notes || '');
+      setLabModuleSetting(labSettingFromOverride(data.labModuleOverride));
       setPaymentAmount(data.priceINR || 1499);
       // Auto-generate invoice suggestion
       const year = new Date().getFullYear();
       const randNum = Math.floor(1000 + Math.random() * 9000);
       setInvoiceNumber(`INV-${year}-${randNum}`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Failed to load subscription details', err);
-      setError(err.response?.data?.message || 'Failed to load clinic subscription');
+      setError(getApiErrorMessage(err, 'Failed to load clinic subscription'));
+      setDetail(null);
     } finally {
       setLoading(false);
     }
@@ -115,6 +146,7 @@ export const ClinicSubscriptionPage: React.FC = () => {
         status,
         gracePeriodDays,
         notes: notes.trim() || undefined,
+        labModuleOverride: labOverrideFromSetting(labModuleSetting),
       };
 
       await adminApi.updateClinicSubscription(clinicId, payload);
@@ -184,8 +216,14 @@ export const ClinicSubscriptionPage: React.FC = () => {
     return (
       <div className="max-w-4xl mx-auto px-4 py-12 text-center space-y-4">
         <AlertTriangle className="w-12 h-12 text-rose-500 mx-auto" />
-        <h2 className="text-xl font-bold text-slate-800">Subscription Not Found</h2>
-        <p className="text-xs text-slate-500">The requested clinic subscription could not be located.</p>
+        <h2 className="text-xl font-bold text-slate-800">Could Not Load Subscription</h2>
+        <p className="text-xs text-slate-500 max-w-md mx-auto">
+          {error ??
+            'The requested clinic subscription could not be loaded. Confirm you are signed in as Platform Admin and the API is reachable.'}
+        </p>
+        {clinicId && (
+          <p className="text-[10px] font-mono text-slate-400">Clinic ID: {clinicId}</p>
+        )}
         <button
           onClick={() => navigate('/admin/clinics')}
           className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold"
@@ -206,6 +244,13 @@ export const ClinicSubscriptionPage: React.FC = () => {
     !detail.isUnlimitedVisits &&
     detail.totalAllowedVisits !== undefined &&
     detail.visitsConducted > detail.totalAllowedVisits;
+
+  const previewEffectiveLabModule =
+    labModuleSetting === 'enabled'
+      ? true
+      : labModuleSetting === 'disabled'
+      ? false
+      : detail.planHasLabModule;
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -513,6 +558,33 @@ export const ClinicSubscriptionPage: React.FC = () => {
                   </p>
                 </div>
               )}
+
+              {/* Lab module entitlement */}
+              <div className="sm:col-span-2 p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                <div className="flex items-center gap-2">
+                  <FlaskConical className="w-4 h-4 text-emerald-600" />
+                  <span className="text-xs font-bold text-slate-800">Diagnostic Lab Module</span>
+                </div>
+                <select
+                  value={labModuleSetting}
+                  onChange={(e) => setLabModuleSetting(e.target.value as LabModuleSetting)}
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500/20 cursor-pointer"
+                >
+                  <option value="inherit">
+                    Use plan default ({detail.planHasLabModule ? 'On' : 'Off'} — {detail.planName})
+                  </option>
+                  <option value="enabled">Force enabled (this clinic only)</option>
+                  <option value="disabled">Force disabled (this clinic only)</option>
+                </select>
+                <p className="text-[10px] text-slate-500">
+                  Effective for this clinic after save:{' '}
+                  <strong className={previewEffectiveLabModule ? 'text-emerald-700' : 'text-slate-600'}>
+                    {previewEffectiveLabModule ? 'Labs enabled' : 'Labs disabled'}
+                  </strong>
+                  . Plan tier alone does not change until you switch plans; use this override for legacy
+                  clinics or promotions.
+                </p>
+              </div>
 
               {/* Max Doctors Override */}
               <div>

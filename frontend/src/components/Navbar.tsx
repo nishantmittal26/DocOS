@@ -27,11 +27,7 @@ import {
 } from 'lucide-react';
 import { ChangePasswordModal } from './ChangePasswordModal';
 
-interface NavbarProps {
-  onOpenNewPatient?: () => void;
-}
-
-export const Navbar: React.FC<NavbarProps> = ({ onOpenNewPatient }) => {
+export const Navbar: React.FC = () => {
   const { user, logout, hasRole } = useAuth();
   const location = useLocation();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
@@ -277,16 +273,6 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenNewPatient }) => {
 
             {/* Actions & User Profile */}
             <div className="flex items-center space-x-3">
-              {isClinicStaff && onOpenNewPatient && (
-                <button
-                  onClick={onOpenNewPatient}
-                  className="inline-flex items-center space-x-2 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg shadow-sm shadow-emerald-600/20 transition-all hover:shadow"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  <span className="hidden sm:inline">New Patient</span>
-                </button>
-              )}
-
               {/* Role & Doctor Info Dropdown */}
               <div className="relative pl-3 border-l border-slate-200" ref={menuRef}>
                 <button

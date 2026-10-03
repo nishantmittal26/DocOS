@@ -129,8 +129,7 @@ public class VisitHandlers :
         var today = IndiaTime.Today;
         var doctorId = request.DoctorId;
 
-        var query = _context.Visits
-            .Where(v => v.ClinicId == clinicId && v.VisitDate == today);
+        var query = VisitDateQuery.WhereOnIstCalendarDay(_context.Visits, clinicId, today);
 
         if (!string.IsNullOrWhiteSpace(doctorId))
         {
@@ -154,7 +153,7 @@ public class VisitHandlers :
             PatientId = patient.Id,
             DoctorId = doctorId,
             TokenNumber = nextToken,
-            VisitDate = today,
+            VisitDate = IndiaTime.Today,
             Status = VisitStatus.Waiting
         };
 
@@ -201,6 +200,8 @@ public class VisitHandlers :
             .FirstOrDefaultAsync(v => v.Id == request.VisitId && v.ClinicId == clinicId, cancellationToken)
             ?? throw new InvalidOperationException("Visit not found");
 
+        var previousStatus = visit.Status;
+
         if (!string.IsNullOrWhiteSpace(request.DoctorId))
         {
             visit.DoctorId = request.DoctorId;
@@ -223,6 +224,12 @@ public class VisitHandlers :
         }
 
         visit.Status = request.Status;
+
+        if (request.Status == VisitStatus.InConsultation && previousStatus != VisitStatus.InConsultation)
+        {
+            visit.VisitDate = IndiaTime.Now;
+        }
+
         visit.UpdatedAt = IndiaTime.Now;
 
         await _context.SaveChangesAsync(cancellationToken);
@@ -243,10 +250,16 @@ public class VisitHandlers :
             return true;
         }
 
-        // If visit token was assigned to another doctor, recompute token for new doctor
-        var today = visit.VisitDate;
+        // If visit token was assigned to another doctor, recompute token for new doctor (same IST calendar day)
+        var visitDay = visit.VisitDate.Date;
+        var (dayStart, dayEnd) = IndiaTime.DayRange(visitDay);
         var usedTokens = await _context.Visits
-            .Where(v => v.ClinicId == clinicId && v.DoctorId == request.DoctorId && v.VisitDate == today && v.Id != visit.Id)
+            .Where(v =>
+                v.ClinicId == clinicId
+                && v.DoctorId == request.DoctorId
+                && v.VisitDate >= dayStart
+                && v.VisitDate < dayEnd
+                && v.Id != visit.Id)
             .Select(v => v.TokenNumber)
             .ToListAsync(cancellationToken);
 
@@ -301,14 +314,16 @@ public class VisitHandlers :
 
         var today = IndiaTime.Today;
 
-        var query = _context.Visits
-            .AsNoTracking()
-            .Include(v => v.Patient)
-            .Include(v => v.Prescriptions)
-            .Include(v => v.Payment)
-            .Include(v => v.Vitals)
-                .ThenInclude(vt => vt.VitalMaster)
-            .Where(v => v.ClinicId == clinicId && v.VisitDate == today);
+        var query = VisitDateQuery.WhereOnIstCalendarDay(
+                _context.Visits
+                    .AsNoTracking()
+                    .Include(v => v.Patient)
+                    .Include(v => v.Prescriptions)
+                    .Include(v => v.Payment)
+                    .Include(v => v.Vitals)
+                        .ThenInclude(vt => vt.VitalMaster),
+                clinicId,
+                today);
 
         if (!string.IsNullOrWhiteSpace(request.DoctorId))
         {
@@ -776,14 +791,14 @@ public class VisitHandlers :
 
         if (request.FromDate.HasValue)
         {
-            var from = request.FromDate.Value.Date;
+            var (from, _) = IndiaTime.DayRange(request.FromDate.Value.Date);
             query = query.Where(v => v.VisitDate >= from);
         }
 
         if (request.ToDate.HasValue)
         {
-            var to = request.ToDate.Value.Date;
-            query = query.Where(v => v.VisitDate <= to);
+            var (_, toEnd) = IndiaTime.DayRange(request.ToDate.Value.Date);
+            query = query.Where(v => v.VisitDate < toEnd);
         }
 
         if (request.Status.HasValue)

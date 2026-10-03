@@ -54,6 +54,20 @@ function toDate(value: string | Date): Date | null {
   return Number.isNaN(value.getTime()) ? null : value;
 }
 
+/** `dateStyle` / `timeStyle` cannot be combined with day/month/hour fields — use IST timezone only. */
+function mergeFormatOptions(
+  defaults: Intl.DateTimeFormatOptions,
+  options?: Intl.DateTimeFormatOptions
+): Intl.DateTimeFormatOptions {
+  if (!options) {
+    return defaults;
+  }
+  if (options.dateStyle !== undefined || options.timeStyle !== undefined) {
+    return { timeZone: IST_TIMEZONE, ...options };
+  }
+  return { ...defaults, ...options };
+}
+
 /** YYYY-MM-DD in IST for date inputs and API date query params. */
 export function getIstDateInputValue(reference: Date = new Date()): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: IST_TIMEZONE }).format(reference);
@@ -73,7 +87,7 @@ export function formatDateIST(
   if (value == null) return '—';
   const date = toDate(value);
   if (!date) return '—';
-  return date.toLocaleDateString('en-IN', { ...defaultDateOptions, ...options });
+  return date.toLocaleDateString('en-IN', mergeFormatOptions(defaultDateOptions, options));
 }
 
 export function formatDateTimeIST(
@@ -83,7 +97,7 @@ export function formatDateTimeIST(
   if (value == null) return '—';
   const date = toDate(value);
   if (!date) return '—';
-  return date.toLocaleString('en-IN', { ...defaultDateTimeOptions, ...options });
+  return date.toLocaleString('en-IN', mergeFormatOptions(defaultDateTimeOptions, options));
 }
 
 export function formatTimeIST(
@@ -93,7 +107,7 @@ export function formatTimeIST(
   if (value == null) return '—';
   const date = toDate(value);
   if (!date) return '—';
-  return date.toLocaleTimeString('en-IN', { ...defaultTimeOptions, ...options });
+  return date.toLocaleTimeString('en-IN', mergeFormatOptions(defaultTimeOptions, options));
 }
 
 /** Visit/history rows that are calendar dates (may arrive as date-only ISO). */

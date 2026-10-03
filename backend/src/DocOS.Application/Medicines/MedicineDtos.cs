@@ -12,7 +12,8 @@ public record MedicineDto(
     bool IsCustom,
     string? DefaultDosage = null,
     DosageTiming? DefaultTiming = null,
-    bool IsFavorite = false
+    bool IsFavorite = false,
+    Guid? ClinicId = null
 );
 
 public record AddCustomMedicineRequest(

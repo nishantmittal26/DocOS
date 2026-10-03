@@ -102,6 +102,45 @@ public class Phase2DTests
     }
 
     [Fact]
+    public async Task LabModule_ClinicSubscription_Override_Can_Enable_Labs_When_Plan_Disabled()
+    {
+        using var context = CreateInMemoryDbContext();
+        SeedGlobalMasters(context);
+
+        var clinicId = Guid.NewGuid();
+        context.Clinics.Add(new Clinic { Id = clinicId, Name = "Legacy Clinic", Phone = "9999999999" });
+
+        var plan = new SubscriptionPlanMaster
+        {
+            Id = Guid.NewGuid(),
+            PlanCode = "STARTER",
+            PlanName = "Starter Plan",
+            Tier = "Starter",
+            HasLabModule = false,
+            BillingCycle = "Monthly"
+        };
+        context.SubscriptionPlans.Add(plan);
+
+        var sub = new ClinicSubscription
+        {
+            ClinicId = clinicId,
+            PlanId = plan.Id,
+            Status = SubscriptionStatuses.Active,
+            LabModuleOverride = true
+        };
+        context.ClinicSubscriptions.Add(sub);
+        context.SaveChanges();
+
+        var mockUser = new Mock<ICurrentUserService>();
+        mockUser.Setup(u => u.ClinicId).Returns(clinicId);
+        var mockAudit = new Mock<IAuditService>();
+        var handler = new LabHandlers(context, mockUser.Object, mockAudit.Object);
+
+        var tests = await handler.Handle(new GetClinicLabTestsQuery(), CancellationToken.None);
+        tests.Should().NotBeEmpty();
+    }
+
+    [Fact]
     public async Task LabPanel_And_CustomTest_Can_Be_Created_And_Ordered_On_Prescription()
     {
         using var context = CreateInMemoryDbContext();
