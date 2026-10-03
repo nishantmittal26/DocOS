@@ -1,8 +1,8 @@
-# DocOS — Phase 2 Database Schema
+# DocOS — Database Schema
 
-Schema for the four Phase 2 parts. The database is Microsoft SQL Server. Behavioral rules are in [DocOS-(Phase 2).md](<DocOS-(Phase 2).md>).
+Authoritative column-level schema for the DocOS SQL Server database: Phase 1 clinical core (patients, visits, prescriptions, medicines) plus Phase 2 parts **2A–2D** (identity, subscriptions, dynamic vitals, labs, advice, payments, audit). Behavioral rules are in [DocOS-(Phase 2).md](<DocOS-(Phase 2).md>). Migrations live in `DocOS.Infrastructure/Migrations`; the model snapshot reflects the **current** shape after `AddPhase2D_Features`.
 
-Phase 1’s PostgreSQL database is the historical MVP. These tables are created on a new SQL Server database.
+Phase 1’s PostgreSQL database is the historical MVP. Production Phase 2+ uses a **new** SQL Server database (not an in-place PostgreSQL migration).
 
 ---
 
@@ -35,6 +35,18 @@ Phase 1’s PostgreSQL database is the historical MVP. These tables are created 
 
 There is no SQL Server row-level security. Clinic isolation is the application guard: clinic-scoped commands refuse a caller with null `ClinicId` and filter by the caller’s clinic.
 
+### Current database (as implemented)
+
+| Area | State |
+| :--- | :--- |
+| `Visits` | Legacy nine vital columns **removed** (migration `AddPhase2C_DynamicVitals`). Readings are in `VisitVitals`. |
+| `Prescriptions` | One **current** row per visit (`IsCurrent = 1`, filtered unique on `VisitId`). Revisions use `PreviousPrescriptionId`. Share link: `PdfShareToken`, `ExpiresAt`, `IsPrinted`. |
+| Vitals | `VitalMaster`, `ClinicVitalPreference`, `VisitVitals` active. |
+| Subscriptions | `SubscriptionPlanMaster`, `ClinicSubscription`, `ClinicPeriodUsage`, `SubscriptionPaymentHistory` active. |
+| 2D | Labs, panels, advice, favorites, `VisitPayment`, `AuditLogs` active. |
+
+EF Core table names follow pluralization where configured (for example `PrescriptionAdvices` for entity `PrescriptionAdvice`).
+
 ### Which part adds which table
 
 | Table or change | Part |
@@ -49,9 +61,9 @@ There is no SQL Server row-level security. Clinic isolation is the application g
 
 ---
 
-## 2. Columns that stay until a later part
+## 2. Legacy visit vital columns (2A–2B only; removed in 2C)
 
-Through **2A and 2B**, `Visits` still stores vitals as columns. Part **2C** copies them into `VisitVitals` and then drops them.
+During **2A and 2B** migrations, `Visits` still stored vitals as columns. Part **2C** backfilled `VisitVitals` and **dropped** these columns. They are documented here for migration history and data-mapping only—not present on `Visits` today.
 
 | Column | SQL type | Notes |
 | :--- | :--- | :--- |
@@ -215,7 +227,7 @@ Not on this table in any Phase 2 part: `Status`, `SubscriptionTier`, `Subscripti
 
 ### 3.4 `Patients`
 
-Unchanged from Phase 1. Unique `(ClinicId, PatientUid)`.
+Unchanged from Phase 1. Unique `(ClinicId, PatientUid)`. Non-unique index `(ClinicId, MobileNumber)` for lookup.
 
 | Column | Type | Null | Notes |
 | :--- | :--- | :---: | :--- |
@@ -254,7 +266,7 @@ Vital columns from section 2 remain on this table until 2C. Clinical columns sta
 | `CreatedAt` | `datetime2` | No | Check-in timestamp |
 | `UpdatedAt` | `datetime2` | Yes | |
 
-Plus the nine vital columns in section 2 until 2C.
+Vitals are **not** columns on `Visits` after 2C; see `VisitVitals` in section 5.4.
 
 Unique index `(ClinicId, DoctorId, VisitDate, TokenNumber)` filtered to `DoctorId IS NOT NULL`. Queue lookup index `(ClinicId, VisitDate, DoctorId, Status)`.
 
@@ -303,7 +315,7 @@ Unique index `(ClinicId, DoctorId, VisitDate, TokenNumber)` filtered to `DoctorI
 | `CreatedAt` | `datetime2` | No | |
 | `UpdatedAt` | `datetime2` | Yes | |
 
-Search returns rows where `ClinicId` is null or `ClinicId` equals the caller’s clinic. Index `(ClinicId, BrandName)`.
+Search returns rows where `ClinicId` is null or `ClinicId` equals the caller’s clinic. Indexes: `(ClinicId, BrandName)`, `BrandName`, `SaltComposition`, `ClinicId`.
 
 ---
 
@@ -447,7 +459,7 @@ Global masters have null `VitalMaster.ClinicId`.
 | `CreatedAt` | `datetime2` | No | |
 | `UpdatedAt` | `datetime2` | Yes | |
 
-`Code` is unique among global rows (`ClinicId` null) and unique per clinic among custom rows.
+Filtered unique indexes (same pattern as `LabTestMaster`): unique on `Code` where `ClinicId IS NULL`; unique on `(ClinicId, Code)` where `ClinicId IS NOT NULL`.
 
 Seed at least:
 
@@ -545,6 +557,8 @@ erDiagram
 | `CreatedAt` | `datetime2` | No | |
 | `UpdatedAt` | `datetime2` | Yes | |
 
+Filtered unique indexes: unique on `TestCode` where `ClinicId IS NULL`; unique on `(ClinicId, TestCode)` where `ClinicId IS NOT NULL`.
+
 ### 6.3 `LabTestPanel` and `LabTestPanelItem`
 
 Panels belong to one clinic.
@@ -602,7 +616,9 @@ A panel order expands into one row per test. The panel id is not stored on the o
 | `CreatedAt` | `datetime2` | No | |
 | `UpdatedAt` | `datetime2` | Yes | |
 
-**`PrescriptionAdvice`**
+Index `(ClinicId, Category)` for settings browse (not unique).
+
+**`PrescriptionAdvice`** (SQL table `PrescriptionAdvices`)
 
 | Column | Type | Null | Notes |
 | :--- | :--- | :---: | :--- |
@@ -647,7 +663,7 @@ The prescription line still stores `Dosage` and `Timing`.
 | `PreviousPrescriptionId` | `uniqueidentifier` | Yes | FK `Prescriptions(Id)`. Set on the new row |
 | `IsCurrent` | `bit` | No | Default 1. The visit’s live script |
 
-Replace the 2A unique index on `VisitId` with a filtered unique index on `VisitId` where `IsCurrent = 1`.
+Replace the 2A unique index on `VisitId` with a filtered unique index on `VisitId` where `IsCurrent = 1`. Filtered unique index on `PdfShareToken` where `PdfShareToken IS NOT NULL`.
 
 Once `IsPrinted` is true, or a `PRINT` audit exists for that row, an edit inserts a new current row and leaves the printed row unchanged.
 

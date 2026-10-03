@@ -82,8 +82,8 @@ DocOS/
 ├── prompts/                         # Phase specifications & architecture decisions
 │   ├── DocOS-(Phase 1).md
 │   ├── DocOS-(Phase 2).md
-│   ├── DocOS-Phase2-Architecture-Discussions.md
-│   └── DocOS-Phase2-Database-Schema.md
+│   ├── DocOS-Architecture-Decisions.md
+│   └── DocOS-Database-Schema.md
 ├── backend/
 │   ├── DocOS.slnx
 │   └── src/

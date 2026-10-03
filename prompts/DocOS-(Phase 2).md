@@ -10,7 +10,7 @@ Phase 2 turns the single-doctor MVP into a sellable multi-doctor SaaS. It is bui
 | **2D** | Labs, advice snippets, medicine favorites, public prescription link, OPD fee collection, audit, printed-prescription revisions |
 | **Later** | Work that is specified so it is not rebuilt by accident, and is outside Phase 2 execution |
 
-Column-level detail is in [DocOS-Phase2-Database-Schema.md](DocOS-Phase2-Database-Schema.md). The decision record is in [DocOS-Phase2-Architecture-Discussions.md](DocOS-Phase2-Architecture-Discussions.md). Phase 1 stays the locked MVP baseline in `DocOS-(Phase 1).md`.
+Column-level detail is in [DocOS-Database-Schema.md](DocOS-Database-Schema.md). Rationale and superseded drafts are in [DocOS-Architecture-Decisions.md](DocOS-Architecture-Decisions.md). Phase 1 stays the locked MVP baseline in `DocOS-(Phase 1).md`.
 
 ---
 
@@ -324,6 +324,6 @@ These items are outside Phase 2 execution. Do not add their tables or UI while b
 
 ## 8. Companion documents
 
-- [DocOS-Phase2-Database-Schema.md](DocOS-Phase2-Database-Schema.md) — tables, columns, indexes, and an ERD per part.
-- [DocOS-Phase2-Architecture-Discussions.md](DocOS-Phase2-Architecture-Discussions.md) — why these choices were locked on 3 October 2026.
+- [DocOS-Database-Schema.md](DocOS-Database-Schema.md) — tables, columns, indexes, and an ERD per part.
+- [DocOS-Architecture-Decisions.md](DocOS-Architecture-Decisions.md) — ADR: superseded drafts and rationale (not duplicate scope checklists).
 - `DocOS-(Phase 1).md` — locked MVP baseline. Do not revise it for Phase 2.
