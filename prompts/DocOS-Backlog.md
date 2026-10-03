@@ -31,7 +31,8 @@ Work listed here is **out of scope** until it is **promoted** to a numbered deli
 | B09 | **PostgreSQL or Supabase as Phase 2 provider** | Phase 2 is SQL Server only; MVP PostgreSQL is a tagged snapshot. | `idea` |
 | B10 | **Audit row for every VIEW** | Routine queue views are not audited; see 2D `AuditLogs` scope. | `idea` |
 | B11 | **Platform Admin: change clinic subscription plan** | **Manage Quota & Billing** can override quota, unlimited visits, and lab module; changing **`PlanId`** (tier/entitlements) still requires DB or re-onboard. Needs admin API, UI, and rules for period, pricing, and entitlements. | `idea` |
-| B12 | **Onboarding: lab module on plan cards** | Wizard step 2 lists visits, doctors, staff, and custom vitals; does not surface **`hasLabModule`** from `SubscriptionPlanMaster` (data already on plan DTO). Small UI polish deferred from E12. | `idea` |
+| B12 | **Onboarding: lab module on plan cards** | Wizard step 2 lists visits, doctors, staff, and custom vitals; does not surface **`hasLabModule`** from `SubscriptionPlanMaster` (data already on plan DTO). Small UI polish deferred from E12. | `done` — [`OnboardDoctorPage.tsx`](../frontend/src/pages/admin/OnboardDoctorPage.tsx) step 2 |
+| B13 | **Catalog vs contract subscriptions + admin UI** | Today `ClinicSubscription.PlanId` joins live **`SubscriptionPlanMaster`** for entitlements (labs, vitals, seats, display name/price). Editing master retroactively changes existing clinics. Need **snapshot entitlements** on the clinic row, **copy-on-assign** from catalog, Platform Admin **change plan** + optional **catalog CRUD**; master edits affect only new onboardings until an admin explicitly re-syncs a clinic. Supersedes **B11**. | `idea` |
 
 ### Detail (same content as former Phase 2 §7)
 
@@ -45,8 +46,9 @@ Work listed here is **out of scope** until it is **promoted** to a numbered deli
 - **Pharmacist.** New role and permissions model.  
 - **PostgreSQL provider.** Single provider decision for Phase 2+.  
 - **VIEW audit.** Explicitly excluded from 2D audit design.  
-- **Change subscription plan.** Post–E12 lab override; plan tier change is a separate billing product decision.  
-- **Onboarding plan lab badge.** Helps sales pick the right tier; no schema change.
+- **Change subscription plan (B11).** Superseded by **B13** (snapshot contract model).  
+- **Onboarding plan lab badge.** Helps sales pick the right tier; no schema change.  
+- **B13 catalog vs contract.** See approach in product discussion / ADR when promoted: snapshot columns on `ClinicSubscription`, `CatalogPlanId` FK for reporting, runtime reads contract only; optional `ClinicSubscriptionPlanHistory` for audit.
 
 ---
 

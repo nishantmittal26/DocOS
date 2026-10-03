@@ -25,7 +25,8 @@ import {
   HelpCircle,
   Clock,
   Eye,
-  EyeOff
+  EyeOff,
+  FlaskConical,
 } from 'lucide-react';
 
 const ONBOARD_WIZARD_STEPS: OnboardWizardStep[] = [
@@ -519,6 +520,21 @@ export const OnboardDoctorPage: React.FC = () => {
                                 Custom Vitals & Formulas
                               </li>
                             )}
+                            <li
+                              className={`flex items-center gap-2 ${
+                                p.hasLabModule ? 'text-emerald-700 font-medium' : 'text-slate-500'
+                              }`}
+                            >
+                              <FlaskConical
+                                className={`w-3.5 h-3.5 shrink-0 ${
+                                  p.hasLabModule ? 'text-emerald-600' : 'text-slate-400'
+                                }`}
+                                aria-hidden
+                              />
+                              {p.hasLabModule
+                                ? 'Diagnostic lab module included'
+                                : 'Diagnostic lab module not included'}
+                            </li>
                           </ul>
                         </div>
 
