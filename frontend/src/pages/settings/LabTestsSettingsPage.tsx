@@ -20,7 +20,7 @@ import {
   matchesCatalogScope,
 } from '../../components/CatalogScopeFilter';
 
-export const LabTestsSettingsPage: React.FC = () => {
+export const LabTestsSettingsPage: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
   const [activeTab, setActiveTab] = useState<'tests' | 'panels'>('panels');
   const [tests, setTests] = useState<LabTestMaster[]>([]);
   const [panels, setPanels] = useState<LabTestPanel[]>([]);
@@ -204,7 +204,7 @@ export const LabTestsSettingsPage: React.FC = () => {
   });
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+    <div className={embedded ? "space-y-6" : "max-w-6xl mx-auto px-4 py-8 space-y-6"}>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
         <div className="flex items-center space-x-3">

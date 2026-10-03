@@ -18,7 +18,7 @@ import {
   matchesCatalogScope,
 } from '../../components/CatalogScopeFilter';
 
-export const AdviceSettingsPage: React.FC = () => {
+export const AdviceSettingsPage: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
   const [templates, setTemplates] = useState<AdviceTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState('All');
@@ -127,7 +127,7 @@ export const AdviceSettingsPage: React.FC = () => {
   });
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+    <div className={embedded ? "space-y-6" : "max-w-6xl mx-auto px-4 py-8 space-y-6"}>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
         <div className="flex items-center space-x-3">

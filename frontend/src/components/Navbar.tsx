@@ -74,7 +74,8 @@ export const Navbar: React.FC = () => {
 
   if (!user) return null;
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) =>
+    location.pathname === path || (path === '/settings' && location.pathname.startsWith('/settings'));
 
   return (
     <>
@@ -232,28 +233,6 @@ export const Navbar: React.FC = () => {
                     >
                       <Users className="w-4 h-4" />
                       <span>Patients</span>
-                    </Link>
-                    <Link
-                      to="/settings/lab-tests"
-                      className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        isActive('/settings/lab-tests')
-                          ? 'bg-indigo-50 text-indigo-700 font-bold'
-                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                      }`}
-                    >
-                      <FlaskConical className="w-4 h-4" />
-                      <span>Labs & Panels</span>
-                    </Link>
-                    <Link
-                      to="/settings/advice"
-                      className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        isActive('/settings/advice')
-                          ? 'bg-emerald-50 text-emerald-700 font-bold'
-                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                      }`}
-                    >
-                      <BookOpen className="w-4 h-4" />
-                      <span>Advice</span>
                     </Link>
                     <Link
                       to="/settings"

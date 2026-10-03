@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { clinicsApi, medicinesApi, authApi } from '../../api/client';
 import { ClinicProfile, DosageForm, Medicine, StaffMember, DoctorProfile } from '../../types';
@@ -21,15 +22,38 @@ import {
   ToggleLeft,
   ToggleRight,
   Activity,
+  FlaskConical,
+  BookOpen,
 } from 'lucide-react';
 import { AddCustomMedicineModal } from '../../components/AddCustomMedicineModal';
 import { CatalogScopeFilter, CatalogSourceBadge, CatalogScope } from '../../components/CatalogScopeFilter';
 import { VitalsSettingsPage } from './VitalsSettingsPage';
+import { LabTestsSettingsPage } from './LabTestsSettingsPage';
+import { AdviceSettingsPage } from './AdviceSettingsPage';
+
+export type SettingsTab = 'clinic' | 'doctor' | 'staff' | 'medicines' | 'vitals' | 'labs' | 'advice';
 
 export const SettingsPage: React.FC = () => {
   const { user, updateUserClinicInfo, hasRole } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const [activeTab, setActiveTab] = useState<'clinic' | 'doctor' | 'staff' | 'medicines' | 'vitals'>('clinic');
+  const validTabs: SettingsTab[] = ['clinic', 'doctor', 'staff', 'medicines', 'vitals', 'labs', 'advice'];
+  const tabParam = searchParams.get('tab') as SettingsTab | null;
+  const initialTab: SettingsTab = tabParam && validTabs.includes(tabParam) ? tabParam : 'clinic';
+
+  const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
+
+  useEffect(() => {
+    const currentTab = searchParams.get('tab') as SettingsTab | null;
+    if (currentTab && validTabs.includes(currentTab) && currentTab !== activeTab) {
+      setActiveTab(currentTab);
+    }
+  }, [searchParams]);
+
+  const handleTabChange = (tab: SettingsTab) => {
+    setActiveTab(tab);
+    setSearchParams({ tab }, { replace: true });
+  };
 
   // Clinic config state
   const [profile, setProfile] = useState<ClinicProfile | null>(null);
@@ -301,15 +325,15 @@ export const SettingsPage: React.FC = () => {
       <div>
         <h1 className="text-2xl font-black text-slate-900 tracking-tight">Clinic & Practice Settings</h1>
         <p className="text-xs text-slate-500 mt-1">
-          Configure clinic branding, doctor credentials, team staff accounts, and custom medicines.
+          Configure clinic branding, doctor credentials, staff accounts, formulary, vitals, lab panels, and advice templates.
         </p>
       </div>
 
       {/* Tabs Bar */}
-      <div className="flex border-b border-slate-200 space-x-2">
+      <div className="flex border-b border-slate-200 space-x-2 overflow-x-auto pb-px">
         <button
-          onClick={() => setActiveTab('clinic')}
-          className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center space-x-2 transition-all ${
+          onClick={() => handleTabChange('clinic')}
+          className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center space-x-2 whitespace-nowrap transition-all ${
             activeTab === 'clinic'
               ? 'border-emerald-600 text-emerald-800'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -321,8 +345,8 @@ export const SettingsPage: React.FC = () => {
 
         {isDoctor && (
           <button
-            onClick={() => setActiveTab('doctor')}
-            className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center space-x-2 transition-all ${
+            onClick={() => handleTabChange('doctor')}
+            className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center space-x-2 whitespace-nowrap transition-all ${
               activeTab === 'doctor'
                 ? 'border-emerald-600 text-emerald-800'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -335,8 +359,8 @@ export const SettingsPage: React.FC = () => {
 
         {isClinicAdmin && (
           <button
-            onClick={() => setActiveTab('staff')}
-            className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center space-x-2 transition-all ${
+            onClick={() => handleTabChange('staff')}
+            className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center space-x-2 whitespace-nowrap transition-all ${
               activeTab === 'staff'
                 ? 'border-emerald-600 text-emerald-800'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -348,8 +372,8 @@ export const SettingsPage: React.FC = () => {
         )}
 
         <button
-          onClick={() => setActiveTab('medicines')}
-          className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center space-x-2 transition-all ${
+          onClick={() => handleTabChange('medicines')}
+          className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center space-x-2 whitespace-nowrap transition-all ${
             activeTab === 'medicines'
               ? 'border-emerald-600 text-emerald-800'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -360,8 +384,8 @@ export const SettingsPage: React.FC = () => {
         </button>
 
         <button
-          onClick={() => setActiveTab('vitals')}
-          className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center space-x-2 transition-all ${
+          onClick={() => handleTabChange('vitals')}
+          className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center space-x-2 whitespace-nowrap transition-all ${
             activeTab === 'vitals'
               ? 'border-emerald-600 text-emerald-800'
               : 'border-transparent text-slate-500 hover:text-slate-800'
@@ -369,6 +393,30 @@ export const SettingsPage: React.FC = () => {
         >
           <Activity className="w-4 h-4" />
           <span>Vitals Setup</span>
+        </button>
+
+        <button
+          onClick={() => handleTabChange('labs')}
+          className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center space-x-2 whitespace-nowrap transition-all ${
+            activeTab === 'labs'
+              ? 'border-emerald-600 text-emerald-800'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <FlaskConical className="w-4 h-4" />
+          <span>Labs & Panels</span>
+        </button>
+
+        <button
+          onClick={() => handleTabChange('advice')}
+          className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center space-x-2 whitespace-nowrap transition-all ${
+            activeTab === 'advice'
+              ? 'border-emerald-600 text-emerald-800'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <BookOpen className="w-4 h-4" />
+          <span>Advice Templates</span>
         </button>
       </div>
 
@@ -1039,7 +1087,21 @@ export const SettingsPage: React.FC = () => {
       {/* Tab 5: Dynamic Vitals Setup */}
       {activeTab === 'vitals' && (
         <div className="pt-2">
-          <VitalsSettingsPage />
+          <VitalsSettingsPage embedded />
+        </div>
+      )}
+
+      {/* Tab 6: Diagnostic Labs & Panel Bundler */}
+      {activeTab === 'labs' && (
+        <div className="pt-2">
+          <LabTestsSettingsPage embedded />
+        </div>
+      )}
+
+      {/* Tab 7: Prescription Advice Templates */}
+      {activeTab === 'advice' && (
+        <div className="pt-2">
+          <AdviceSettingsPage embedded />
         </div>
       )}
     </div>

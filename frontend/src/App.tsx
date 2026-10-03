@@ -10,9 +10,6 @@ import { OpdHistoryPage } from './pages/history/OpdHistoryPage';
 import { ConsultationRoomPage } from './pages/consultation/ConsultationRoomPage';
 import { PatientsPage } from './pages/patients/PatientsPage';
 import { SettingsPage } from './pages/settings/SettingsPage';
-import { VitalsSettingsPage } from './pages/settings/VitalsSettingsPage';
-import { LabTestsSettingsPage } from './pages/settings/LabTestsSettingsPage';
-import { AdviceSettingsPage } from './pages/settings/AdviceSettingsPage';
 import { OnboardDoctorPage } from './pages/admin/OnboardDoctorPage';
 import { AdminClinicsPage } from './pages/admin/AdminClinicsPage';
 import { ClinicSubscriptionPage } from './pages/admin/ClinicSubscriptionPage';
@@ -135,9 +132,9 @@ const AppContent: React.FC = () => {
               />
               <Route path="/consultation/:visitId" element={<ConsultationRoomPage />} />
               <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/settings/vitals" element={<VitalsSettingsPage />} />
-              <Route path="/settings/lab-tests" element={<LabTestsSettingsPage />} />
-              <Route path="/settings/advice" element={<AdviceSettingsPage />} />
+              <Route path="/settings/vitals" element={<Navigate to="/settings?tab=vitals" replace />} />
+              <Route path="/settings/lab-tests" element={<Navigate to="/settings?tab=labs" replace />} />
+              <Route path="/settings/advice" element={<Navigate to="/settings?tab=advice" replace />} />
               <Route path="/admin/*" element={<Navigate to="/" replace />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </>

@@ -3,7 +3,7 @@ import { Activity, ArrowUp, ArrowDown, Check, Save, Plus, AlertCircle, Sparkles,
 import { vitalsApi, clinicsApi } from '../../api/client';
 import { ClinicVitalPreference, UpdateVitalPreferenceItem, CreateCustomVitalRequest, ClinicQuotaStatus } from '../../types';
 
-export const VitalsSettingsPage: React.FC = () => {
+export const VitalsSettingsPage: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
   const [preferences, setPreferences] = useState<ClinicVitalPreference[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
@@ -170,7 +170,7 @@ export const VitalsSettingsPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
+    <div className={embedded ? "space-y-6" : "max-w-6xl mx-auto px-4 py-8 space-y-6"}>
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-5">
         <div>
