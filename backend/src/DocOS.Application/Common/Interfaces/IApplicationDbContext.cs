@@ -19,5 +19,16 @@ public interface IApplicationDbContext
     DbSet<ClinicVitalPreference> ClinicVitalPreferences { get; }
     DbSet<VisitVitals> VisitVitals { get; }
 
+    // Phase 2D: Labs, Advice, Payments, Audit, Favorites
+    DbSet<LabTestMaster> LabTestMasters { get; }
+    DbSet<LabTestPanel> LabTestPanels { get; }
+    DbSet<LabTestPanelItem> LabTestPanelItems { get; }
+    DbSet<PrescriptionLabOrders> PrescriptionLabOrders { get; }
+    DbSet<AdviceTemplateMaster> AdviceTemplateMasters { get; }
+    DbSet<PrescriptionAdvice> PrescriptionAdvices { get; }
+    DbSet<DoctorMedicineFavorite> DoctorMedicineFavorites { get; }
+    DbSet<VisitPayment> VisitPayments { get; }
+    DbSet<AuditLog> AuditLogs { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

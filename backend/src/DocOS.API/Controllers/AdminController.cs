@@ -117,4 +117,103 @@ public class AdminController : ControllerBase
             return BadRequest(new { message = ex.Message });
         }
     }
+
+    [HttpGet("masters/labs")]
+    [Authorize(Roles = Roles.PlatformAdmin)]
+    public async Task<ActionResult<List<DocOS.Application.Labs.LabTestMasterDto>>> GetGlobalLabs(CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new DocOS.Application.Labs.GetGlobalLabTestsQuery(), cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpPost("masters/labs")]
+    [Authorize(Roles = Roles.PlatformAdmin)]
+    public async Task<ActionResult<DocOS.Application.Labs.LabTestMasterDto>> CreateGlobalLab(
+        [FromBody] DocOS.Application.Labs.CreateLabTestRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _mediator.Send(new DocOS.Application.Labs.CreateGlobalLabTestCommand(request), cancellationToken);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("masters/labs/{id:guid}")]
+    [Authorize(Roles = Roles.PlatformAdmin)]
+    public async Task<ActionResult<DocOS.Application.Labs.LabTestMasterDto>> UpdateGlobalLab(
+        Guid id,
+        [FromBody] DocOS.Application.Labs.UpdateLabTestRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _mediator.Send(new DocOS.Application.Labs.UpdateGlobalLabTestCommand(id, request), cancellationToken);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpGet("masters/advice")]
+    [Authorize(Roles = Roles.PlatformAdmin)]
+    public async Task<ActionResult<List<DocOS.Application.Advice.AdviceTemplateDto>>> GetGlobalAdvice(CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new DocOS.Application.Advice.GetGlobalAdviceTemplatesQuery(), cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpPost("masters/advice")]
+    [Authorize(Roles = Roles.PlatformAdmin)]
+    public async Task<ActionResult<DocOS.Application.Advice.AdviceTemplateDto>> CreateGlobalAdvice(
+        [FromBody] DocOS.Application.Advice.CreateAdviceTemplateRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _mediator.Send(new DocOS.Application.Advice.CreateGlobalAdviceTemplateCommand(request), cancellationToken);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("masters/advice/{id:guid}")]
+    [Authorize(Roles = Roles.PlatformAdmin)]
+    public async Task<ActionResult<DocOS.Application.Advice.AdviceTemplateDto>> UpdateGlobalAdvice(
+        Guid id,
+        [FromBody] DocOS.Application.Advice.UpdateAdviceTemplateRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _mediator.Send(new DocOS.Application.Advice.UpdateGlobalAdviceTemplateCommand(id, request), cancellationToken);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpGet("audit-logs")]
+    [Authorize(Roles = Roles.PlatformAdmin)]
+    public async Task<ActionResult<List<DocOS.Application.Audit.AuditLogDto>>> GetAuditLogs(
+        [FromQuery] Guid? clinicId,
+        [FromQuery] string? action,
+        [FromQuery] int limit = 100,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _mediator.Send(new DocOS.Application.Audit.GetAuditLogsQuery(clinicId, action, limit), cancellationToken);
+        return Ok(result);
+    }
 }
+

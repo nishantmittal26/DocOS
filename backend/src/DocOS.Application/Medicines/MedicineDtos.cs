@@ -9,7 +9,10 @@ public record MedicineDto(
     DosageForm Form,
     string Strength,
     string? Manufacturer,
-    bool IsCustom
+    bool IsCustom,
+    string? DefaultDosage = null,
+    DosageTiming? DefaultTiming = null,
+    bool IsFavorite = false
 );
 
 public record AddCustomMedicineRequest(
@@ -17,7 +20,9 @@ public record AddCustomMedicineRequest(
     string SaltComposition,
     DosageForm Form,
     string Strength,
-    string? Manufacturer
+    string? Manufacturer,
+    string? DefaultDosage = null,
+    DosageTiming? DefaultTiming = null
 );
 
 public record UpdateCustomMedicineRequest(
@@ -25,5 +30,12 @@ public record UpdateCustomMedicineRequest(
     string SaltComposition,
     DosageForm Form,
     string Strength,
-    string? Manufacturer
+    string? Manufacturer,
+    string? DefaultDosage = null,
+    DosageTiming? DefaultTiming = null
+);
+
+public record ToggleMedicineFavoriteResponse(
+    Guid MedicineId,
+    bool IsFavorite
 );

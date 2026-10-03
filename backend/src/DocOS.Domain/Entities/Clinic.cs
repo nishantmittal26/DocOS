@@ -27,4 +27,11 @@ public class Clinic : BaseEntity
     public ICollection<SubscriptionPaymentHistory> SubscriptionPayments { get; set; } = new List<SubscriptionPaymentHistory>();
     public ICollection<ClinicVitalPreference> VitalPreferences { get; set; } = new List<ClinicVitalPreference>();
     public ICollection<VitalMaster> CustomVitals { get; set; } = new List<VitalMaster>();
+
+    // Added in 2D: Labs, Advice, Payments, Audit
+    public ICollection<LabTestMaster> CustomLabTests { get; set; } = new List<LabTestMaster>();
+    public ICollection<LabTestPanel> LabPanels { get; set; } = new List<LabTestPanel>();
+    public ICollection<AdviceTemplateMaster> CustomAdviceTemplates { get; set; } = new List<AdviceTemplateMaster>();
+    public ICollection<VisitPayment> VisitPayments { get; set; } = new List<VisitPayment>();
+    public ICollection<AuditLog> AuditLogs { get; set; } = new List<AuditLog>();
 }

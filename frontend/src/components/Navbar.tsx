@@ -21,6 +21,8 @@ import {
   ShieldCheck,
   Clock,
   Activity,
+  FlaskConical,
+  BookOpen,
 } from 'lucide-react';
 import { ChangePasswordModal } from './ChangePasswordModal';
 
@@ -151,26 +153,61 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenNewPatient }) => {
                       <span>Onboard Clinic</span>
                     </Link>
                     {hasRole('PlatformAdmin') && (
-                      <Link
-                        to="/admin/masters/vitals"
-                        className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
-                          isActive('/admin/masters/vitals')
-                            ? 'bg-emerald-50 text-emerald-700 font-bold'
-                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                        }`}
-                      >
-                        <Activity className="w-4 h-4" />
-                        <span>Global Vitals</span>
-                      </Link>
+                      <>
+                        <Link
+                          to="/admin/masters/vitals"
+                          className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                            isActive('/admin/masters/vitals')
+                              ? 'bg-emerald-50 text-emerald-700 font-bold'
+                              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                          }`}
+                        >
+                          <Activity className="w-4 h-4" />
+                          <span>Vitals</span>
+                        </Link>
+                        <Link
+                          to="/admin/masters/labs"
+                          className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                            isActive('/admin/masters/labs')
+                              ? 'bg-purple-50 text-purple-700 font-bold'
+                              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                          }`}
+                        >
+                          <FlaskConical className="w-4 h-4" />
+                          <span>Labs</span>
+                        </Link>
+                        <Link
+                          to="/admin/masters/advice"
+                          className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                            isActive('/admin/masters/advice')
+                              ? 'bg-teal-50 text-teal-700 font-bold'
+                              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                          }`}
+                        >
+                          <BookOpen className="w-4 h-4" />
+                          <span>Advice</span>
+                        </Link>
+                        <Link
+                          to="/admin/audit-logs"
+                          className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                            isActive('/admin/audit-logs')
+                              ? 'bg-slate-200 text-slate-900 font-bold'
+                              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                          }`}
+                        >
+                          <ShieldCheck className="w-4 h-4" />
+                          <span>Audit</span>
+                        </Link>
+                      </>
                     )}
                   </>
                 ) : (
                   <>
                     <Link
                       to="/"
-                      className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                         isActive('/')
-                          ? 'bg-emerald-50 text-emerald-700'
+                          ? 'bg-emerald-50 text-emerald-700 font-bold'
                           : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                       }`}
                     >
@@ -179,20 +216,20 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenNewPatient }) => {
                     </Link>
                     <Link
                       to="/history"
-                      className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                         isActive('/history')
-                          ? 'bg-emerald-50 text-emerald-700'
+                          ? 'bg-emerald-50 text-emerald-700 font-bold'
                           : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                       }`}
                     >
                       <History className="w-4 h-4" />
-                      <span>OPD History</span>
+                      <span>History</span>
                     </Link>
                     <Link
                       to="/patients"
-                      className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                         isActive('/patients')
-                          ? 'bg-emerald-50 text-emerald-700'
+                          ? 'bg-emerald-50 text-emerald-700 font-bold'
                           : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                       }`}
                     >
@@ -200,26 +237,37 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenNewPatient }) => {
                       <span>Patients</span>
                     </Link>
                     <Link
-                      to="/settings/vitals"
-                      className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        isActive('/settings/vitals')
-                          ? 'bg-emerald-50 text-emerald-700'
+                      to="/settings/lab-tests"
+                      className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        isActive('/settings/lab-tests')
+                          ? 'bg-indigo-50 text-indigo-700 font-bold'
                           : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                       }`}
                     >
-                      <Activity className="w-4 h-4" />
-                      <span>Vitals</span>
+                      <FlaskConical className="w-4 h-4" />
+                      <span>Labs & Panels</span>
+                    </Link>
+                    <Link
+                      to="/settings/advice"
+                      className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        isActive('/settings/advice')
+                          ? 'bg-emerald-50 text-emerald-700 font-bold'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                      }`}
+                    >
+                      <BookOpen className="w-4 h-4" />
+                      <span>Advice</span>
                     </Link>
                     <Link
                       to="/settings"
-                      className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                         isActive('/settings')
-                          ? 'bg-emerald-50 text-emerald-700'
+                          ? 'bg-emerald-50 text-emerald-700 font-bold'
                           : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                       }`}
                     >
                       <Settings className="w-4 h-4" />
-                      <span>Settings & Formulary</span>
+                      <span>Settings</span>
                     </Link>
                   </>
                 )}

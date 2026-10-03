@@ -226,6 +226,7 @@ export interface VisitQueueItem {
   diagnosis?: string;
   clinicalNotes?: string;
   hasPrescription: boolean;
+  payment?: VisitPayment;
 }
 
 export interface ClinicLetterhead {
@@ -242,6 +243,36 @@ export interface ClinicLetterhead {
   printBottomMarginMm: number;
   hideLetterheadOnPrint: boolean;
   clinicTimings?: string;
+}
+
+export interface PrescriptionLabOrder {
+  id: string;
+  labTestMasterId: string;
+  testCode: string;
+  testName: string;
+  category: string;
+  sampleType?: string;
+  fastingRequired: boolean;
+  specialInstructions?: string;
+  status: string;
+}
+
+export interface PrescriptionLabOrderRequest {
+  labTestMasterId: string;
+  specialInstructions?: string;
+}
+
+export interface PrescriptionAdvice {
+  id: string;
+  adviceTemplateId?: string;
+  adviceText: string;
+  displayOrder: number;
+}
+
+export interface PrescriptionAdviceRequest {
+  adviceTemplateId?: string;
+  adviceText: string;
+  displayOrder?: number;
 }
 
 export interface PrescriptionDetail {
@@ -266,6 +297,139 @@ export interface PrescriptionDetail {
   generalAdvice?: string;
   items: PrescriptionItem[];
   clinic: ClinicLetterhead;
+  labOrders: PrescriptionLabOrder[];
+  adviceItems: PrescriptionAdvice[];
+  pdfShareToken?: string;
+  expiresAt?: string;
+  isPrinted: boolean;
+  isCurrent: boolean;
+  previousPrescriptionId?: string;
+}
+
+export interface LabTestMaster {
+  id: string;
+  clinicId?: string;
+  testCode: string;
+  testName: string;
+  category: string;
+  sampleType?: string;
+  fastingRequired: boolean;
+  isActive: boolean;
+  isCustom: boolean;
+}
+
+export interface LabTestPanel {
+  id: string;
+  clinicId: string;
+  name: string;
+  isActive: boolean;
+  tests: LabTestMaster[];
+}
+
+export interface CreateLabTestRequest {
+  testCode: string;
+  testName: string;
+  category: string;
+  sampleType?: string;
+  fastingRequired: boolean;
+}
+
+export interface UpdateLabTestRequest {
+  testCode: string;
+  testName: string;
+  category: string;
+  sampleType?: string;
+  fastingRequired: boolean;
+  isActive: boolean;
+}
+
+export interface CreateLabPanelRequest {
+  name: string;
+  testIds: string[];
+}
+
+export interface UpdateLabPanelRequest {
+  name: string;
+  isActive: boolean;
+  testIds: string[];
+}
+
+export interface AdviceTemplate {
+  id: string;
+  clinicId?: string;
+  category: string;
+  title: string;
+  instructionsText: string;
+  isActive: boolean;
+  isCustom: boolean;
+}
+
+export interface CreateAdviceTemplateRequest {
+  category: string;
+  title: string;
+  instructionsText: string;
+}
+
+export interface UpdateAdviceTemplateRequest {
+  category: string;
+  title: string;
+  instructionsText: string;
+  isActive: boolean;
+}
+
+export interface VisitPayment {
+  id: string;
+  visitId: string;
+  clinicId: string;
+  amount: number;
+  method: string;
+  reference?: string;
+  collectedByUserId: string;
+  collectedByName: string;
+  collectedAt: string;
+}
+
+export interface RecordVisitPaymentRequest {
+  amount: number;
+  method: string;
+  reference?: string;
+}
+
+export interface DailyCollectionStaffSummary {
+  staffId: string;
+  staffName: string;
+  totalCollected: number;
+  cashCollected: number;
+  upiCollected: number;
+  transactionsCount: number;
+}
+
+export interface DailyCollectionReport {
+  date: string;
+  totalCash: number;
+  totalUpi: number;
+  grandTotal: number;
+  totalTransactions: number;
+  staffSummaries: DailyCollectionStaffSummary[];
+  payments: VisitPayment[];
+}
+
+export interface GenerateShareTokenResponse {
+  token: string;
+  expiresAt: string;
+  shareUrl: string;
+}
+
+export interface AuditLog {
+  id: string;
+  clinicId?: string;
+  userId?: string;
+  action: string;
+  entityName: string;
+  entityId: string;
+  timestamp: string;
+  ipAddress?: string;
+  changesJson?: string;
 }
 
 export interface Medicine {
@@ -276,6 +440,9 @@ export interface Medicine {
   strength: string;
   manufacturer?: string;
   isCustom: boolean;
+  defaultDosage?: string;
+  defaultTiming?: DosageTiming;
+  isFavorite?: boolean;
 }
 
 export interface ClinicProfile {

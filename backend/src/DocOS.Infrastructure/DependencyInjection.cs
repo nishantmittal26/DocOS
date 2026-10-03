@@ -82,6 +82,7 @@ public static class DependencyInjection
 
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
         services.AddScoped<IIdentityService, IdentityService>();
+        services.AddScoped<IAuditService, DocOS.Infrastructure.Services.AuditService>();
 
         return services;
     }

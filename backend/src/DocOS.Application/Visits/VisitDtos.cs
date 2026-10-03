@@ -1,3 +1,6 @@
+using DocOS.Application.Advice;
+using DocOS.Application.Labs;
+using DocOS.Application.Payments;
 using DocOS.Domain.Enums;
 
 namespace DocOS.Application.Visits;
@@ -43,6 +46,17 @@ public record PrescriptionItemDto(
     string? Instructions
 );
 
+public record PrescriptionLabOrderRequest(
+    Guid LabTestMasterId,
+    string? SpecialInstructions = null
+);
+
+public record PrescriptionAdviceRequest(
+    Guid? AdviceTemplateId,
+    string AdviceText,
+    int DisplayOrder = 0
+);
+
 public record CompleteConsultationRequest(
     Guid VisitId,
     string? DoctorId,
@@ -51,7 +65,9 @@ public record CompleteConsultationRequest(
     string? ClinicalNotes,
     DateTime? FollowUpDate,
     string? GeneralAdvice,
-    List<PrescriptionItemDto> Items
+    List<PrescriptionItemDto> Items,
+    List<PrescriptionLabOrderRequest>? LabOrders = null,
+    List<PrescriptionAdviceRequest>? AdviceItems = null
 );
 
 public record VisitQueueDto(
@@ -73,7 +89,8 @@ public record VisitQueueDto(
     string? ChiefComplaints,
     string? Diagnosis,
     string? ClinicalNotes,
-    bool HasPrescription
+    bool HasPrescription,
+    VisitPaymentDto? Payment = null
 );
 
 public record ClinicLetterheadDto(
@@ -113,5 +130,18 @@ public record PrescriptionDetailDto(
     string? ClinicalNotes,
     string? GeneralAdvice,
     List<PrescriptionItemDto> Items,
-    ClinicLetterheadDto Clinic
+    ClinicLetterheadDto Clinic,
+    List<PrescriptionLabOrderDto> LabOrders,
+    List<PrescriptionAdviceDto> AdviceItems,
+    string? PdfShareToken = null,
+    DateTime? ExpiresAt = null,
+    bool IsPrinted = false,
+    bool IsCurrent = true,
+    Guid? PreviousPrescriptionId = null
+);
+
+public record GenerateShareTokenResponse(
+    string Token,
+    DateTime ExpiresAt,
+    string ShareUrl
 );

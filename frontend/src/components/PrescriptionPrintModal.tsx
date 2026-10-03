@@ -1,7 +1,20 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Printer, FileText, Sliders, AlertTriangle, Calendar, Phone, MapPin } from 'lucide-react';
+import {
+  X,
+  Printer,
+  FileText,
+  Sliders,
+  AlertTriangle,
+  Calendar,
+  Phone,
+  Share2,
+  Copy,
+  Check,
+  FlaskConical,
+} from 'lucide-react';
 import { PrescriptionDetail } from '../types';
+import { visitsApi } from '../api/client';
 
 interface PrescriptionPrintModalProps {
   isOpen: boolean;
@@ -25,10 +38,41 @@ export const PrescriptionPrintModal: React.FC<PrescriptionPrintModalProps> = ({
     prescription?.clinic?.printBottomMarginMm || 0
   );
 
+  // Digital Share Link state (Phase 2D)
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [generatingShare, setGeneratingShare] = useState<boolean>(false);
+  const [copiedShare, setCopiedShare] = useState<boolean>(false);
+
   if (!isOpen || !prescription) return null;
 
   const handlePrint = () => {
+    // Phase 2D: Mark as printed to track revisions and PRINT audit
+    if (prescription.id) {
+      visitsApi.markPrinted(prescription.id).catch((err) => {
+        console.warn('Could not record print audit', err);
+      });
+    }
     window.print();
+  };
+
+  const handleGenerateShareLink = async () => {
+    setGeneratingShare(true);
+    try {
+      const res = await visitsApi.generateShareToken(prescription.id);
+      const url = `${window.location.origin}/rx/${res.token}`;
+      setShareUrl(url);
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to generate digital prescription link');
+    } finally {
+      setGeneratingShare(false);
+    }
+  };
+
+  const handleCopyShareLink = () => {
+    if (!shareUrl) return;
+    navigator.clipboard.writeText(shareUrl);
+    setCopiedShare(true);
+    setTimeout(() => setCopiedShare(false), 3000);
   };
 
   const clinic = prescription.clinic;
@@ -107,6 +151,18 @@ export const PrescriptionPrintModal: React.FC<PrescriptionPrintModalProps> = ({
                 </div>
               </div>
             )}
+
+            {/* Share Digital Rx Button (Phase 2D) */}
+            <button
+              onClick={handleGenerateShareLink}
+              disabled={generatingShare}
+              className="inline-flex items-center space-x-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold rounded-xl transition-all"
+              title="Generate a secure public web link for patient"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              <span>{generatingShare ? 'Generating...' : 'Share Link'}</span>
+            </button>
+
             <button
               onClick={handlePrint}
               className="inline-flex items-center space-x-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl shadow-md shadow-emerald-600/20 transition-all"
@@ -122,6 +178,25 @@ export const PrescriptionPrintModal: React.FC<PrescriptionPrintModalProps> = ({
             </button>
           </div>
         </div>
+
+        {/* Digital Share Link Ribbon (if generated) */}
+        {shareUrl && (
+          <div className="no-print bg-indigo-50 border-b border-indigo-200 px-6 py-2.5 flex items-center justify-between text-xs text-indigo-900 animate-in slide-in-from-top-1">
+            <div className="flex items-center space-x-2 truncate mr-4">
+              <span className="font-bold whitespace-nowrap">Secure Public Rx Link:</span>
+              <span className="font-mono text-indigo-700 bg-white px-2 py-0.5 rounded border border-indigo-200 truncate select-all">
+                {shareUrl}
+              </span>
+            </div>
+            <button
+              onClick={handleCopyShareLink}
+              className="inline-flex items-center space-x-1 px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition-all shrink-0"
+            >
+              {copiedShare ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedShare ? 'Copied!' : 'Copy Link'}</span>
+            </button>
+          </div>
+        )}
 
         {/* Prescription Paper Preview */}
         <div className="print-page-wrapper flex-1 overflow-y-auto p-4 sm:p-8 bg-slate-200/60 flex justify-center">
@@ -394,19 +469,84 @@ export const PrescriptionPrintModal: React.FC<PrescriptionPrintModalProps> = ({
                 </div>
               </div>
 
-              {/* GENERAL ADVICE & FOLLOW-UP */}
-              {(prescription.generalAdvice || prescription.followUpDate) && (
-                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl mb-6 text-xs space-y-2">
+              {/* DIAGNOSTIC LAB ORDERS (Phase 2D) */}
+              {prescription.labOrders && prescription.labOrders.length > 0 && (
+                <div className="mb-6">
+                  <div className="flex items-center space-x-2 text-indigo-900 font-bold text-sm mb-2">
+                    <FlaskConical className="w-4 h-4 text-indigo-600" />
+                    <span>Diagnostic Lab Tests Recommended</span>
+                  </div>
+
+                  <div className="border border-indigo-100 rounded-xl overflow-hidden bg-indigo-50/20">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-indigo-100/60 text-indigo-900 font-semibold border-b border-indigo-200">
+                          <th className="py-2 px-3 w-8">#</th>
+                          <th className="py-2 px-3">Test Name & Code</th>
+                          <th className="py-2 px-3">Category</th>
+                          <th className="py-2 px-3">Sample</th>
+                          <th className="py-2 px-3">Preparation</th>
+                          <th className="py-2 px-3">Instructions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-indigo-100/80">
+                        {prescription.labOrders.map((lab, idx) => (
+                          <tr key={lab.id} className="hover:bg-indigo-50/50">
+                            <td className="py-2 px-3 font-bold text-indigo-400">{idx + 1}</td>
+                            <td className="py-2 px-3 font-bold text-slate-900">
+                              {lab.testName} <span className="font-mono text-slate-500 font-normal">({lab.testCode})</span>
+                            </td>
+                            <td className="py-2 px-3 text-slate-600">{lab.category}</td>
+                            <td className="py-2 px-3 text-slate-600">{lab.sampleType || 'Blood'}</td>
+                            <td className="py-2 px-3">
+                              {lab.fastingRequired ? (
+                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                                  Fasting Required
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 text-[11px]">Non-fasting</span>
+                              )}
+                            </td>
+                            <td className="py-2 px-3 text-slate-600 text-[11px]">
+                              {lab.specialInstructions || '—'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* GENERAL & TEMPLATE ADVICE (Phase 2D) */}
+              {((prescription.adviceItems && prescription.adviceItems.length > 0) || prescription.generalAdvice || prescription.followUpDate) && (
+                <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl mb-6 text-xs space-y-2.5">
+                  {prescription.adviceItems && prescription.adviceItems.length > 0 && (
+                    <div>
+                      <span className="font-bold text-slate-700 block text-[10px] uppercase tracking-wider mb-1">
+                        Doctor's Specific Guidelines:
+                      </span>
+                      <ul className="list-disc list-inside space-y-1 text-slate-800">
+                        {prescription.adviceItems.map((adv) => (
+                          <li key={adv.id} className="leading-relaxed">
+                            <span className="font-medium">{adv.adviceText}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
                   {prescription.generalAdvice && (
                     <div>
-                      <span className="font-bold text-slate-700 block text-[10px] uppercase tracking-wider">
+                      <span className="font-bold text-slate-700 block text-[10px] uppercase tracking-wider mb-0.5">
                         General Advice / Dietary Guidelines:
                       </span>
                       <span className="text-slate-800">{prescription.generalAdvice}</span>
                     </div>
                   )}
+
                   {prescription.followUpDate && (
-                    <div className="flex items-center space-x-1.5 text-emerald-800 font-bold">
+                    <div className="flex items-center space-x-1.5 text-emerald-800 font-bold pt-1">
                       <Calendar className="w-3.5 h-3.5 text-emerald-600" />
                       <span>
                         Follow-up Visit: {new Date(prescription.followUpDate).toLocaleDateString('en-IN', {
@@ -441,3 +581,5 @@ export const PrescriptionPrintModal: React.FC<PrescriptionPrintModalProps> = ({
     document.body
   );
 };
+
+export default PrescriptionPrintModal;

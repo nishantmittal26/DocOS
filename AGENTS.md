@@ -2,7 +2,7 @@
 
 ## 1. Autonomous Execution & Turbo Mode
 - **Zero Confirmation Prompts:** Do NOT pause to ask the user to review changes, confirm plans, or approve tool executions before running them. Proactively apply edits, run terminal commands, and execute builds/tests directly.
-- **Artifact Review Policy:** Always set `RequestFeedback: true` on artifacts so execution is never blocked waiting for a "Proceed" button or manual review.
+- **Artifact Review Policy:** Always set `RequestFeedback: true` on artifacts.
 - **End-to-End Task Execution:** Complete full tasks, features, and phases autonomously. Do not stop midway to ask "Should I proceed?"; finish the implementation and verify it before reporting back.
 - **Reporting:** After completing the work, report the result concisely with clickable file links and test/build status.
 

@@ -1,4 +1,8 @@
+using System.Security.Cryptography;
+using DocOS.Application.Advice;
 using DocOS.Application.Common.Interfaces;
+using DocOS.Application.Labs;
+using DocOS.Application.Payments;
 using DocOS.Application.Vitals;
 using DocOS.Domain.Common;
 using DocOS.Domain.Entities;
@@ -36,6 +40,13 @@ public record RemoveFromQueueCommand(Guid VisitId) : IRequest<bool>;
 
 public record DeleteVisitCommand(Guid VisitId) : IRequest<bool>;
 
+// Phase 2D: Public Share Token, Print Auditing, and Revisions
+public record GeneratePrescriptionShareTokenCommand(Guid PrescriptionId, int ExpiryDays = 7) : IRequest<GenerateShareTokenResponse>;
+
+public record MarkPrescriptionPrintedCommand(Guid PrescriptionId) : IRequest<bool>;
+
+public record GetPublicPrescriptionQuery(string Token) : IRequest<PrescriptionDetailDto?>;
+
 public class VisitHandlers :
     IRequestHandler<AddToQueueCommand, VisitQueueDto>,
     IRequestHandler<RecordVitalsCommand, bool>,
@@ -46,22 +57,28 @@ public class VisitHandlers :
     IRequestHandler<GetPrescriptionQuery, PrescriptionDetailDto?>,
     IRequestHandler<GetVisitHistoryQuery, List<VisitQueueDto>>,
     IRequestHandler<RemoveFromQueueCommand, bool>,
-    IRequestHandler<DeleteVisitCommand, bool>
+    IRequestHandler<DeleteVisitCommand, bool>,
+    IRequestHandler<GeneratePrescriptionShareTokenCommand, GenerateShareTokenResponse>,
+    IRequestHandler<MarkPrescriptionPrintedCommand, bool>,
+    IRequestHandler<GetPublicPrescriptionQuery, PrescriptionDetailDto?>
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUser;
     private readonly IIdentityService _identityService;
+    private readonly IAuditService? _auditService;
     private readonly IMediator? _mediator;
 
     public VisitHandlers(
         IApplicationDbContext context,
         ICurrentUserService currentUser,
         IIdentityService identityService,
+        IAuditService? auditService = null,
         IMediator? mediator = null)
     {
         _context = context;
         _currentUser = currentUser;
         _identityService = identityService;
+        _auditService = auditService;
         _mediator = mediator;
     }
 
@@ -72,101 +89,52 @@ public class VisitHandlers :
 
         var patient = await _context.Patients
             .FirstOrDefaultAsync(p => p.Id == request.PatientId && p.ClinicId == clinicId, cancellationToken)
-            ?? throw new InvalidOperationException("Patient not found in this clinic");
+            ?? throw new InvalidOperationException("Patient not found");
 
-        var today = DateTime.UtcNow.Date;
-
-        // If DoctorId is specified, verify doctor exists or default to current user if doctor
-        var doctorId = request.DoctorId;
-        if (string.IsNullOrWhiteSpace(doctorId) && _currentUser.IsInRole(Roles.Doctor) && !string.IsNullOrWhiteSpace(_currentUser.UserId))
-        {
-            doctorId = _currentUser.UserId;
-        }
-
-        // Check if patient is already active in today's OPD queue
-        var existingActiveVisit = await _context.Visits
-            .AsNoTracking()
-            .Where(v => v.ClinicId == clinicId
-                     && v.PatientId == patient.Id
-                     && v.VisitDate == today
-                     && (v.Status == VisitStatus.Waiting || v.Status == VisitStatus.InConsultation))
-            .FirstOrDefaultAsync(cancellationToken);
-
-        if (existingActiveVisit != null)
-        {
-            throw new InvalidOperationException(
-                $"Patient '{patient.FullName}' is already in today's OPD queue (Token #{existingActiveVisit.TokenNumber} is currently {existingActiveVisit.Status}).");
-        }
-
-        var existingCompletedVisit = await _context.Visits
-            .AsNoTracking()
-            .Where(v => v.ClinicId == clinicId
-                     && v.PatientId == patient.Id
-                     && v.VisitDate == today
-                     && v.Status == VisitStatus.Completed)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        if (existingCompletedVisit != null)
-        {
-            throw new InvalidOperationException(
-                $"Patient '{patient.FullName}' has already completed consultation today (Token #{existingCompletedVisit.TokenNumber}).");
-        }
-
-        // Phase 2B: Subscription Quota & Lifecycle Check
+        // Subscription Guard: Check if subscription allows issuing tokens
         var subscription = await _context.ClinicSubscriptions
             .Include(s => s.Plan)
             .FirstOrDefaultAsync(s => s.ClinicId == clinicId, cancellationToken);
 
         if (subscription != null)
         {
-            var isSuspended = subscription.Status == SubscriptionStatuses.Suspended
-                || DateTime.UtcNow > subscription.CurrentPeriodEnd.AddDays(subscription.GracePeriodDays);
-
-            if (isSuspended)
+            if (subscription.Status == SubscriptionStatuses.Suspended)
             {
-                if (subscription.Status != SubscriptionStatuses.Suspended)
-                {
-                    subscription.Status = SubscriptionStatuses.Suspended;
-                    await _context.SaveChangesAsync(cancellationToken);
-                }
-                throw new InvalidOperationException("Clinic subscription is suspended. New queue tokens cannot be issued. Patient history and clinical records remain accessible.");
+                throw new InvalidOperationException("Clinic subscription is suspended. Cannot issue new tokens.");
             }
 
-            if (!subscription.HasUnlimitedVisits)
+            var periodUsage = await _context.ClinicPeriodUsages
+                .Where(u => u.ClinicId == clinicId)
+                .OrderByDescending(u => u.PeriodStart)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            var totalAllowed = subscription.TotalAllowedVisits;
+            if (!subscription.HasUnlimitedVisits && totalAllowed.HasValue && periodUsage != null)
             {
-                var totalAllowed = subscription.TotalAllowedVisits ?? 0;
-                var hardCap = totalAllowed + 20;
-
-                var periodUsage = await _context.ClinicPeriodUsages
-                    .Where(u => u.ClinicId == clinicId)
-                    .OrderByDescending(u => u.PeriodStart)
-                    .FirstOrDefaultAsync(cancellationToken);
-
-                var visitsConducted = periodUsage?.VisitsConducted ?? 0;
-
-                if (visitsConducted >= hardCap || subscription.Status == SubscriptionStatuses.QuotaExceeded)
+                var hardCap = totalAllowed.Value + 20;
+                if (periodUsage.VisitsConducted >= hardCap)
                 {
-                    if (subscription.Status != SubscriptionStatuses.QuotaExceeded)
-                    {
-                        subscription.Status = SubscriptionStatuses.QuotaExceeded;
-                        await _context.SaveChangesAsync(cancellationToken);
-                    }
-                    throw new InvalidOperationException("Monthly visit quota exceeded (including 20-visit buffer). New tokens are blocked until plan is topped up or upgraded. Past patient records remain fully accessible.");
+                    subscription.Status = SubscriptionStatuses.QuotaExceeded;
+                    await _context.SaveChangesAsync(cancellationToken);
+                    throw new InvalidOperationException("Monthly visit quota exceeded. Cannot issue new tokens.");
                 }
+            }
+
+            if (subscription.Status == SubscriptionStatuses.QuotaExceeded)
+            {
+                throw new InvalidOperationException("Monthly visit quota exceeded. Cannot issue new tokens.");
             }
         }
 
-        // Phase 2A: Token numbers are per doctor, per clinic, per calendar day
+        var today = DateTime.UtcNow.Date;
+        var doctorId = request.DoctorId;
+
         var query = _context.Visits
             .Where(v => v.ClinicId == clinicId && v.VisitDate == today);
 
         if (!string.IsNullOrWhiteSpace(doctorId))
         {
             query = query.Where(v => v.DoctorId == doctorId);
-        }
-        else
-        {
-            query = query.Where(v => v.DoctorId == null);
         }
 
         var usedTokens = await query
@@ -219,7 +187,8 @@ public class VisitHandlers :
             null,
             null,
             null,
-            false
+            false,
+            null
         );
     }
 
@@ -335,7 +304,8 @@ public class VisitHandlers :
         var query = _context.Visits
             .AsNoTracking()
             .Include(v => v.Patient)
-            .Include(v => v.Prescription)
+            .Include(v => v.Prescriptions)
+            .Include(v => v.Payment)
             .Include(v => v.Vitals)
                 .ThenInclude(vt => vt.VitalMaster)
             .Where(v => v.ClinicId == clinicId && v.VisitDate == today);
@@ -372,7 +342,18 @@ public class VisitHandlers :
             v.ChiefComplaints,
             v.Diagnosis,
             v.ClinicalNotes,
-            v.Prescription != null
+            v.Prescriptions.Any(p => p.IsCurrent),
+            v.Payment != null ? new VisitPaymentDto(
+                v.Payment.Id,
+                v.Payment.VisitId,
+                v.Payment.ClinicId,
+                v.Payment.Amount,
+                v.Payment.Method,
+                v.Payment.Reference,
+                v.Payment.CollectedByUserId,
+                "Staff",
+                v.Payment.CollectedAt
+            ) : null
         )).ToList();
     }
 
@@ -389,15 +370,19 @@ public class VisitHandlers :
         var req = request.Request;
         var visit = await _context.Visits
             .Include(v => v.Patient)
-            .Include(v => v.Prescription)
-                .ThenInclude(p => p!.Items)
             .Include(v => v.Clinic)
+            .Include(v => v.Prescriptions)
+                .ThenInclude(p => p.Items)
+            .Include(v => v.Prescriptions)
+                .ThenInclude(p => p.LabOrders)
+                    .ThenInclude(o => o.LabTestMaster)
+            .Include(v => v.Prescriptions)
+                .ThenInclude(p => p.AdviceItems)
             .Include(v => v.Vitals)
                 .ThenInclude(vt => vt.VitalMaster)
             .FirstOrDefaultAsync(v => v.Id == req.VisitId && v.ClinicId == clinicId, cancellationToken)
             ?? throw new InvalidOperationException("Visit not found");
 
-        // Determine consulting doctor: Request -> Visit -> Current User
         var doctorId = req.DoctorId ?? visit.DoctorId ?? _currentUser.UserId;
         if (string.IsNullOrWhiteSpace(doctorId))
         {
@@ -448,37 +433,74 @@ public class VisitHandlers :
             }
         }
 
-        Prescription prescription;
-        if (visit.Prescription == null)
+        // Phase 2D: Prescription revision logic
+        var currentPrescription = visit.Prescriptions.FirstOrDefault(p => p.IsCurrent);
+
+        Prescription targetPrescription;
+        bool isNewRevision = false;
+
+        if (currentPrescription != null && currentPrescription.IsPrinted)
         {
-            prescription = new Prescription
+            // The printed prescription must remain unchanged. Mark it as non-current and create a new revision.
+            currentPrescription.IsCurrent = false;
+            currentPrescription.UpdatedAt = DateTime.UtcNow;
+
+            targetPrescription = new Prescription
             {
                 VisitId = visit.Id,
                 PatientId = visit.PatientId,
                 ClinicId = clinicId,
                 DoctorId = doctorId,
                 PrescribedAt = DateTime.UtcNow,
-                GeneralAdvice = req.GeneralAdvice
+                GeneralAdvice = req.GeneralAdvice,
+                PreviousPrescriptionId = currentPrescription.Id,
+                IsCurrent = true,
+                IsPrinted = false
             };
-            _context.Prescriptions.Add(prescription);
+
+            _context.Prescriptions.Add(targetPrescription);
+            isNewRevision = true;
+        }
+        else if (currentPrescription != null)
+        {
+            // Prescription exists and has not been printed: update in place
+            targetPrescription = currentPrescription;
+            targetPrescription.DoctorId = doctorId;
+            targetPrescription.GeneralAdvice = req.GeneralAdvice;
+            targetPrescription.UpdatedAt = DateTime.UtcNow;
+
+            // Clear old items, lab orders, advice items
+            _context.PrescriptionItems.RemoveRange(targetPrescription.Items);
+            _context.PrescriptionLabOrders.RemoveRange(targetPrescription.LabOrders);
+            _context.PrescriptionAdvices.RemoveRange(targetPrescription.AdviceItems);
+            targetPrescription.Items.Clear();
+            targetPrescription.LabOrders.Clear();
+            targetPrescription.AdviceItems.Clear();
         }
         else
         {
-            prescription = visit.Prescription;
-            prescription.DoctorId = doctorId;
-            prescription.GeneralAdvice = req.GeneralAdvice;
-            prescription.UpdatedAt = DateTime.UtcNow;
+            // First prescription for this visit
+            targetPrescription = new Prescription
+            {
+                VisitId = visit.Id,
+                PatientId = visit.PatientId,
+                ClinicId = clinicId,
+                DoctorId = doctorId,
+                PrescribedAt = DateTime.UtcNow,
+                GeneralAdvice = req.GeneralAdvice,
+                IsCurrent = true,
+                IsPrinted = false
+            };
 
-            // Clear old items
-            _context.PrescriptionItems.RemoveRange(prescription.Items);
-            prescription.Items.Clear();
+            _context.Prescriptions.Add(targetPrescription);
         }
 
+        // Add Medicines
         foreach (var item in req.Items)
         {
-            prescription.Items.Add(new PrescriptionItem
+            targetPrescription.Items.Add(new PrescriptionItem
             {
-                PrescriptionId = prescription.Id,
+                PrescriptionId = targetPrescription.Id,
                 MedicineName = item.MedicineName.Trim(),
                 SaltComposition = item.SaltComposition.Trim(),
                 Form = item.Form,
@@ -489,59 +511,56 @@ public class VisitHandlers :
             });
         }
 
+        // Add Lab Orders
+        if (req.LabOrders != null && req.LabOrders.Any())
+        {
+            foreach (var lab in req.LabOrders)
+            {
+                targetPrescription.LabOrders.Add(new PrescriptionLabOrders
+                {
+                    PrescriptionId = targetPrescription.Id,
+                    LabTestMasterId = lab.LabTestMasterId,
+                    SpecialInstructions = string.IsNullOrWhiteSpace(lab.SpecialInstructions) ? null : lab.SpecialInstructions.Trim(),
+                    Status = "Ordered"
+                });
+            }
+        }
+
+        // Add Advice Items
+        if (req.AdviceItems != null && req.AdviceItems.Any())
+        {
+            int order = 0;
+            foreach (var advice in req.AdviceItems)
+            {
+                targetPrescription.AdviceItems.Add(new PrescriptionAdvice
+                {
+                    PrescriptionId = targetPrescription.Id,
+                    AdviceTemplateId = advice.AdviceTemplateId,
+                    AdviceText = advice.AdviceText.Trim(),
+                    DisplayOrder = advice.DisplayOrder != 0 ? advice.DisplayOrder : order++
+                });
+            }
+        }
+
         await _context.SaveChangesAsync(cancellationToken);
+
+        // Audit log
+        var action = isNewRevision ? "CREATE" : (currentPrescription == null ? "CREATE" : "UPDATE");
+        if (_auditService != null)
+        {
+            await _auditService.LogAsync(
+                action,
+                nameof(Prescription),
+                targetPrescription.Id.ToString(),
+                clinicId: clinicId,
+                userId: doctorId,
+                cancellationToken: cancellationToken);
+        }
 
         // Fetch doctor profile for letterhead
         var doctorProfile = await _identityService.GetDoctorProfileAsync(doctorId);
-        var clinic = visit.Clinic;
 
-        var clinicDto = new ClinicLetterheadDto(
-            clinic.Name,
-            doctorProfile?.FullName ?? "Doctor",
-            doctorProfile?.MedicalCouncilRegistrationNumber,
-            doctorProfile?.Qualifications,
-            doctorProfile?.Speciality,
-            clinic.Phone,
-            clinic.Email,
-            clinic.Address,
-            clinic.LogoUrl,
-            clinic.LetterheadMarginTopMm,
-            clinic.PrintBottomMarginMm,
-            clinic.HideLetterheadOnPrint,
-            clinic.ClinicTimings
-        );
-
-        return new PrescriptionDetailDto(
-            prescription.Id,
-            visit.Id,
-            visit.PatientId,
-            visit.Patient.PatientUid,
-            visit.Patient.FullName,
-            visit.Patient.Age,
-            visit.Patient.Gender,
-            visit.Patient.MobileNumber,
-            visit.Patient.BloodGroup,
-            visit.Patient.Allergies,
-            doctorId,
-            doctorProfile?.FullName ?? "Doctor",
-            prescription.PrescribedAt,
-            visit.FollowUpDate,
-            VitalsMapper.MapToVitalsDto(visit.Vitals),
-            visit.ChiefComplaints,
-            visit.Diagnosis,
-            visit.ClinicalNotes,
-            prescription.GeneralAdvice,
-            prescription.Items.Select(i => new PrescriptionItemDto(
-                i.MedicineName,
-                i.SaltComposition,
-                i.Form,
-                i.Dosage,
-                i.Timing,
-                i.DurationDays,
-                i.Instructions
-            )).ToList(),
-            clinicDto
-        );
+        return await BuildPrescriptionDetailDtoAsync(targetPrescription.Id, cancellationToken);
     }
 
     public async Task<PrescriptionDetailDto?> Handle(GetPrescriptionQuery request, CancellationToken cancellationToken)
@@ -549,25 +568,121 @@ public class VisitHandlers :
         var clinicId = _currentUser.ClinicId
             ?? throw new UnauthorizedAccessException("Active clinic context is required to access clinic clinical records");
 
-        var visit = await _context.Visits
+        var prescription = await _context.Prescriptions
             .AsNoTracking()
-            .Include(v => v.Patient)
-            .Include(v => v.Clinic)
-            .Include(v => v.Prescription)
-                .ThenInclude(p => p!.Items)
-            .Include(v => v.Vitals)
-                .ThenInclude(vt => vt.VitalMaster)
-            .FirstOrDefaultAsync(v => v.Id == request.VisitId && v.ClinicId == clinicId, cancellationToken);
+            .Where(p => p.VisitId == request.VisitId && p.ClinicId == clinicId && p.IsCurrent)
+            .Select(p => p.Id)
+            .FirstOrDefaultAsync(cancellationToken);
 
-        if (visit?.Prescription == null) return null;
+        if (prescription == Guid.Empty) return null;
 
-        var prescription = visit.Prescription;
-        var doctorId = prescription.DoctorId ?? visit.DoctorId ?? string.Empty;
-        var doctorProfile = !string.IsNullOrWhiteSpace(doctorId) 
-            ? await _identityService.GetDoctorProfileAsync(doctorId) 
+        return await BuildPrescriptionDetailDtoAsync(prescription, cancellationToken);
+    }
+
+    public async Task<GenerateShareTokenResponse> Handle(GeneratePrescriptionShareTokenCommand request, CancellationToken cancellationToken)
+    {
+        var prescription = await _context.Prescriptions
+            .FirstOrDefaultAsync(p => p.Id == request.PrescriptionId, cancellationToken)
+            ?? throw new KeyNotFoundException("Prescription not found.");
+
+        if (_currentUser.ClinicId.HasValue && prescription.ClinicId != _currentUser.ClinicId.Value)
+        {
+            throw new UnauthorizedAccessException("Cannot generate share token for another clinic's prescription.");
+        }
+
+        // Cryptographically secure 128+ bit token (16 bytes = 128 bits)
+        var tokenBytes = RandomNumberGenerator.GetBytes(16);
+        var token = Convert.ToHexString(tokenBytes).ToLowerInvariant();
+        var expiresAt = DateTime.UtcNow.AddDays(request.ExpiryDays > 0 ? request.ExpiryDays : 7);
+
+        prescription.PdfShareToken = token;
+        prescription.ExpiresAt = expiresAt;
+        prescription.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        if (_auditService != null)
+        {
+            await _auditService.LogAsync(
+                "UPDATE",
+                nameof(Prescription),
+                prescription.Id.ToString(),
+                clinicId: prescription.ClinicId,
+                userId: _currentUser.UserId,
+                cancellationToken: cancellationToken);
+        }
+
+        return new GenerateShareTokenResponse(token, expiresAt, $"/rx/{token}");
+    }
+
+    public async Task<bool> Handle(MarkPrescriptionPrintedCommand request, CancellationToken cancellationToken)
+    {
+        var prescription = await _context.Prescriptions
+            .FirstOrDefaultAsync(p => p.Id == request.PrescriptionId, cancellationToken)
+            ?? throw new KeyNotFoundException("Prescription not found.");
+
+        if (_currentUser.ClinicId.HasValue && prescription.ClinicId != _currentUser.ClinicId.Value)
+        {
+            throw new UnauthorizedAccessException("Cannot mark printed for another clinic's prescription.");
+        }
+
+        prescription.IsPrinted = true;
+        prescription.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        if (_auditService != null)
+        {
+            await _auditService.LogAsync(
+                "PRINT",
+                nameof(Prescription),
+                prescription.Id.ToString(),
+                clinicId: prescription.ClinicId,
+                userId: _currentUser.UserId,
+                cancellationToken: cancellationToken);
+        }
+
+        return true;
+    }
+
+    public async Task<PrescriptionDetailDto?> Handle(GetPublicPrescriptionQuery request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Token)) return null;
+
+        var token = request.Token.Trim().ToLowerInvariant();
+
+        var prescriptionId = await _context.Prescriptions
+            .AsNoTracking()
+            .Where(p => p.PdfShareToken == token && (p.ExpiresAt == null || p.ExpiresAt > DateTime.UtcNow))
+            .Select(p => p.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (prescriptionId == Guid.Empty) return null;
+
+        return await BuildPrescriptionDetailDtoAsync(prescriptionId, cancellationToken);
+    }
+
+    private async Task<PrescriptionDetailDto> BuildPrescriptionDetailDtoAsync(Guid prescriptionId, CancellationToken cancellationToken)
+    {
+        var prescription = await _context.Prescriptions
+            .AsNoTracking()
+            .Include(p => p.Visit)
+                .ThenInclude(v => v.Vitals)
+                    .ThenInclude(vt => vt.VitalMaster)
+            .Include(p => p.Patient)
+            .Include(p => p.Clinic)
+            .Include(p => p.Items)
+            .Include(p => p.LabOrders)
+                .ThenInclude(o => o.LabTestMaster)
+            .Include(p => p.AdviceItems)
+            .FirstAsync(p => p.Id == prescriptionId, cancellationToken);
+
+        var doctorId = prescription.DoctorId;
+        var doctorProfile = !string.IsNullOrWhiteSpace(doctorId)
+            ? await _identityService.GetDoctorProfileAsync(doctorId)
             : null;
 
-        var clinic = visit.Clinic;
+        var clinic = prescription.Clinic;
         var clinicDto = new ClinicLetterheadDto(
             clinic.Name,
             doctorProfile?.FullName ?? "Doctor",
@@ -584,25 +699,46 @@ public class VisitHandlers :
             clinic.ClinicTimings
         );
 
+        var labOrderDtos = prescription.LabOrders.Select(o => new PrescriptionLabOrderDto(
+            o.Id,
+            o.LabTestMasterId,
+            o.LabTestMaster.TestCode,
+            o.LabTestMaster.TestName,
+            o.LabTestMaster.Category,
+            o.LabTestMaster.SampleType,
+            o.LabTestMaster.FastingRequired,
+            o.SpecialInstructions,
+            o.Status
+        )).ToList();
+
+        var adviceDtos = prescription.AdviceItems
+            .OrderBy(a => a.DisplayOrder)
+            .Select(a => new PrescriptionAdviceDto(
+                a.Id,
+                a.AdviceTemplateId,
+                a.AdviceText,
+                a.DisplayOrder
+            )).ToList();
+
         return new PrescriptionDetailDto(
             prescription.Id,
-            visit.Id,
-            visit.PatientId,
-            visit.Patient.PatientUid,
-            visit.Patient.FullName,
-            visit.Patient.Age,
-            visit.Patient.Gender,
-            visit.Patient.MobileNumber,
-            visit.Patient.BloodGroup,
-            visit.Patient.Allergies,
+            prescription.VisitId,
+            prescription.PatientId,
+            prescription.Patient.PatientUid,
+            prescription.Patient.FullName,
+            prescription.Patient.Age,
+            prescription.Patient.Gender,
+            prescription.Patient.MobileNumber,
+            prescription.Patient.BloodGroup,
+            prescription.Patient.Allergies,
             doctorId,
             doctorProfile?.FullName ?? "Doctor",
             prescription.PrescribedAt,
-            visit.FollowUpDate,
-            VitalsMapper.MapToVitalsDto(visit.Vitals),
-            visit.ChiefComplaints,
-            visit.Diagnosis,
-            visit.ClinicalNotes,
+            prescription.Visit.FollowUpDate,
+            VitalsMapper.MapToVitalsDto(prescription.Visit.Vitals),
+            prescription.Visit.ChiefComplaints,
+            prescription.Visit.Diagnosis,
+            prescription.Visit.ClinicalNotes,
             prescription.GeneralAdvice,
             prescription.Items.Select(i => new PrescriptionItemDto(
                 i.MedicineName,
@@ -613,7 +749,14 @@ public class VisitHandlers :
                 i.DurationDays,
                 i.Instructions
             )).ToList(),
-            clinicDto
+            clinicDto,
+            labOrderDtos,
+            adviceDtos,
+            prescription.PdfShareToken,
+            prescription.ExpiresAt,
+            prescription.IsPrinted,
+            prescription.IsCurrent,
+            prescription.PreviousPrescriptionId
         );
     }
 
@@ -625,7 +768,8 @@ public class VisitHandlers :
         var query = _context.Visits
             .AsNoTracking()
             .Include(v => v.Patient)
-            .Include(v => v.Prescription)
+            .Include(v => v.Prescriptions)
+            .Include(v => v.Payment)
             .Include(v => v.Vitals)
                 .ThenInclude(vt => vt.VitalMaster)
             .Where(v => v.ClinicId == clinicId);
@@ -693,7 +837,18 @@ public class VisitHandlers :
             v.ChiefComplaints,
             v.Diagnosis,
             v.ClinicalNotes,
-            v.Prescription != null
+            v.Prescriptions.Any(p => p.IsCurrent),
+            v.Payment != null ? new VisitPaymentDto(
+                v.Payment.Id,
+                v.Payment.VisitId,
+                v.Payment.ClinicId,
+                v.Payment.Amount,
+                v.Payment.Method,
+                v.Payment.Reference,
+                v.Payment.CollectedByUserId,
+                "Staff",
+                v.Payment.CollectedAt
+            ) : null
         )).ToList();
     }
 
@@ -724,16 +879,16 @@ public class VisitHandlers :
             ?? throw new UnauthorizedAccessException("Active clinic context is required to access clinic clinical records");
 
         var visit = await _context.Visits
-            .Include(v => v.Prescription)
-                .ThenInclude(p => p!.Items)
+            .Include(v => v.Prescriptions)
+                .ThenInclude(p => p.Items)
             .FirstOrDefaultAsync(v => v.Id == request.VisitId && v.ClinicId == clinicId, cancellationToken)
             ?? throw new InvalidOperationException("Visit not found");
 
-        if (visit.Prescription != null)
+        foreach (var p in visit.Prescriptions)
         {
-            _context.PrescriptionItems.RemoveRange(visit.Prescription.Items);
-            _context.Prescriptions.Remove(visit.Prescription);
+            _context.PrescriptionItems.RemoveRange(p.Items);
         }
+        _context.Prescriptions.RemoveRange(visit.Prescriptions);
 
         _context.Visits.Remove(visit);
         await _context.SaveChangesAsync(cancellationToken);

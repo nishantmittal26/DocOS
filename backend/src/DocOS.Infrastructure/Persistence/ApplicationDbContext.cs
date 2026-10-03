@@ -26,6 +26,17 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
     public DbSet<ClinicVitalPreference> ClinicVitalPreferences => Set<ClinicVitalPreference>();
     public DbSet<VisitVitals> VisitVitals => Set<VisitVitals>();
 
+    // Phase 2D: Labs, Advice, Payments, Audit, Favorites
+    public DbSet<LabTestMaster> LabTestMasters => Set<LabTestMaster>();
+    public DbSet<LabTestPanel> LabTestPanels => Set<LabTestPanel>();
+    public DbSet<LabTestPanelItem> LabTestPanelItems => Set<LabTestPanelItem>();
+    public DbSet<PrescriptionLabOrders> PrescriptionLabOrders => Set<PrescriptionLabOrders>();
+    public DbSet<AdviceTemplateMaster> AdviceTemplateMasters => Set<AdviceTemplateMaster>();
+    public DbSet<PrescriptionAdvice> PrescriptionAdvices => Set<PrescriptionAdvice>();
+    public DbSet<DoctorMedicineFavorite> DoctorMedicineFavorites => Set<DoctorMedicineFavorite>();
+    public DbSet<VisitPayment> VisitPayments => Set<VisitPayment>();
+    public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
@@ -129,10 +140,13 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
         {
             entity.HasKey(p => p.Id);
             entity.Property(p => p.DoctorId).HasMaxLength(450).IsRequired();
+            entity.Property(p => p.PdfShareToken).HasMaxLength(128);
+            entity.Property(p => p.IsPrinted).HasDefaultValue(false);
+            entity.Property(p => p.IsCurrent).HasDefaultValue(true);
 
             entity.HasOne(p => p.Visit)
-                .WithOne(v => v.Prescription)
-                .HasForeignKey<Prescription>(p => p.VisitId)
+                .WithMany(v => v.Prescriptions)
+                .HasForeignKey(p => p.VisitId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasOne(p => p.Patient)
@@ -150,10 +164,23 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
                 .HasForeignKey(p => p.DoctorId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            entity.HasOne(p => p.PreviousPrescription)
+                .WithMany(p => p.Revisions)
+                .HasForeignKey(p => p.PreviousPrescriptionId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             entity.HasMany(p => p.Items)
                 .WithOne(i => i.Prescription)
                 .HasForeignKey(i => i.PrescriptionId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(p => p.VisitId)
+                .IsUnique()
+                .HasFilter("[IsCurrent] = 1");
+
+            entity.HasIndex(p => p.PdfShareToken)
+                .IsUnique()
+                .HasFilter("[PdfShareToken] IS NOT NULL");
         });
 
         // PrescriptionItem configuration
@@ -174,6 +201,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
             entity.Property(m => m.SaltComposition).HasMaxLength(300).IsRequired();
             entity.Property(m => m.Strength).HasMaxLength(100).IsRequired();
             entity.Property(m => m.Manufacturer).HasMaxLength(150);
+            entity.Property(m => m.DefaultDosage).HasMaxLength(50);
 
             entity.HasIndex(m => new { m.ClinicId, m.BrandName });
             entity.HasIndex(m => m.BrandName);
@@ -337,6 +365,185 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
                 .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasIndex(v => new { v.VisitId, v.VitalMasterId });
+        });
+
+        // LabTestMaster configuration (Phase 2D)
+        builder.Entity<LabTestMaster>(entity =>
+        {
+            entity.HasKey(l => l.Id);
+            entity.Property(l => l.TestCode).HasMaxLength(50).IsRequired();
+            entity.Property(l => l.TestName).HasMaxLength(150).IsRequired();
+            entity.Property(l => l.Category).HasMaxLength(50).IsRequired();
+            entity.Property(l => l.SampleType).HasMaxLength(50);
+            entity.Property(l => l.FastingRequired).HasDefaultValue(false);
+            entity.Property(l => l.IsActive).HasDefaultValue(true);
+
+            entity.HasOne(l => l.Clinic)
+                .WithMany(c => c.CustomLabTests)
+                .HasForeignKey(l => l.ClinicId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(l => l.TestCode)
+                .IsUnique()
+                .HasFilter("[ClinicId] IS NULL");
+
+            entity.HasIndex(l => new { l.ClinicId, l.TestCode })
+                .IsUnique()
+                .HasFilter("[ClinicId] IS NOT NULL");
+        });
+
+        // LabTestPanel configuration (Phase 2D)
+        builder.Entity<LabTestPanel>(entity =>
+        {
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.Name).HasMaxLength(150).IsRequired();
+            entity.Property(p => p.IsActive).HasDefaultValue(true);
+
+            entity.HasOne(p => p.Clinic)
+                .WithMany(c => c.LabPanels)
+                .HasForeignKey(p => p.ClinicId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // LabTestPanelItem configuration (Phase 2D)
+        builder.Entity<LabTestPanelItem>(entity =>
+        {
+            entity.HasKey(i => i.Id);
+            entity.Property(i => i.DisplayOrder).HasDefaultValue(0);
+
+            entity.HasOne(i => i.LabTestPanel)
+                .WithMany(p => p.Items)
+                .HasForeignKey(i => i.LabTestPanelId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(i => i.LabTestMaster)
+                .WithMany()
+                .HasForeignKey(i => i.LabTestMasterId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(i => new { i.LabTestPanelId, i.LabTestMasterId }).IsUnique();
+        });
+
+        // PrescriptionLabOrders configuration (Phase 2D)
+        builder.Entity<PrescriptionLabOrders>(entity =>
+        {
+            entity.HasKey(o => o.Id);
+            entity.Property(o => o.SpecialInstructions).HasMaxLength(300);
+            entity.Property(o => o.Status).HasMaxLength(20).IsRequired().HasDefaultValue("Ordered");
+
+            entity.HasOne(o => o.Prescription)
+                .WithMany(p => p.LabOrders)
+                .HasForeignKey(o => o.PrescriptionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(o => o.LabTestMaster)
+                .WithMany()
+                .HasForeignKey(o => o.LabTestMasterId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // AdviceTemplateMaster configuration (Phase 2D)
+        builder.Entity<AdviceTemplateMaster>(entity =>
+        {
+            entity.HasKey(a => a.Id);
+            entity.Property(a => a.Category).HasMaxLength(50).IsRequired();
+            entity.Property(a => a.Title).HasMaxLength(150).IsRequired();
+            entity.Property(a => a.InstructionsText).IsRequired();
+            entity.Property(a => a.IsActive).HasDefaultValue(true);
+
+            entity.HasOne(a => a.Clinic)
+                .WithMany(c => c.CustomAdviceTemplates)
+                .HasForeignKey(a => a.ClinicId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(a => new { a.ClinicId, a.Category });
+        });
+
+        // PrescriptionAdvice configuration (Phase 2D)
+        builder.Entity<PrescriptionAdvice>(entity =>
+        {
+            entity.HasKey(pa => pa.Id);
+            entity.Property(pa => pa.AdviceText).IsRequired();
+            entity.Property(pa => pa.DisplayOrder).HasDefaultValue(0);
+
+            entity.HasOne(pa => pa.Prescription)
+                .WithMany(p => p.AdviceItems)
+                .HasForeignKey(pa => pa.PrescriptionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(pa => pa.AdviceTemplate)
+                .WithMany()
+                .HasForeignKey(pa => pa.AdviceTemplateId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // DoctorMedicineFavorite configuration (Phase 2D)
+        builder.Entity<DoctorMedicineFavorite>(entity =>
+        {
+            entity.HasKey(f => f.Id);
+            entity.Property(f => f.UserId).HasMaxLength(450).IsRequired();
+
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(f => f.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(f => f.Medicine)
+                .WithMany()
+                .HasForeignKey(f => f.MedicineId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(f => new { f.UserId, f.MedicineId }).IsUnique();
+        });
+
+        // VisitPayment configuration (Phase 2D)
+        builder.Entity<VisitPayment>(entity =>
+        {
+            entity.HasKey(vp => vp.Id);
+            entity.Property(vp => vp.Amount).HasPrecision(10, 2);
+            entity.Property(vp => vp.Method).HasMaxLength(20).IsRequired();
+            entity.Property(vp => vp.Reference).HasMaxLength(100);
+            entity.Property(vp => vp.CollectedByUserId).HasMaxLength(450).IsRequired();
+
+            entity.HasOne(vp => vp.Visit)
+                .WithOne(v => v.Payment)
+                .HasForeignKey<VisitPayment>(vp => vp.VisitId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(vp => vp.Clinic)
+                .WithMany(c => c.VisitPayments)
+                .HasForeignKey(vp => vp.ClinicId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(vp => vp.CollectedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(vp => new { vp.ClinicId, vp.CollectedAt });
+        });
+
+        // AuditLog configuration (Phase 2D)
+        builder.Entity<AuditLog>(entity =>
+        {
+            entity.HasKey(al => al.Id);
+            entity.Property(al => al.UserId).HasMaxLength(450);
+            entity.Property(al => al.Action).HasMaxLength(20).IsRequired();
+            entity.Property(al => al.EntityName).HasMaxLength(100).IsRequired();
+            entity.Property(al => al.EntityId).HasMaxLength(100).IsRequired();
+            entity.Property(al => al.IpAddress).HasMaxLength(50);
+
+            entity.HasOne(al => al.Clinic)
+                .WithMany(c => c.AuditLogs)
+                .HasForeignKey(al => al.ClinicId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(al => al.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(al => new { al.ClinicId, al.Timestamp });
         });
     }
 }

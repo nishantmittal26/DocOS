@@ -39,17 +39,20 @@ public class AuthCommandHandler :
     private readonly IIdentityService _identityService;
     private readonly IJwtTokenGenerator _jwtTokenGenerator;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IAuditService _auditService;
 
     public AuthCommandHandler(
         IApplicationDbContext context,
         IIdentityService identityService,
         IJwtTokenGenerator jwtTokenGenerator,
-        ICurrentUserService currentUserService)
+        ICurrentUserService currentUserService,
+        IAuditService auditService)
     {
         _context = context;
         _identityService = identityService;
         _jwtTokenGenerator = jwtTokenGenerator;
         _currentUserService = currentUserService;
+        _auditService = auditService;
     }
 
     public async Task<AuthResponse> Handle(RegisterClinicCommand request, CancellationToken cancellationToken)
@@ -136,6 +139,8 @@ public class AuthCommandHandler :
         }
 
         var doctorProfile = await _identityService.GetDoctorProfileAsync(userId);
+
+        await _auditService.LogAsync("LOGIN", "ApplicationUser", userId, clinicId: clinicId, userId: userId, cancellationToken: cancellationToken);
 
         return new AuthResponse(
             Token: token,

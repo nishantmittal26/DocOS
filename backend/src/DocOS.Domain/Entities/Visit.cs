@@ -27,5 +27,10 @@ public class Visit : BaseEntity
     public string? ClinicalNotes { get; set; }
     public DateTime? FollowUpDate { get; set; }
 
-    public Prescription? Prescription { get; set; }
+    // Phase 2D: Multiple revisions supported (filtered unique on IsCurrent = 1)
+    public ICollection<Prescription> Prescriptions { get; set; } = new List<Prescription>();
+    public Prescription? Prescription => Prescriptions.FirstOrDefault(p => p.IsCurrent) ?? Prescriptions.LastOrDefault();
+
+    // Phase 2D: OPD fee payment collection
+    public VisitPayment? Payment { get; set; }
 }

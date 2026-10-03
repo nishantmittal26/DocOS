@@ -14,4 +14,8 @@ public class Medicine : BaseEntity
     public string Strength { get; set; } = string.Empty; // e.g. "650mg", "40mg"
     public string? Manufacturer { get; set; } // e.g. "Micro Labs", "Alkem", "Cipla"
     public bool IsCustom { get; set; } = false;
+
+    // Phase 2D: Optional prefill defaults
+    public string? DefaultDosage { get; set; } // e.g. "1-0-1", "1-0-0", "SOS"
+    public DosageTiming? DefaultTiming { get; set; } // e.g. AfterFood, BeforeFood
 }

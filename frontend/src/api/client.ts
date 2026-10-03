@@ -26,6 +26,22 @@ import {
   CreateGlobalVitalMasterRequest,
   RecordVisitVitalItemRequest,
   VisitVitalItem,
+  LabTestMaster,
+  LabTestPanel,
+  CreateLabTestRequest,
+  UpdateLabTestRequest,
+  CreateLabPanelRequest,
+  UpdateLabPanelRequest,
+  AdviceTemplate,
+  CreateAdviceTemplateRequest,
+  UpdateAdviceTemplateRequest,
+  VisitPayment,
+  RecordVisitPaymentRequest,
+  DailyCollectionReport,
+  GenerateShareTokenResponse,
+  AuditLog,
+  PrescriptionLabOrderRequest,
+  PrescriptionAdviceRequest,
 } from '../types';
 
 const api = axios.create({
@@ -224,6 +240,8 @@ export const visitsApi = {
     followUpDate?: string;
     generalAdvice?: string;
     items: any[];
+    labOrders?: PrescriptionLabOrderRequest[];
+    adviceItems?: PrescriptionAdviceRequest[];
   }) => {
     const res = await api.post<PrescriptionDetail>('/visits/complete', data);
     return res.data;
@@ -232,13 +250,31 @@ export const visitsApi = {
     const res = await api.get<PrescriptionDetail>(`/visits/${visitId}/prescription`);
     return res.data;
   },
+  generateShareToken: async (prescriptionId: string, expiryDays: number = 7) => {
+    const res = await api.post<GenerateShareTokenResponse>(`/visits/prescriptions/${prescriptionId}/share-token`, null, {
+      params: { expiryDays },
+    });
+    return res.data;
+  },
+  markPrinted: async (prescriptionId: string) => {
+    const res = await api.post<boolean>(`/visits/prescriptions/${prescriptionId}/mark-printed`);
+    return res.data;
+  },
 };
 
 export const medicinesApi = {
-  search: async (q: string) => {
+  search: async (q: string, onlyFavorites: boolean = false) => {
     const res = await api.get<Medicine[]>('/medicines/search', {
-      params: { q },
+      params: { q, onlyFavorites },
     });
+    return res.data;
+  },
+  getFavorites: async () => {
+    const res = await api.get<Medicine[]>('/medicines/favorites');
+    return res.data;
+  },
+  toggleFavorite: async (id: string) => {
+    const res = await api.post<{ medicineId: string; isFavorite: boolean }>(`/medicines/${id}/toggle-favorite`);
     return res.data;
   },
   addCustom: async (data: {
@@ -247,6 +283,8 @@ export const medicinesApi = {
     form: string;
     strength: string;
     manufacturer?: string;
+    defaultDosage?: string;
+    defaultTiming?: string;
   }) => {
     const res = await api.post<Medicine>('/medicines/custom', data);
     return res.data;
@@ -263,6 +301,8 @@ export const medicinesApi = {
       form: string;
       strength: string;
       manufacturer?: string;
+      defaultDosage?: string;
+      defaultTiming?: string;
     }
   ) => {
     const res = await api.put<Medicine>(`/medicines/custom/${id}`, data);
@@ -350,6 +390,106 @@ export const adminApi = {
   },
   updateGlobalVital: async (id: string, data: Partial<VitalMaster>) => {
     const res = await api.put<VitalMaster>(`/admin/masters/vitals/${id}`, data);
+    return res.data;
+  },
+  getGlobalLabs: async () => {
+    const res = await api.get<LabTestMaster[]>('/admin/masters/labs');
+    return res.data;
+  },
+  createGlobalLab: async (data: CreateLabTestRequest) => {
+    const res = await api.post<LabTestMaster>('/admin/masters/labs', data);
+    return res.data;
+  },
+  updateGlobalLab: async (id: string, data: UpdateLabTestRequest) => {
+    const res = await api.put<LabTestMaster>(`/admin/masters/labs/${id}`, data);
+    return res.data;
+  },
+  getGlobalAdvice: async () => {
+    const res = await api.get<AdviceTemplate[]>('/admin/masters/advice');
+    return res.data;
+  },
+  createGlobalAdvice: async (data: CreateAdviceTemplateRequest) => {
+    const res = await api.post<AdviceTemplate>('/admin/masters/advice', data);
+    return res.data;
+  },
+  updateGlobalAdvice: async (id: string, data: UpdateAdviceTemplateRequest) => {
+    const res = await api.put<AdviceTemplate>(`/admin/masters/advice/${id}`, data);
+    return res.data;
+  },
+  getAuditLogs: async (params?: { clinicId?: string; action?: string; limit?: number }) => {
+    const res = await api.get<AuditLog[]>('/admin/audit-logs', { params });
+    return res.data;
+  },
+};
+
+export const labsApi = {
+  getTests: async () => {
+    const res = await api.get<LabTestMaster[]>('/labs/tests');
+    return res.data;
+  },
+  createTest: async (data: CreateLabTestRequest) => {
+    const res = await api.post<LabTestMaster>('/labs/tests', data);
+    return res.data;
+  },
+  updateTest: async (id: string, data: UpdateLabTestRequest) => {
+    const res = await api.put<LabTestMaster>(`/labs/tests/${id}`, data);
+    return res.data;
+  },
+  getPanels: async () => {
+    const res = await api.get<LabTestPanel[]>('/labs/panels');
+    return res.data;
+  },
+  createPanel: async (data: CreateLabPanelRequest) => {
+    const res = await api.post<LabTestPanel>('/labs/panels', data);
+    return res.data;
+  },
+  updatePanel: async (id: string, data: UpdateLabPanelRequest) => {
+    const res = await api.put<LabTestPanel>(`/labs/panels/${id}`, data);
+    return res.data;
+  },
+  deletePanel: async (id: string) => {
+    const res = await api.delete<boolean>(`/labs/panels/${id}`);
+    return res.data;
+  },
+};
+
+export const adviceApi = {
+  getTemplates: async (category?: string) => {
+    const res = await api.get<AdviceTemplate[]>('/advice/templates', { params: { category } });
+    return res.data;
+  },
+  createTemplate: async (data: CreateAdviceTemplateRequest) => {
+    const res = await api.post<AdviceTemplate>('/advice/templates', data);
+    return res.data;
+  },
+  updateTemplate: async (id: string, data: UpdateAdviceTemplateRequest) => {
+    const res = await api.put<AdviceTemplate>(`/advice/templates/${id}`, data);
+    return res.data;
+  },
+  deleteTemplate: async (id: string) => {
+    const res = await api.delete<boolean>(`/advice/templates/${id}`);
+    return res.data;
+  },
+};
+
+export const paymentsApi = {
+  recordPayment: async (visitId: string, data: RecordVisitPaymentRequest) => {
+    const res = await api.post<VisitPayment>(`/payments/visit/${visitId}`, data);
+    return res.data;
+  },
+  getPayment: async (visitId: string) => {
+    const res = await api.get<VisitPayment>(`/payments/visit/${visitId}`);
+    return res.data;
+  },
+  getDailyReport: async (date?: string) => {
+    const res = await api.get<DailyCollectionReport>('/payments/daily-report', { params: { date } });
+    return res.data;
+  },
+};
+
+export const publicRxApi = {
+  getPrescription: async (token: string) => {
+    const res = await api.get<PrescriptionDetail>(`/public/rx/${token}`);
     return res.data;
   },
 };

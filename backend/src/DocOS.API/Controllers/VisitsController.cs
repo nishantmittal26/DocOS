@@ -100,4 +100,37 @@ public class VisitsController : ControllerBase
         if (result == null) return NotFound();
         return Ok(result);
     }
+
+    [HttpPost("prescriptions/{prescriptionId:guid}/share-token")]
+    public async Task<ActionResult<GenerateShareTokenResponse>> GenerateShareToken(
+        Guid prescriptionId,
+        [FromQuery] int expiryDays = 7,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var result = await _mediator.Send(new GeneratePrescriptionShareTokenCommand(prescriptionId, expiryDays), cancellationToken);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("prescriptions/{prescriptionId:guid}/mark-printed")]
+    public async Task<ActionResult<bool>> MarkPrescriptionPrinted(
+        Guid prescriptionId,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var result = await _mediator.Send(new MarkPrescriptionPrintedCommand(prescriptionId), cancellationToken);
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
 }

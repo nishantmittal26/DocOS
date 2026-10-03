@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BrowserRouter, HashRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter, HashRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LoadingProvider } from './context/LoadingContext';
 import { Navbar } from './components/Navbar';
@@ -11,10 +11,16 @@ import { ConsultationRoomPage } from './pages/consultation/ConsultationRoomPage'
 import { PatientsPage } from './pages/patients/PatientsPage';
 import { SettingsPage } from './pages/settings/SettingsPage';
 import { VitalsSettingsPage } from './pages/settings/VitalsSettingsPage';
+import { LabTestsSettingsPage } from './pages/settings/LabTestsSettingsPage';
+import { AdviceSettingsPage } from './pages/settings/AdviceSettingsPage';
 import { OnboardDoctorPage } from './pages/admin/OnboardDoctorPage';
 import { AdminClinicsPage } from './pages/admin/AdminClinicsPage';
 import { ClinicSubscriptionPage } from './pages/admin/ClinicSubscriptionPage';
 import { AdminVitalsPage } from './pages/admin/AdminVitalsPage';
+import { AdminLabsPage } from './pages/admin/AdminLabsPage';
+import { AdminAdvicePage } from './pages/admin/AdminAdvicePage';
+import { AdminAuditLogsPage } from './pages/admin/AdminAuditLogsPage';
+import { PublicPrescriptionPage } from './pages/public/PublicPrescriptionPage';
 
 // Automatically use HashRouter on GitHub Pages to prevent 404s on subpath page reloads
 const isGitHubPages = typeof window !== 'undefined' && window.location.hostname.endsWith('github.io');
@@ -25,6 +31,16 @@ const AppContent: React.FC = () => {
   const { isAuthenticated, isLoading, hasRole } = useAuth();
   const [isNewPatientOpen, setIsNewPatientOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Public routes (accessible to anyone without logging in)
+  if (location.pathname.startsWith('/rx/')) {
+    return (
+      <Routes>
+        <Route path="/rx/:token" element={<PublicPrescriptionPage />} />
+      </Routes>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -64,6 +80,36 @@ const AppContent: React.FC = () => {
                 }
               />
               <Route
+                path="/admin/masters/labs"
+                element={
+                  isPlatformAdmin ? (
+                    <AdminLabsPage />
+                  ) : (
+                    <Navigate to="/admin/clinics" replace />
+                  )
+                }
+              />
+              <Route
+                path="/admin/masters/advice"
+                element={
+                  isPlatformAdmin ? (
+                    <AdminAdvicePage />
+                  ) : (
+                    <Navigate to="/admin/clinics" replace />
+                  )
+                }
+              />
+              <Route
+                path="/admin/audit-logs"
+                element={
+                  isPlatformAdmin ? (
+                    <AdminAuditLogsPage />
+                  ) : (
+                    <Navigate to="/admin/clinics" replace />
+                  )
+                }
+              />
+              <Route
                 path="/admin/clinics/:clinicId/subscription"
                 element={
                   isPlatformAdmin ? (
@@ -90,6 +136,8 @@ const AppContent: React.FC = () => {
               <Route path="/consultation/:visitId" element={<ConsultationRoomPage />} />
               <Route path="/settings" element={<SettingsPage />} />
               <Route path="/settings/vitals" element={<VitalsSettingsPage />} />
+              <Route path="/settings/lab-tests" element={<LabTestsSettingsPage />} />
+              <Route path="/settings/advice" element={<AdviceSettingsPage />} />
               <Route path="/admin/*" element={<Navigate to="/" replace />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </>

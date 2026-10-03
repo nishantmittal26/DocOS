@@ -18,9 +18,23 @@ public class MedicinesController : ControllerBase
     }
 
     [HttpGet("search")]
-    public async Task<ActionResult<List<MedicineDto>>> Search([FromQuery] string? q)
+    public async Task<ActionResult<List<MedicineDto>>> Search([FromQuery] string? q, [FromQuery] bool onlyFavorites = false)
     {
-        var result = await _mediator.Send(new SearchMedicinesQuery(q ?? string.Empty));
+        var result = await _mediator.Send(new SearchMedicinesQuery(q ?? string.Empty, onlyFavorites));
+        return Ok(result);
+    }
+
+    [HttpGet("favorites")]
+    public async Task<ActionResult<List<MedicineDto>>> GetFavorites()
+    {
+        var result = await _mediator.Send(new GetDoctorFavoriteMedicinesQuery());
+        return Ok(result);
+    }
+
+    [HttpPost("{id:guid}/toggle-favorite")]
+    public async Task<ActionResult<ToggleMedicineFavoriteResponse>> ToggleFavorite(Guid id)
+    {
+        var result = await _mediator.Send(new ToggleMedicineFavoriteCommand(id));
         return Ok(result);
     }
 

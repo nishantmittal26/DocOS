@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { visitsApi, medicinesApi } from '../../api/client';
+import { visitsApi, medicinesApi, labsApi, adviceApi, clinicsApi } from '../../api/client';
 import {
   VisitQueueItem,
   PrescriptionItem,
@@ -8,6 +8,9 @@ import {
   DosageForm,
   DosageTiming,
   PrescriptionDetail,
+  LabTestMaster,
+  LabTestPanel,
+  AdviceTemplate,
 } from '../../types';
 import { PrescriptionPrintModal } from '../../components/PrescriptionPrintModal';
 import { VitalsModal } from '../../components/VitalsModal';
@@ -25,6 +28,13 @@ import {
   Sparkles,
   Info,
   Activity,
+  Star,
+  FlaskConical,
+  Layers,
+  FileText,
+  Lock,
+  Check,
+  ChevronDown,
 } from 'lucide-react';
 
 export const ConsultationRoomPage: React.FC = () => {
@@ -48,6 +58,7 @@ export const ConsultationRoomPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Medicine[]>([]);
   const [searching, setSearching] = useState(false);
+  const [onlyFavorites, setOnlyFavorites] = useState(false);
 
   // Active medicine being drafted
   const [brandName, setBrandName] = useState('');
@@ -57,6 +68,20 @@ export const ConsultationRoomPage: React.FC = () => {
   const [timing, setTiming] = useState<DosageTiming>('AfterFood');
   const [durationDays, setDurationDays] = useState<number>(5);
   const [instructions, setInstructions] = useState('');
+
+  // Diagnostic Lab Orders state (Phase 2D)
+  const [hasLabModule, setHasLabModule] = useState(true);
+  const [allLabTests, setAllLabTests] = useState<LabTestMaster[]>([]);
+  const [labPanels, setLabPanels] = useState<LabTestPanel[]>([]);
+  const [labSearchQuery, setLabSearchQuery] = useState('');
+  const [selectedLabOrders, setSelectedLabOrders] = useState<
+    { testId: string; testName: string; testCode: string; category: string; sampleType?: string; fastingRequired: boolean; specialInstructions?: string }[]
+  >([]);
+
+  // Advice Snippets state (Phase 2D)
+  const [allAdviceTemplates, setAllAdviceTemplates] = useState<AdviceTemplate[]>([]);
+  const [selectedAdviceSnippets, setSelectedAdviceSnippets] = useState<{ templateId?: string; text: string }[]>([]);
+  const [adviceCategoryFilter, setAdviceCategoryFilter] = useState('All');
 
   // Modals / submission
   const [submitting, setSubmitting] = useState(false);
@@ -74,13 +99,34 @@ export const ConsultationRoomPage: React.FC = () => {
         if (current.diagnosis) setDiagnosis(current.diagnosis);
         if (current.clinicalNotes) setClinicalNotes(current.clinicalNotes);
 
-        // If prescription exists, load it
+        // If prescription exists, load it (including revisions)
         if (current.hasPrescription) {
           const rx = await visitsApi.getPrescription(current.id);
           if (rx) {
-            setRxItems(rx.items);
+            setRxItems(rx.items || []);
             if (rx.generalAdvice) setGeneralAdvice(rx.generalAdvice);
             if (rx.followUpDate) setFollowUpDate(rx.followUpDate.split('T')[0]);
+            if (rx.labOrders && rx.labOrders.length > 0) {
+              setSelectedLabOrders(
+                rx.labOrders.map((lo) => ({
+                  testId: lo.labTestMasterId,
+                  testName: lo.testName,
+                  testCode: lo.testCode,
+                  category: lo.category,
+                  sampleType: lo.sampleType,
+                  fastingRequired: lo.fastingRequired,
+                  specialInstructions: lo.specialInstructions,
+                }))
+              );
+            }
+            if (rx.adviceItems && rx.adviceItems.length > 0) {
+              setSelectedAdviceSnippets(
+                rx.adviceItems.map((ai) => ({
+                  templateId: ai.adviceTemplateId,
+                  text: ai.adviceText,
+                }))
+              );
+            }
           }
         }
       }
@@ -91,13 +137,54 @@ export const ConsultationRoomPage: React.FC = () => {
     }
   };
 
+  // Load lab masters & advice templates
+  useEffect(() => {
+    labsApi
+      .getTests()
+      .then((tests) => {
+        setAllLabTests(tests);
+        setHasLabModule(true);
+      })
+      .catch((err) => {
+        if (err.response?.status === 403) {
+          setHasLabModule(false);
+        }
+      });
+
+    labsApi.getPanels().then(setLabPanels).catch(() => {});
+    adviceApi.getTemplates().then(setAllAdviceTemplates).catch(() => {});
+  }, []);
+
   // Load visit details
   useEffect(() => {
     loadVisit();
   }, [visitId]);
 
-  // Debounced medicine formulary search (searches brand name & salt composition)
+  // Debounced medicine formulary search (searches brand name & salt composition, optional favorites filter)
   useEffect(() => {
+    if (onlyFavorites) {
+      setSearching(true);
+      medicinesApi
+        .getFavorites()
+        .then((res) => {
+          if (searchQuery.trim()) {
+            const q = searchQuery.trim().toLowerCase();
+            setSearchResults(
+              res.filter(
+                (m) =>
+                  m.brandName.toLowerCase().includes(q) ||
+                  m.saltComposition.toLowerCase().includes(q)
+              )
+            );
+          } else {
+            setSearchResults(res);
+          }
+        })
+        .catch(console.error)
+        .finally(() => setSearching(false));
+      return;
+    }
+
     if (!searchQuery.trim() || searchQuery.trim().length < 2) {
       setSearchResults([]);
       return;
@@ -106,7 +193,7 @@ export const ConsultationRoomPage: React.FC = () => {
     const timer = setTimeout(async () => {
       setSearching(true);
       try {
-        const results = await medicinesApi.search(searchQuery.trim());
+        const results = await medicinesApi.search(searchQuery.trim(), onlyFavorites);
         setSearchResults(results);
       } catch (err) {
         console.error(err);
@@ -116,12 +203,35 @@ export const ConsultationRoomPage: React.FC = () => {
     }, 200);
 
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, onlyFavorites]);
+
+  const handleToggleFavorite = async (e: React.MouseEvent, med: Medicine) => {
+    e.stopPropagation();
+    try {
+      const res = await medicinesApi.toggleFavorite(med.id);
+      setSearchResults((prev) =>
+        prev.map((m) => (m.id === med.id ? { ...m, isFavorite: res.isFavorite } : m))
+      );
+    } catch (err) {
+      console.error('Failed to toggle favorite', err);
+    }
+  };
 
   const handleSelectMedicine = (med: Medicine) => {
     setBrandName(med.brandName);
     setSaltComposition(med.saltComposition);
     setForm(med.form);
+    // Prefill default dosage and timing if set
+    if (med.defaultDosage) {
+      setDosage(med.defaultDosage);
+    } else {
+      setDosage('1-0-1');
+    }
+    if (med.defaultTiming) {
+      setTiming(med.defaultTiming);
+    } else {
+      setTiming('AfterFood');
+    }
     setSearchQuery('');
     setSearchResults([]);
   };
@@ -159,10 +269,76 @@ export const ConsultationRoomPage: React.FC = () => {
     setRxItems(rxItems.filter((_, i) => i !== index));
   };
 
+  // Lab Orders Handlers (Phase 2D)
+  const handleAddLabTest = (test: LabTestMaster) => {
+    if (selectedLabOrders.some((lo) => lo.testId === test.id)) return;
+    setSelectedLabOrders((prev) => [
+      ...prev,
+      {
+        testId: test.id,
+        testName: test.testName,
+        testCode: test.testCode,
+        category: test.category,
+        sampleType: test.sampleType,
+        fastingRequired: test.fastingRequired,
+        specialInstructions: '',
+      },
+    ]);
+    setLabSearchQuery('');
+  };
+
+  const handleAddPanel = (panel: LabTestPanel) => {
+    const newItems = panel.tests
+      .filter((t) => !selectedLabOrders.some((lo) => lo.testId === t.id))
+      .map((t) => ({
+        testId: t.id,
+        testName: t.testName,
+        testCode: t.testCode,
+        category: t.category,
+        sampleType: t.sampleType,
+        fastingRequired: t.fastingRequired,
+        specialInstructions: `Panel: ${panel.name}`,
+      }));
+
+    setSelectedLabOrders((prev) => [...prev, ...newItems]);
+  };
+
+  const handleRemoveLabOrder = (testId: string) => {
+    setSelectedLabOrders((prev) => prev.filter((lo) => lo.testId !== testId));
+  };
+
+  const handleUpdateLabInstructions = (testId: string, instructions: string) => {
+    setSelectedLabOrders((prev) =>
+      prev.map((lo) => (lo.testId === testId ? { ...lo, specialInstructions: instructions } : lo))
+    );
+  };
+
+  // Advice Handlers (Phase 2D)
+  const handleToggleAdviceSnippet = (tmpl: AdviceTemplate) => {
+    const exists = selectedAdviceSnippets.some((a) => a.templateId === tmpl.id || a.text === tmpl.instructionsText);
+    if (exists) {
+      setSelectedAdviceSnippets((prev) =>
+        prev.filter((a) => a.templateId !== tmpl.id && a.text !== tmpl.instructionsText)
+      );
+    } else {
+      setSelectedAdviceSnippets((prev) => [
+        ...prev,
+        {
+          templateId: tmpl.id,
+          text: tmpl.instructionsText,
+        },
+      ]);
+    }
+  };
+
+  const handleRemoveAdviceSnippet = (index: number) => {
+    setSelectedAdviceSnippets((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const handleCompleteAndPrint = async () => {
     if (!visitId) return;
-    if (rxItems.length === 0 && !diagnosis.trim()) {
-      if (!window.confirm('No medicines or diagnosis added. Proceed to complete visit?')) {
+    if (rxItems.length === 0 && selectedLabOrders.length === 0 && !diagnosis.trim()) {
+      if (!window.confirm('No medicines, lab tests, or diagnosis added. Proceed to complete visit?')) {
         return;
       }
     }
@@ -177,6 +353,15 @@ export const ConsultationRoomPage: React.FC = () => {
         followUpDate: followUpDate ? new Date(followUpDate).toISOString() : undefined,
         generalAdvice: generalAdvice.trim() || undefined,
         items: rxItems,
+        labOrders: selectedLabOrders.map((lo) => ({
+          labTestMasterId: lo.testId,
+          specialInstructions: lo.specialInstructions?.trim() || undefined,
+        })),
+        adviceItems: selectedAdviceSnippets.map((adv, idx) => ({
+          adviceTemplateId: adv.templateId,
+          adviceText: adv.text.trim(),
+          displayOrder: idx + 1,
+        })),
       });
 
       setCompletedPrescription(rxDetail);
@@ -271,7 +456,6 @@ export const ConsultationRoomPage: React.FC = () => {
           <div className="flex flex-wrap items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200 text-xs">
             {vitals?.recordedVitals && vitals.recordedVitals.length > 0 ? (
               <>
-                {/* Check for paired BP */}
                 {(() => {
                   const bpItems = vitals.recordedVitals.filter((v) => v.pairGroup === 'BP');
                   const nonBp = vitals.recordedVitals.filter((v) => v.pairGroup !== 'BP');
@@ -325,7 +509,6 @@ export const ConsultationRoomPage: React.FC = () => {
                 })()}
               </>
             ) : (vitals && (vitals.systolicBp || vitals.diastolicBp || vitals.pulseBpm || vitals.temperatureF || vitals.spo2 || vitals.sugar || vitals.weightKg || vitals.bmi)) ? (
-              /* Fallback for legacy vitals */
               <>
                 {(vitals.systolicBp || vitals.diastolicBp) && (
                   <div className="px-2 py-1 bg-white rounded-lg border border-slate-200 font-mono">
@@ -363,36 +546,18 @@ export const ConsultationRoomPage: React.FC = () => {
                     <span className="font-bold text-slate-800">{vitals.weightKg} kg</span>
                   </div>
                 )}
-                {vitals.bmi && (
-                  <div className="px-2 py-1 bg-white rounded-lg border border-slate-200 font-mono">
-                    <span className="text-slate-400 text-[10px] block">BMI</span>
-                    <span className="font-bold text-slate-800">{vitals.bmi}</span>
-                  </div>
-                )}
               </>
             ) : (
               <span className="text-slate-400 text-xs italic">No vitals recorded for this visit yet.</span>
             )}
 
-            {/* Button to record / edit vitals in consultation room */}
             <button
               type="button"
               onClick={() => setIsVitalsModalOpen(true)}
               className="ml-auto inline-flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold transition-colors"
             >
               <HeartPulse className="w-3.5 h-3.5 text-emerald-600" />
-              <span>
-                {vitals &&
-                ((vitals.recordedVitals && vitals.recordedVitals.length > 0) ||
-                  vitals.systolicBp ||
-                  vitals.pulseBpm ||
-                  vitals.temperatureF ||
-                  vitals.spo2 ||
-                  vitals.sugar ||
-                  vitals.weightKg)
-                  ? 'Update Vitals'
-                  : '+ Record Vitals'}
-              </span>
+              <span>Record / Edit Vitals</span>
             </button>
           </div>
         </div>
@@ -409,7 +574,7 @@ export const ConsultationRoomPage: React.FC = () => {
         )}
       </div>
 
-      {/* Main Grid: Clinical Notes (Left) & Rx Builder (Right) */}
+      {/* Main Grid: Clinical Notes (Left) & Rx + Labs + Advice Builder (Right) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column: Complaints & Clinical Diagnosis */}
         <div className="lg:col-span-4 space-y-4">
@@ -422,7 +587,6 @@ export const ConsultationRoomPage: React.FC = () => {
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="text-xs font-semibold text-slate-700">Chief Complaints</label>
-                {/* Quick duration helpers */}
                 <div className="flex space-x-1">
                   {['x 2 days', 'x 3 days', 'x 1 week'].map((tag) => (
                     <button
@@ -438,7 +602,7 @@ export const ConsultationRoomPage: React.FC = () => {
               </div>
               <textarea
                 rows={3}
-                placeholder="e.g. Fever with chills (3 days), productive cough with yellowish phlegm..."
+                placeholder="e.g. Fever with chills (3 days), cough with expectoration..."
                 value={chiefComplaints}
                 onChange={(e) => setChiefComplaints(e.target.value)}
                 className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
@@ -459,14 +623,14 @@ export const ConsultationRoomPage: React.FC = () => {
               />
             </div>
 
-            {/* Clinical Notes / Examination findings */}
+            {/* Clinical Notes */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Doctor's Notes & Findings
               </label>
               <textarea
                 rows={2}
-                placeholder="e.g. Chest: bilateral clear, throat: congested, no cervical lymphadenopathy"
+                placeholder="e.g. Chest: clear, throat: congested, no lymphadenopathy"
                 value={clinicalNotes}
                 onChange={(e) => setClinicalNotes(e.target.value)}
                 className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
@@ -509,7 +673,7 @@ export const ConsultationRoomPage: React.FC = () => {
               />
             </div>
 
-            {/* General Advice */}
+            {/* General Advice Free Text */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Dietary & General Advice
@@ -525,27 +689,43 @@ export const ConsultationRoomPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Column: Rx Prescription Builder */}
-        <div className="lg:col-span-8 space-y-4">
-          {/* Medicine Search & Form Card */}
+        {/* Right Column: Rx Builder + Labs + Advice */}
+        <div className="lg:col-span-8 space-y-5">
+          {/* Section 1: Medicine Search & Prescribing */}
           <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center space-x-1.5">
                 <Pill className="w-4 h-4 text-emerald-600" />
-                <span>Prescribe Medicines (Brand & Generic Salt Name)</span>
+                <span>Prescribe Medicines (Brand & Generic Salt)</span>
               </h2>
-              <span className="text-[11px] text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full font-medium">
-                500+ Indian Drug Formulary
-              </span>
+
+              <div className="flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setOnlyFavorites(!onlyFavorites)}
+                  className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                    onlyFavorites
+                      ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  <Star className={`w-3.5 h-3.5 ${onlyFavorites ? 'fill-amber-500 text-amber-500' : ''}`} />
+                  <span>My Favorites</span>
+                </button>
+              </div>
             </div>
 
-            {/* Fast Autocomplete Search Bar */}
+            {/* Search Bar */}
             <div className="relative">
               <div className="flex items-center px-3 py-2.5 rounded-xl border border-slate-300 focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20 bg-slate-50">
                 <Search className="w-4 h-4 text-slate-400 mr-2" />
                 <input
                   type="text"
-                  placeholder="Search by Brand Name (e.g. Augmentin, Dolo, Pan 40) or Salt Name (e.g. Paracetamol, Amoxicillin)..."
+                  placeholder={
+                    onlyFavorites
+                      ? 'Filter your starred favorite medicines...'
+                      : 'Search by Brand Name (e.g. Augmentin, Dolo, Pan 40) or Salt Name (e.g. Paracetamol)...'
+                  }
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full bg-transparent text-xs sm:text-sm outline-none text-slate-900 placeholder:text-slate-400"
@@ -557,34 +737,49 @@ export const ConsultationRoomPage: React.FC = () => {
               {searchResults.length > 0 && (
                 <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-2xl border border-slate-200 z-30 max-h-64 overflow-y-auto divide-y divide-slate-100">
                   {searchResults.map((med) => (
-                    <button
+                    <div
                       key={med.id}
-                      type="button"
                       onClick={() => handleSelectMedicine(med)}
-                      className="w-full text-left p-3 hover:bg-emerald-50/70 transition-colors flex items-center justify-between"
+                      className="w-full text-left p-3 hover:bg-emerald-50/70 transition-colors flex items-center justify-between cursor-pointer"
                     >
-                      <div>
-                        <div className="flex items-center space-x-2">
-                          <span className="text-xs font-bold text-slate-900">{med.brandName}</span>
-                          <span className="text-[10px] uppercase font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">
-                            {med.form}
-                          </span>
-                          <span className="text-xs text-slate-500 font-medium">({med.strength})</span>
-                        </div>
-                        <div className="text-[11px] text-slate-600 font-medium italic mt-0.5">
-                          Salt: {med.saltComposition}
+                      <div className="flex items-start space-x-2">
+                        {/* Star Button (Phase 2D: DoctorMedicineFavorite) */}
+                        <button
+                          type="button"
+                          onClick={(e) => handleToggleFavorite(e, med)}
+                          className="p-1 text-slate-300 hover:text-amber-500 transition-colors mt-0.5"
+                          title={med.isFavorite ? 'Remove from favorites' : 'Star as favorite'}
+                        >
+                          <Star className={`w-4 h-4 ${med.isFavorite ? 'fill-amber-400 text-amber-500' : ''}`} />
+                        </button>
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-xs font-bold text-slate-900">{med.brandName}</span>
+                            <span className="text-[10px] uppercase font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded">
+                              {med.form}
+                            </span>
+                            <span className="text-xs text-slate-500 font-medium">({med.strength})</span>
+                            {med.defaultDosage && (
+                              <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded font-mono">
+                                {med.defaultDosage}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-slate-600 font-medium italic mt-0.5">
+                            Salt: {med.saltComposition}
+                          </div>
                         </div>
                       </div>
                       <span className="text-[11px] text-emerald-700 font-semibold px-2 py-1 rounded bg-emerald-50">
                         Select
                       </span>
-                    </button>
+                    </div>
                   ))}
                 </div>
               )}
             </div>
 
-            {/* Medicine Details & Dosage Regimen Form */}
+            {/* Medicine Regimen Form */}
             <form onSubmit={handleAddMedicineToRx} className="space-y-3 pt-2">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="sm:col-span-1">
@@ -689,7 +884,7 @@ export const ConsultationRoomPage: React.FC = () => {
               <div className="flex items-center space-x-3 pt-1">
                 <input
                   type="text"
-                  placeholder="Special instructions (e.g. Complete 5-day course, gargle with warm water)"
+                  placeholder="Special instructions (e.g. Complete 5-day course, avoid dairy)"
                   value={instructions}
                   onChange={(e) => setInstructions(e.target.value)}
                   className="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
@@ -703,79 +898,309 @@ export const ConsultationRoomPage: React.FC = () => {
                 </button>
               </div>
             </form>
+
+            {/* Prescribed Medicines List */}
+            {rxItems.length > 0 && (
+              <div className="pt-2">
+                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
+                        <th className="py-2 px-3 w-8">#</th>
+                        <th className="py-2 px-3">Medicine & Salt</th>
+                        <th className="py-2 px-3 w-20">Dosage</th>
+                        <th className="py-2 px-3 w-24">Timing</th>
+                        <th className="py-2 px-3 w-16">Days</th>
+                        <th className="py-2 px-3">Instructions</th>
+                        <th className="py-2 px-3 w-10 text-center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {rxItems.map((item, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50/60">
+                          <td className="py-2.5 px-3 font-bold text-slate-400">{idx + 1}</td>
+                          <td className="py-2.5 px-3">
+                            <div className="font-bold text-slate-900">
+                              <span className="text-[10px] uppercase font-bold text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded mr-1">
+                                {item.form}
+                              </span>
+                              {item.medicineName}
+                            </div>
+                            <div className="text-[11px] text-slate-500 font-medium italic mt-0.5">
+                              {item.saltComposition}
+                            </div>
+                          </td>
+                          <td className="py-2.5 px-3 font-mono font-bold text-emerald-800">
+                            {item.dosage}
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-700 font-medium">
+                            {item.timing === 'AfterFood' && 'After Food'}
+                            {item.timing === 'BeforeFood' && 'Before Food'}
+                            {item.timing === 'WithFood' && 'With Food'}
+                            {item.timing === 'Bedtime' && 'At Bedtime'}
+                            {item.timing === 'EmptyStomach' && 'Empty Stomach'}
+                          </td>
+                          <td className="py-2.5 px-3 font-semibold text-slate-800">
+                            {item.durationDays}d
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-600 text-[11px]">
+                            {item.instructions || '—'}
+                          </td>
+                          <td className="py-2.5 px-3 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveRxItem(idx)}
+                              className="text-slate-400 hover:text-rose-600 p-1 rounded hover:bg-rose-50 transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Current Prescription Table */}
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 space-y-3">
+          {/* Section 2: Diagnostic Lab Orders (Phase 2D) */}
+          <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center space-x-1.5">
-                <span className="text-xl font-serif italic text-emerald-700">℞</span>
-                <span>Active Prescription List ({rxItems.length} Medicines)</span>
+                <FlaskConical className="w-4 h-4 text-indigo-600" />
+                <span>Diagnostic Lab Orders & Panels</span>
               </h2>
+              {hasLabModule ? (
+                <span className="text-[11px] text-indigo-700 bg-indigo-50 font-bold px-2 py-0.5 rounded-full border border-indigo-200">
+                  {selectedLabOrders.length} Ordered
+                </span>
+              ) : (
+                <span className="text-[11px] text-amber-800 bg-amber-50 font-bold px-2 py-0.5 rounded-full border border-amber-200">
+                  Module Not Subscribed
+                </span>
+              )}
             </div>
 
-            {rxItems.length === 0 ? (
-              <div className="text-center py-10 text-slate-400 text-xs border-2 border-dashed border-slate-200 rounded-xl">
-                No medicines added yet. Search and add medicines above.
+            {!hasLabModule ? (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 flex items-center space-x-2">
+                <Lock className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>
+                  Diagnostic Lab Module is disabled on your clinic plan. Upgrade subscription to enable lab ordering.
+                </span>
               </div>
             ) : (
-              <div className="border border-slate-200 rounded-xl overflow-hidden">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200">
-                      <th className="py-2 px-3 w-8">#</th>
-                      <th className="py-2 px-3">Medicine & Salt</th>
-                      <th className="py-2 px-3 w-20">Dosage</th>
-                      <th className="py-2 px-3 w-24">Timing</th>
-                      <th className="py-2 px-3 w-16">Days</th>
-                      <th className="py-2 px-3">Instructions</th>
-                      <th className="py-2 px-3 w-10 text-center">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {rxItems.map((item, idx) => (
-                      <tr key={idx} className="hover:bg-slate-50/60">
-                        <td className="py-2.5 px-3 font-bold text-slate-400">{idx + 1}</td>
-                        <td className="py-2.5 px-3">
-                          <div className="font-bold text-slate-900">
-                            <span className="text-[10px] uppercase font-bold text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded mr-1">
-                              {item.form}
-                            </span>
-                            {item.medicineName}
-                          </div>
-                          <div className="text-[11px] text-slate-500 font-medium italic mt-0.5">
-                            {item.saltComposition}
-                          </div>
-                        </td>
-                        <td className="py-2.5 px-3 font-mono font-bold text-emerald-800">
-                          {item.dosage}
-                        </td>
-                        <td className="py-2.5 px-3 text-slate-700 font-medium">
-                          {item.timing === 'AfterFood' && 'After Food'}
-                          {item.timing === 'BeforeFood' && 'Before Food'}
-                          {item.timing === 'WithFood' && 'With Food'}
-                          {item.timing === 'Bedtime' && 'At Bedtime'}
-                          {item.timing === 'EmptyStomach' && 'Empty Stomach'}
-                        </td>
-                        <td className="py-2.5 px-3 font-semibold text-slate-800">
-                          {item.durationDays}d
-                        </td>
-                        <td className="py-2.5 px-3 text-slate-600 text-[11px]">
-                          {item.instructions || '—'}
-                        </td>
-                        <td className="py-2.5 px-3 text-center">
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveRxItem(idx)}
-                            className="text-slate-400 hover:text-rose-600 p-1 rounded hover:bg-rose-50 transition-colors"
+              <>
+                {/* Panel Bundles Quick Select */}
+                {labPanels.length > 0 && (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                      Frequent Panel Bundles (1-Click Group Ordering):
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {labPanels.map((panel) => (
+                        <button
+                          key={panel.id}
+                          type="button"
+                          onClick={() => handleAddPanel(panel)}
+                          className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 rounded-xl text-xs font-bold transition-all shadow-sm"
+                        >
+                          <Layers className="w-3.5 h-3.5 text-indigo-600" />
+                          <span>+ {panel.name} ({panel.tests.length})</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Individual Test Search */}
+                <div className="relative">
+                  <div className="flex items-center px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 focus-within:border-indigo-500">
+                    <Search className="w-4 h-4 text-slate-400 mr-2" />
+                    <input
+                      type="text"
+                      placeholder="Search individual lab tests to order (e.g. CBC, KFT, HbA1c, Thyroid)..."
+                      value={labSearchQuery}
+                      onChange={(e) => setLabSearchQuery(e.target.value)}
+                      className="w-full bg-transparent text-xs outline-none"
+                    />
+                  </div>
+
+                  {labSearchQuery.trim().length > 1 && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-xl border border-slate-200 z-20 max-h-48 overflow-y-auto divide-y divide-slate-100">
+                      {allLabTests
+                        .filter(
+                          (t) =>
+                            t.testName.toLowerCase().includes(labSearchQuery.toLowerCase()) ||
+                            t.testCode.toLowerCase().includes(labSearchQuery.toLowerCase())
+                        )
+                        .map((t) => (
+                          <div
+                            key={t.id}
+                            onClick={() => handleAddLabTest(t)}
+                            className="p-2.5 hover:bg-indigo-50/70 transition-colors flex items-center justify-between cursor-pointer text-xs"
                           >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                            <div>
+                              <span className="font-bold text-slate-900">{t.testName}</span>
+                              <span className="font-mono text-[10px] text-slate-400 ml-1.5">({t.testCode})</span>
+                              <span className="text-[10px] text-slate-500 ml-2">[{t.category}]</span>
+                            </div>
+                            <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded">
+                              + Order
+                            </span>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Ordered Labs Table */}
+                {selectedLabOrders.length > 0 && (
+                  <div className="border border-indigo-100 rounded-xl overflow-hidden bg-indigo-50/20">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="bg-indigo-100/60 text-indigo-900 font-semibold border-b border-indigo-200">
+                          <th className="py-2 px-3">Investigation</th>
+                          <th className="py-2 px-3 w-28">Prep</th>
+                          <th className="py-2 px-3">Special Instructions</th>
+                          <th className="py-2 px-3 w-10 text-center">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-indigo-100/80">
+                        {selectedLabOrders.map((lab) => (
+                          <tr key={lab.testId} className="hover:bg-indigo-50/40">
+                            <td className="py-2 px-3 font-bold text-slate-900">
+                              {lab.testName}{' '}
+                              <span className="font-mono text-[10px] text-slate-500 font-normal">
+                                ({lab.testCode})
+                              </span>
+                            </td>
+                            <td className="py-2 px-3">
+                              {lab.fastingRequired ? (
+                                <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded">
+                                  Fasting
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 text-[11px]">Regular</span>
+                              )}
+                            </td>
+                            <td className="py-1.5 px-3">
+                              <input
+                                type="text"
+                                placeholder="e.g. 12hr overnight fast"
+                                value={lab.specialInstructions || ''}
+                                onChange={(e) => handleUpdateLabInstructions(lab.testId, e.target.value)}
+                                className="w-full px-2 py-1 text-xs border border-indigo-200 rounded-lg bg-white outline-none focus:border-indigo-500"
+                              />
+                            </td>
+                            <td className="py-2 px-3 text-center">
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveLabOrder(lab.testId)}
+                                className="p-1 text-slate-400 hover:text-rose-600 rounded"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Section 3: Advice Templates & Snippets (Phase 2D) */}
+          <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wider flex items-center space-x-1.5">
+                <FileText className="w-4 h-4 text-emerald-600" />
+                <span>Doctor's Advice Snippets</span>
+              </h2>
+              <span className="text-[11px] text-slate-500 font-bold">
+                {selectedAdviceSnippets.length} Attached
+              </span>
+            </div>
+
+            {/* Category Filter Chips */}
+            <div className="flex flex-wrap gap-1">
+              {['All', 'Dietary', 'General', 'Medication', 'Lifestyle', 'Precautions'].map((cat) => (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setAdviceCategoryFilter(cat)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                    adviceCategoryFilter === cat
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+
+            {/* Advice Snippets Selector Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto p-1 border border-slate-100 rounded-xl">
+              {allAdviceTemplates
+                .filter((t) => adviceCategoryFilter === 'All' || t.category === adviceCategoryFilter)
+                .map((tmpl) => {
+                  const isChecked = selectedAdviceSnippets.some(
+                    (a) => a.templateId === tmpl.id || a.text === tmpl.instructionsText
+                  );
+                  return (
+                    <div
+                      key={tmpl.id}
+                      onClick={() => handleToggleAdviceSnippet(tmpl)}
+                      className={`p-2.5 rounded-xl border text-xs cursor-pointer transition-all flex items-start space-x-2 ${
+                        isChecked
+                          ? 'bg-emerald-50 border-emerald-300 text-emerald-950 font-medium'
+                          : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => {}}
+                        className="mt-0.5 w-3.5 h-3.5 text-emerald-600 rounded border-slate-300 pointer-events-none"
+                      />
+                      <div className="flex-1">
+                        <div className="font-bold flex items-center justify-between">
+                          <span>{tmpl.title}</span>
+                          <span className="text-[10px] text-slate-400 font-normal">[{tmpl.category}]</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 line-clamp-2 mt-0.5">
+                          {tmpl.instructionsText}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+
+            {/* Attached Snippets List */}
+            {selectedAdviceSnippets.length > 0 && (
+              <div className="pt-2 border-t border-slate-100 space-y-1.5">
+                <span className="text-xs font-bold text-slate-700 block">
+                  Attached to Prescription:
+                </span>
+                {selectedAdviceSnippets.map((adv, idx) => (
+                  <div
+                    key={idx}
+                    className="p-2 rounded-xl bg-slate-50 border border-slate-200 text-xs flex items-center justify-between gap-2"
+                  >
+                    <span className="text-slate-800 line-clamp-1">{adv.text}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveAdviceSnippet(idx)}
+                      className="text-slate-400 hover:text-rose-600 shrink-0"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -805,3 +1230,5 @@ export const ConsultationRoomPage: React.FC = () => {
     </div>
   );
 };
+
+export default ConsultationRoomPage;
