@@ -14,10 +14,15 @@ export const PrescriptionPrintModal: React.FC<PrescriptionPrintModalProps> = ({
   prescription,
   onClose,
 }) => {
-  // Mode selection: 'blank' (Mode A) or 'pad' (Mode B)
-  const [printMode, setPrintMode] = useState<'blank' | 'pad'>('blank');
+  // Mode selection: default to 'pad' if clinic has hideLetterheadOnPrint set, otherwise 'blank'
+  const [printMode, setPrintMode] = useState<'blank' | 'pad'>(
+    prescription?.clinic?.hideLetterheadOnPrint ? 'pad' : 'blank'
+  );
   const [marginTopMm, setMarginTopMm] = useState<number>(
     prescription?.clinic?.letterheadMarginTopMm || 60
+  );
+  const [bottomMarginMm, setBottomMarginMm] = useState<number>(
+    prescription?.clinic?.printBottomMarginMm || 0
   );
 
   if (!isOpen || !prescription) return null;
@@ -75,17 +80,31 @@ export const PrescriptionPrintModal: React.FC<PrescriptionPrintModalProps> = ({
           {/* Action Buttons */}
           <div className="flex items-center space-x-2">
             {printMode === 'pad' && (
-              <div className="flex items-center space-x-1.5 text-xs text-slate-600 mr-2">
-                <span>Top Margin:</span>
-                <input
-                  type="number"
-                  min="20"
-                  max="120"
-                  value={marginTopMm}
-                  onChange={(e) => setMarginTopMm(parseInt(e.target.value) || 0)}
-                  className="w-14 px-2 py-1 rounded-lg border border-slate-300 text-xs font-mono font-bold text-center"
-                />
-                <span>mm</span>
+              <div className="flex items-center space-x-3 text-xs text-slate-600 mr-2">
+                <div className="flex items-center space-x-1">
+                  <span>Top:</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="120"
+                    value={marginTopMm}
+                    onChange={(e) => setMarginTopMm(parseInt(e.target.value) || 0)}
+                    className="w-12 px-1.5 py-1 rounded-lg border border-slate-300 text-xs font-mono font-bold text-center"
+                  />
+                  <span>mm</span>
+                </div>
+                <div className="flex items-center space-x-1">
+                  <span>Bottom:</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="80"
+                    value={bottomMarginMm}
+                    onChange={(e) => setBottomMarginMm(parseInt(e.target.value) || 0)}
+                    className="w-12 px-1.5 py-1 rounded-lg border border-slate-300 text-xs font-mono font-bold text-center"
+                  />
+                  <span>mm</span>
+                </div>
               </div>
             )}
             <button
@@ -112,6 +131,7 @@ export const PrescriptionPrintModal: React.FC<PrescriptionPrintModalProps> = ({
             }`}
             style={{
               paddingTop: printMode === 'pad' ? `${marginTopMm}mm` : undefined,
+              paddingBottom: printMode === 'pad' ? `${bottomMarginMm}mm` : undefined,
             }}
           >
             <div>
@@ -151,6 +171,11 @@ export const PrescriptionPrintModal: React.FC<PrescriptionPrintModalProps> = ({
                     {clinic.address && (
                       <div className="max-w-[220px] text-right text-[11px] leading-tight text-slate-600">
                         {clinic.address}
+                      </div>
+                    )}
+                    {clinic.clinicTimings && (
+                      <div className="text-[11px] text-emerald-800 font-medium">
+                        {clinic.clinicTimings}
                       </div>
                     )}
                   </div>

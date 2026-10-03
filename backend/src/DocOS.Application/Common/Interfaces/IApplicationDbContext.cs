@@ -11,6 +11,10 @@ public interface IApplicationDbContext
     DbSet<Prescription> Prescriptions { get; }
     DbSet<PrescriptionItem> PrescriptionItems { get; }
     DbSet<Medicine> Medicines { get; }
+    DbSet<SubscriptionPlanMaster> SubscriptionPlans { get; }
+    DbSet<ClinicSubscription> ClinicSubscriptions { get; }
+    DbSet<ClinicPeriodUsage> ClinicPeriodUsages { get; }
+    DbSet<SubscriptionPaymentHistory> SubscriptionPayments { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

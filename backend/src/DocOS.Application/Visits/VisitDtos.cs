@@ -3,7 +3,8 @@ using DocOS.Domain.Enums;
 namespace DocOS.Application.Visits;
 
 public record AddToQueueRequest(
-    Guid PatientId
+    Guid PatientId,
+    string? DoctorId = null
 );
 
 public record RecordVitalsRequest(
@@ -42,6 +43,7 @@ public record PrescriptionItemDto(
 
 public record CompleteConsultationRequest(
     Guid VisitId,
+    string? DoctorId,
     string? ChiefComplaints,
     string? Diagnosis,
     string? ClinicalNotes,
@@ -60,6 +62,8 @@ public record VisitQueueDto(
     string MobileNumber,
     string? Allergies,
     string? MedicalHistory,
+    string? DoctorId,
+    string? DoctorName,
     int TokenNumber,
     VisitStatus Status,
     DateTime VisitDate,
@@ -80,7 +84,10 @@ public record ClinicLetterheadDto(
     string? Email,
     string? Address,
     string? LogoUrl,
-    int LetterheadMarginTopMm
+    int LetterheadMarginTopMm,
+    int PrintBottomMarginMm,
+    bool HideLetterheadOnPrint,
+    string? ClinicTimings
 );
 
 public record PrescriptionDetailDto(
@@ -94,6 +101,8 @@ public record PrescriptionDetailDto(
     string MobileNumber,
     string? BloodGroup,
     string? Allergies,
+    string DoctorId,
+    string DoctorName,
     DateTime PrescribedAt,
     DateTime? FollowUpDate,
     VitalsDto? Vitals,

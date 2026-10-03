@@ -5,4 +5,7 @@
     <Project Path="src/DocOS.Domain/DocOS.Domain.csproj" />
     <Project Path="src/DocOS.Infrastructure/DocOS.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/DocOS.Tests/DocOS.Tests.csproj" />
+  </Folder>
 </Solution>

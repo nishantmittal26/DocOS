@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { clinicsApi } from '../api/client';
+import { ClinicQuotaStatus } from '../types';
 import {
   Stethoscope,
   Users,
@@ -10,7 +12,14 @@ import {
   LogOut,
   UserPlus,
   ChevronDown,
-  KeyRound
+  KeyRound,
+  Building2,
+  Sparkles,
+  AlertTriangle,
+  AlertOctagon,
+  CreditCard,
+  ShieldCheck,
+  Clock,
 } from 'lucide-react';
 import { ChangePasswordModal } from './ChangePasswordModal';
 
@@ -19,11 +28,17 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ onOpenNewPatient }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, hasRole } = useAuth();
   const location = useLocation();
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Quota status for clinic staff
+  const [quota, setQuota] = useState<ClinicQuotaStatus | null>(null);
+
+  const isPlatformStaff = hasRole('PlatformAdmin') || hasRole('SalesAgent');
+  const isClinicStaff = !isPlatformStaff && !!user?.clinicId;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -35,6 +50,28 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenNewPatient }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Fetch current quota status for clinic staff
+  useEffect(() => {
+    if (!isClinicStaff) {
+      setQuota(null);
+      return;
+    }
+
+    const checkQuota = async () => {
+      try {
+        const data = await clinicsApi.getCurrentSubscriptionQuota();
+        setQuota(data);
+      } catch (err) {
+        // Silently catch quota fetch errors so navbar doesn't break
+        console.warn('Could not fetch subscription quota status', err);
+      }
+    };
+
+    checkQuota();
+    const interval = setInterval(checkQuota, 60000); // Check every 60s
+    return () => clearInterval(interval);
+  }, [isClinicStaff, location.pathname]);
+
   if (!user) return null;
 
   const isActive = (path: string) => location.pathname === path;
@@ -44,74 +81,129 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenNewPatient }) => {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-30 no-print">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            {/* Brand & Clinic Info */}
+            {/* Brand & Clinic/Platform Info */}
             <div className="flex items-center space-x-4">
-              <Link to="/" className="flex items-center space-x-3 group">
+              <Link
+                to={isPlatformStaff ? '/admin/clinics' : '/'}
+                className="flex items-center space-x-3 group"
+              >
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform">
-                  <Stethoscope className="w-5 h-5" />
+                  {isPlatformStaff ? (
+                    <Building2 className="w-5 h-5" />
+                  ) : (
+                    <Stethoscope className="w-5 h-5" />
+                  )}
                 </div>
                 <div>
                   <span className="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-1.5">
-                    DocOS <span className="text-xs bg-emerald-100 text-emerald-800 font-semibold px-2 py-0.5 rounded-full">OPD</span>
+                    DocOS{' '}
+                    <span
+                      className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                        hasRole('PlatformAdmin')
+                          ? 'bg-purple-100 text-purple-800'
+                          : hasRole('SalesAgent')
+                          ? 'bg-indigo-100 text-indigo-800'
+                          : 'bg-emerald-100 text-emerald-800'
+                      }`}
+                    >
+                      {hasRole('PlatformAdmin')
+                        ? 'Admin'
+                        : hasRole('SalesAgent')
+                        ? 'Sales'
+                        : 'OPD'}
+                    </span>
                   </span>
                   <span className="text-xs text-slate-700 block truncate max-w-[200px] sm:max-w-xs font-semibold">
-                    {user.clinicName}
+                    {isPlatformStaff
+                      ? hasRole('PlatformAdmin')
+                        ? 'Platform Administration'
+                        : 'Sales Agent Portal'
+                      : user.clinicName}
                   </span>
                 </div>
               </Link>
 
               {/* Navigation links */}
               <nav className="hidden md:flex items-center space-x-1 pl-6">
-                <Link
-                  to="/"
-                  className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive('/')
-                      ? 'bg-emerald-50 text-emerald-700'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
-                >
-                  <Calendar className="w-4 h-4" />
-                  <span>OPD Queue</span>
-                </Link>
-                <Link
-                  to="/history"
-                  className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive('/history')
-                      ? 'bg-emerald-50 text-emerald-700'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
-                >
-                  <History className="w-4 h-4" />
-                  <span>OPD History</span>
-                </Link>
-                <Link
-                  to="/patients"
-                  className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive('/patients')
-                      ? 'bg-emerald-50 text-emerald-700'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
-                >
-                  <Users className="w-4 h-4" />
-                  <span>Patients</span>
-                </Link>
-                <Link
-                  to="/settings"
-                  className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
-                    isActive('/settings')
-                      ? 'bg-emerald-50 text-emerald-700'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                  }`}
-                >
-                  <Settings className="w-4 h-4" />
-                  <span>Settings & Formulary</span>
-                </Link>
+                {isPlatformStaff ? (
+                  <>
+                    <Link
+                      to="/admin/clinics"
+                      className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        isActive('/admin/clinics')
+                          ? 'bg-emerald-50 text-emerald-700 font-bold'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                      }`}
+                    >
+                      <Building2 className="w-4 h-4" />
+                      <span>Clinics Directory</span>
+                    </Link>
+                    <Link
+                      to="/admin/onboard-doctor"
+                      className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        isActive('/admin/onboard-doctor')
+                          ? 'bg-emerald-50 text-emerald-700 font-bold'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                      }`}
+                    >
+                      <UserPlus className="w-4 h-4" />
+                      <span>Onboard Clinic</span>
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      to="/"
+                      className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        isActive('/')
+                          ? 'bg-emerald-50 text-emerald-700'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                      }`}
+                    >
+                      <Calendar className="w-4 h-4" />
+                      <span>OPD Queue</span>
+                    </Link>
+                    <Link
+                      to="/history"
+                      className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        isActive('/history')
+                          ? 'bg-emerald-50 text-emerald-700'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                      }`}
+                    >
+                      <History className="w-4 h-4" />
+                      <span>OPD History</span>
+                    </Link>
+                    <Link
+                      to="/patients"
+                      className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        isActive('/patients')
+                          ? 'bg-emerald-50 text-emerald-700'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                      }`}
+                    >
+                      <Users className="w-4 h-4" />
+                      <span>Patients</span>
+                    </Link>
+                    <Link
+                      to="/settings"
+                      className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        isActive('/settings')
+                          ? 'bg-emerald-50 text-emerald-700'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                      }`}
+                    >
+                      <Settings className="w-4 h-4" />
+                      <span>Settings & Formulary</span>
+                    </Link>
+                  </>
+                )}
               </nav>
             </div>
 
             {/* Actions & User Profile */}
             <div className="flex items-center space-x-3">
-              {onOpenNewPatient && (
+              {isClinicStaff && onOpenNewPatient && (
                 <button
                   onClick={onOpenNewPatient}
                   className="inline-flex items-center space-x-2 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg shadow-sm shadow-emerald-600/20 transition-all hover:shadow"
@@ -131,18 +223,31 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenNewPatient }) => {
                   <div className="hidden sm:block text-right">
                     <div className="text-sm font-semibold text-slate-800 flex items-center justify-end gap-1.5">
                       <span>{user.fullName}</span>
-                      {user.role === 'Doctor' ? (
-                        <span className="text-[11px] bg-indigo-100 text-indigo-700 font-bold px-2 py-0.5 rounded-full">
-                          Doctor
-                        </span>
-                      ) : (
-                        <span className="text-[11px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full">
-                          Assistant
-                        </span>
-                      )}
+                      <div className="flex items-center gap-1">
+                        {user.roles?.map((r) => (
+                          <span
+                            key={r}
+                            className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                              r === 'Doctor'
+                                ? 'bg-indigo-100 text-indigo-700'
+                                : r === 'ClinicAdmin'
+                                ? 'bg-purple-100 text-purple-700'
+                                : r === 'PlatformAdmin'
+                                ? 'bg-amber-100 text-amber-800'
+                                : r === 'SalesAgent'
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-slate-100 text-slate-700'
+                            }`}
+                          >
+                            {r}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                     <div className="text-xs text-slate-600 font-medium">
-                      {user.role === 'Doctor' && user.regNumber ? `Reg: ${user.regNumber}` : user.email}
+                      {user.roles?.includes('Doctor') && user.regNumber
+                        ? `Reg: ${user.regNumber}`
+                        : user.email}
                     </div>
                   </div>
 
@@ -162,21 +267,36 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenNewPatient }) => {
                   <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-slate-200/90 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
                     {/* User profile header inside dropdown */}
                     <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50">
-                      <p className="text-sm font-bold text-slate-900 leading-tight">{user.fullName}</p>
-                      <p className="text-xs text-slate-500 font-medium truncate mt-0.5">{user.email}</p>
-                      <div className="flex items-center gap-1.5 mt-2">
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 truncate max-w-[130px]">
-                          {user.clinicName}
-                        </span>
-                        {user.role === 'Doctor' ? (
-                          <span className="text-[10px] bg-indigo-100 text-indigo-700 font-bold px-2 py-0.5 rounded-full">
-                            Doctor
-                          </span>
-                        ) : (
-                          <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded-full">
-                            Assistant
+                      <p className="text-sm font-bold text-slate-900 leading-tight">
+                        {user.fullName}
+                      </p>
+                      <p className="text-xs text-slate-500 font-medium truncate mt-0.5">
+                        {user.email}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-1 mt-2">
+                        {user.clinicName && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 truncate max-w-[130px]">
+                            {user.clinicName}
                           </span>
                         )}
+                        {user.roles?.map((r) => (
+                          <span
+                            key={r}
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              r === 'Doctor'
+                                ? 'bg-indigo-100 text-indigo-700'
+                                : r === 'ClinicAdmin'
+                                ? 'bg-purple-100 text-purple-700'
+                                : r === 'PlatformAdmin'
+                                ? 'bg-amber-100 text-amber-800'
+                                : r === 'SalesAgent'
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-slate-100 text-slate-700'
+                            }`}
+                          >
+                            {r}
+                          </span>
+                        ))}
                       </div>
                     </div>
 
@@ -214,7 +334,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenNewPatient }) => {
                 )}
               </div>
 
-              {/* Preserved Standalone Logout Icon Button */}
+              {/* Standalone Logout Icon Button */}
               <button
                 onClick={logout}
                 title="Logout"
@@ -226,6 +346,65 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenNewPatient }) => {
           </div>
         </div>
       </header>
+
+      {/* Quota & Subscription Warning Banner (Phase 2B Requirement) */}
+      {isClinicStaff && quota && (
+        <>
+          {/* Hard Quota Exceeded or Suspended Alert */}
+          {(quota.isQuotaExceeded || quota.isSuspended || !quota.canIssueTokens) && (
+            <div className="bg-rose-600 text-white px-4 py-2.5 text-xs font-bold shadow-sm no-print animate-in slide-in-from-top-2">
+              <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <AlertOctagon className="w-4 h-4 flex-shrink-0 text-white" />
+                  <span>
+                    {quota.isSuspended
+                      ? '⚠️ Account Suspended: Your clinic subscription has lapsed past grace period. New patient check-ins are paused. Past records and prescriptions remain accessible.'
+                      : `⚠️ Quota Exhausted: Your monthly quota of ${quota.monthlyQuota} visits plus the 20-visit buffer has been fully used (${quota.visitsConducted} visits completed). New patient check-ins are paused. Past visits and clinical records remain readable.`}
+                  </span>
+                </div>
+                <span className="text-[11px] underline opacity-90 cursor-default whitespace-nowrap">
+                  Contact Support to Upgrade
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Buffer Warning Banner (+20 soft buffer) */}
+          {quota.canIssueTokens && quota.isWithinBuffer && (
+            <div className="bg-amber-500 text-amber-950 px-4 py-2 text-xs font-bold shadow-sm no-print animate-in slide-in-from-top-1">
+              <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0 text-amber-950" />
+                  <span>
+                    Visit Quota Reached: You have completed {quota.visitsConducted} visits ({quota.monthlyQuota} monthly quota). You are currently using your grace buffer: <span className="underline">{quota.remainingBufferVisits} buffer visits remaining</span> before token issuance pauses.
+                  </span>
+                </div>
+                <span className="text-[11px] text-amber-900 whitespace-nowrap">
+                  Grace Buffer Active
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Grace Period Days Warning Banner */}
+          {quota.canIssueTokens && !quota.isWithinBuffer && quota.isGracePeriod && (
+            <div className="bg-amber-100 border-b border-amber-200 text-amber-900 px-4 py-2 text-xs font-semibold shadow-sm no-print">
+              <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 flex-shrink-0 text-amber-700" />
+                  <span>
+                    Subscription Grace Period: Your billing cycle ended on{' '}
+                    {new Date(quota.periodEnd).toLocaleDateString('en-IN')}. Please contact your administrator to renew your plan.
+                  </span>
+                </div>
+                <span className="text-[11px] font-bold text-amber-800">
+                  Renewal Needed
+                </span>
+              </div>
+            </div>
+          )}
+        </>
+      )}
 
       {/* Change Password Modal */}
       <ChangePasswordModal

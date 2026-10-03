@@ -142,17 +142,7 @@ erDiagram
         nvarchar Manufacturer
         bit IsCustom
     }
-    Patients {
-        uniqueidentifier Id PK
-        uniqueidentifier ClinicId FK
-        nvarchar PatientUid
-        int Age
-        nvarchar Allergies
-    }
     Clinics ||--o{ AspNetUsers : "clinic staff"
-    Clinics ||--o{ Patients : "registers"
-    Patients ||--o{ Visits : "attends"
-    Patients ||--o{ Prescriptions : "receives"
     AspNetUsers }o--o{ AspNetRoles : "AspNetUserRoles"
     Clinics ||--o{ Visits : "queue"
     Clinics |o--o{ Medicines : "null ClinicId is global"
@@ -325,55 +315,13 @@ Search returns rows where `ClinicId` is null or `ClinicId` equals the caller’s
 
 ```mermaid
 erDiagram
-    Clinics {
-        uniqueidentifier Id PK
-        nvarchar OnboardedByUserId FK
-        nvarchar SalesNotes
-    }
-    SubscriptionPlanMaster {
-        uniqueidentifier Id PK
-        nvarchar PlanCode UK
-        nvarchar Tier
-        bit IsUnlimitedVisits
-        int DefaultMonthlyVisits
-        int MaxDoctors
-        decimal PriceINR
-        bit HasCustomVitals
-        bit HasLabModule
-    }
-    ClinicSubscription {
-        uniqueidentifier Id PK
-        uniqueidentifier ClinicId UK
-        uniqueidentifier PlanId FK
-        int MonthlyVisitQuota
-        int AdditionalTopUpVisits
-        int MaxDoctorsOverride
-        nvarchar Status
-        datetime2 CurrentPeriodStart
-        datetime2 CurrentPeriodEnd
-        int GracePeriodDays
-    }
-    ClinicPeriodUsage {
-        uniqueidentifier Id PK
-        uniqueidentifier ClinicId FK
-        uniqueidentifier SubscriptionId FK
-        datetime2 PeriodStart
-        datetime2 PeriodEnd
-        int VisitsConducted
-    }
-    SubscriptionPaymentHistory {
-        uniqueidentifier Id PK
-        uniqueidentifier SubscriptionId FK
-        nvarchar InvoiceNumber UK
-        nvarchar PaymentMethod
-        nvarchar TransactionReference
-    }
     AspNetUsers |o--o{ Clinics : "OnboardedByUserId"
-    Clinics ||--|| ClinicSubscription : "one row"
+    Clinics ||--|| ClinicSubscription : "one subscription"
     SubscriptionPlanMaster ||--o{ ClinicSubscription : "plan"
-    ClinicSubscription ||--o{ ClinicPeriodUsage : "period"
+    ClinicSubscription ||--o{ ClinicPeriodUsage : "period counters"
     Clinics ||--o{ ClinicPeriodUsage : "usage"
-    ClinicSubscription ||--o{ SubscriptionPaymentHistory : "SaaS invoice"
+    ClinicSubscription ||--o{ SubscriptionPaymentHistory : "SaaS invoices"
+    Clinics ||--o{ SubscriptionPaymentHistory : "billed"
 ```
 
 ### 4.2 Columns added to `Clinics`
@@ -405,7 +353,7 @@ erDiagram
 
 ### 4.4 `ClinicSubscription`
 
-One row per clinic. Lifecycle status lives here. A clinic created in 2A receives this row when 2B is applied.
+One row per clinic. Lifecycle status lives here.
 
 | Column | Type | Null | Notes |
 | :--- | :--- | :---: | :--- |
@@ -470,35 +418,7 @@ SaaS invoices from the platform to the clinic.
 
 ```mermaid
 erDiagram
-    VitalMaster {
-        uniqueidentifier Id PK
-        uniqueidentifier ClinicId FK
-        nvarchar Code
-        nvarchar InputType
-        nvarchar PairGroup
-        decimal NormalRangeMin
-        decimal NormalRangeMax
-    }
-    ClinicVitalPreference {
-        uniqueidentifier Id PK
-        uniqueidentifier ClinicId FK
-        uniqueidentifier VitalMasterId FK
-        bit IsEnabled
-        bit IsMandatory
-        int DisplayOrder
-        decimal NormalRangeMinOverride
-        decimal NormalRangeMaxOverride
-    }
-    VisitVitals {
-        uniqueidentifier Id PK
-        uniqueidentifier VisitId FK
-        uniqueidentifier VitalMasterId FK
-        nvarchar ValueText
-        decimal ValueNumeric
-        nvarchar UnitSnapshot
-        bit IsAbnormal
-    }
-    Clinics |o--o{ VitalMaster : "null ClinicId is global"
+    Clinics ||--o{ VitalMaster : "custom vitals"
     Clinics ||--o{ ClinicVitalPreference : "preferences"
     VitalMaster ||--o{ ClinicVitalPreference : "defined by"
     Visits ||--o{ VisitVitals : "readings"
@@ -506,6 +426,8 @@ erDiagram
     VitalMaster ||--o{ VisitVitals : "which vital"
     AspNetUsers |o--o{ VisitVitals : "RecordedByUserId"
 ```
+
+Global masters have null `VitalMaster.ClinicId`.
 
 ### 5.2 `VitalMaster`
 
@@ -589,65 +511,23 @@ After the backfill, print and queue read `VisitVitals`, writers stop using the n
 
 ```mermaid
 erDiagram
-    LabTestPanel {
-        uniqueidentifier Id PK
-        uniqueidentifier ClinicId FK
-        nvarchar Name
-    }
-    LabTestPanelItem {
-        uniqueidentifier Id PK
-        uniqueidentifier LabTestPanelId FK
-        uniqueidentifier LabTestMasterId FK
-    }
-    PrescriptionLabOrders {
-        uniqueidentifier Id PK
-        uniqueidentifier PrescriptionId FK
-        uniqueidentifier LabTestMasterId FK
-        nvarchar Status
-    }
-    DoctorMedicineFavorite {
-        uniqueidentifier Id PK
-        nvarchar UserId FK
-        uniqueidentifier MedicineId FK
-    }
-    VisitPayment {
-        uniqueidentifier Id PK
-        uniqueidentifier VisitId UK
-        uniqueidentifier ClinicId FK
-        decimal Amount
-        nvarchar Method
-    }
-    AuditLogs {
-        uniqueidentifier Id PK
-        uniqueidentifier ClinicId FK
-        nvarchar Action
-        nvarchar ChangesJson
-    }
-    Prescriptions {
-        uniqueidentifier Id PK
-        nvarchar PdfShareToken
-        datetime2 ExpiresAt
-        bit IsPrinted
-        bit IsCurrent
-        uniqueidentifier PreviousPrescriptionId FK
-    }
-    Clinics ||--o{ LabTestPanel : "clinic panels"
-    Clinics |o--o{ LabTestMaster : "null ClinicId is global"
+    Clinics ||--o{ LabTestMaster : "custom tests"
+    Clinics ||--o{ LabTestPanel : "panels"
     LabTestPanel ||--o{ LabTestPanelItem : "includes"
     LabTestMaster ||--o{ LabTestPanelItem : "test"
     Prescriptions ||--o{ PrescriptionLabOrders : "orders"
     LabTestMaster ||--o{ PrescriptionLabOrders : "ordered test"
-    Clinics |o--o{ AdviceTemplateMaster : "null ClinicId is global"
-    AdviceTemplateMaster |o--o{ PrescriptionAdvice : "source"
+    Clinics ||--o{ AdviceTemplateMaster : "custom advice"
     Prescriptions ||--o{ PrescriptionAdvice : "snippets"
-    AspNetUsers ||--o{ VisitPayment : "collected by"
-    AspNetUsers |o--o{ AuditLogs : "actor"
-    AspNetUsers ||--o{ DoctorMedicineFavorite : "per doctor"
+    AdviceTemplateMaster |o--o{ PrescriptionAdvice : "source template"
+    AspNetUsers ||--o{ DoctorMedicineFavorite : "stars"
     Medicines ||--o{ DoctorMedicineFavorite : "starred"
     Visits ||--o| VisitPayment : "OPD fee"
-    Visits ||--o{ Prescriptions : "one IsCurrent"
+    Clinics ||--o{ VisitPayment : "collections"
+    AspNetUsers ||--o{ VisitPayment : "collected by"
+    Clinics |o--o{ AuditLogs : "clinic actions"
+    AspNetUsers |o--o{ AuditLogs : "actor"
     Prescriptions |o--o| Prescriptions : "PreviousPrescriptionId"
-    Clinics |o--o{ AuditLogs : "null ClinicId is platform"
 ```
 
 ### 6.2 `LabTestMaster`

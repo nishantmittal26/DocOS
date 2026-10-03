@@ -17,15 +17,20 @@ public static class DependencyInjection
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        // PostgreSQL Database Configuration
+        // SQL Server Database Configuration
         var connectionString = configuration.GetConnectionString("DefaultConnection");
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             connectionString = configuration["ConnectionStrings:DefaultConnection"];
         }
 
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException("Database connection string 'DefaultConnection' is not configured.");
+        }
+
         services.AddDbContext<ApplicationDbContext>(options =>
-            options.UseNpgsql(connectionString, b =>
+            options.UseSqlServer(connectionString, b =>
                 b.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName)));
 
         services.AddScoped<IApplicationDbContext>(provider =>
@@ -43,10 +48,13 @@ public static class DependencyInjection
         .AddRoles<IdentityRole>()
         .AddEntityFrameworkStores<ApplicationDbContext>();
 
-        // JWT Authentication Configuration
-        var secretKey = string.IsNullOrWhiteSpace(configuration["Jwt:Secret"]) 
-            ? "DocOS_Super_Secret_Healthcare_Encryption_Key_2026_Doctor_App!_MustBeLongEnoughForHMAC256" 
-            : configuration["Jwt:Secret"]!;
+        // JWT Authentication Configuration - Auth Hardening (No in-code fallback secret)
+        var secretKey = configuration["Jwt:Secret"];
+        if (string.IsNullOrWhiteSpace(secretKey))
+        {
+            throw new InvalidOperationException("JWT Secret is not configured in application settings. Please provide a valid secret in configuration.");
+        }
+
         var issuer = configuration["Jwt:Issuer"] ?? "DocOS.API";
         var audience = configuration["Jwt:Audience"] ?? "DocOS.Client";
 

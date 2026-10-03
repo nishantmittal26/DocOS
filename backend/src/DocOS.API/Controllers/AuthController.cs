@@ -1,6 +1,7 @@
 using DocOS.Application.Auth;
 using DocOS.Application.Auth.Commands;
 using DocOS.Application.Common.Interfaces;
+using DocOS.Domain.Common;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -37,10 +38,59 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("register-staff")]
-    [Authorize(Roles = "Doctor")]
-    public async Task<ActionResult<bool>> RegisterStaff([FromBody] RegisterStaffRequest request)
+    [Authorize(Roles = $"{Roles.ClinicAdmin},{Roles.Doctor}")]
+    public async Task<ActionResult<bool>> RegisterStaff([FromBody] InviteStaffRequest request)
     {
-        var result = await _mediator.Send(new RegisterStaffCommand(request));
+        var result = await _mediator.Send(new InviteStaffCommand(request));
+        return Ok(result);
+    }
+
+    [HttpPost("staff/invite")]
+    [Authorize(Roles = $"{Roles.ClinicAdmin}")]
+    public async Task<ActionResult<bool>> InviteStaff([FromBody] InviteStaffRequest request)
+    {
+        var result = await _mediator.Send(new InviteStaffCommand(request));
+        return Ok(result);
+    }
+
+    [HttpPost("staff/toggle-active")]
+    [Authorize(Roles = $"{Roles.ClinicAdmin}")]
+    public async Task<ActionResult<bool>> ToggleStaffActive([FromBody] ToggleStaffActiveRequest request)
+    {
+        var result = await _mediator.Send(new ToggleStaffActiveCommand(request));
+        return Ok(result);
+    }
+
+    [HttpGet("staff")]
+    [Authorize(Roles = $"{Roles.ClinicAdmin},{Roles.Doctor}")]
+    public async Task<ActionResult<List<StaffMemberDto>>> GetClinicStaff()
+    {
+        var result = await _mediator.Send(new GetClinicStaffQuery());
+        return Ok(result);
+    }
+
+    [HttpGet("doctors")]
+    [Authorize]
+    public async Task<ActionResult<List<DoctorProfileDto>>> GetClinicDoctors()
+    {
+        var result = await _mediator.Send(new GetClinicDoctorsQuery());
+        return Ok(result);
+    }
+
+    [HttpGet("doctor-profile")]
+    [Authorize]
+    public async Task<ActionResult<DoctorProfileDto?>> GetDoctorProfile([FromQuery] string? userId)
+    {
+        var result = await _mediator.Send(new GetDoctorProfileQuery(userId));
+        if (result == null) return NotFound();
+        return Ok(result);
+    }
+
+    [HttpPut("doctor-profile")]
+    [Authorize(Roles = $"{Roles.Doctor},{Roles.ClinicAdmin}")]
+    public async Task<ActionResult<bool>> UpdateDoctorProfile([FromBody] UpdateDoctorProfileRequest request)
+    {
+        var result = await _mediator.Send(new UpdateDoctorProfileCommand(request));
         return Ok(result);
     }
 
@@ -61,6 +111,7 @@ public class AuthController : ControllerBase
             userId = _currentUser.UserId,
             clinicId = _currentUser.ClinicId,
             role = _currentUser.Role,
+            roles = _currentUser.Roles,
             isAuthenticated = _currentUser.IsAuthenticated
         });
     }

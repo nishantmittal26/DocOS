@@ -10,6 +10,8 @@ interface AuthContextType {
   registerClinic: (data: any) => Promise<void>;
   logout: () => void;
   updateUserClinicInfo: (data: Partial<AuthResponse>) => void;
+  hasRole: (role: string) => boolean;
+  roles: string[];
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -17,7 +19,17 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AuthResponse | null>(() => {
     const saved = localStorage.getItem('docos_user');
-    return saved ? JSON.parse(saved) : null;
+    if (!saved) return null;
+    try {
+      const parsed = JSON.parse(saved);
+      // Ensure roles is an array
+      if (!parsed.roles) {
+        parsed.roles = parsed.role ? [parsed.role] : [];
+      }
+      return parsed;
+    } catch {
+      return null;
+    }
   });
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -35,6 +47,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (credentials: { email: string; password: string }) => {
     const res = await authApi.login(credentials);
+    if (!res.roles && (res as any).role) {
+      res.roles = [(res as any).role];
+    }
     localStorage.setItem('docos_token', res.token);
     localStorage.setItem('docos_user', JSON.stringify(res));
     setUser(res);
@@ -42,6 +57,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const registerClinic = async (data: any) => {
     const res = await authApi.registerClinic(data);
+    if (!res.roles && (res as any).role) {
+      res.roles = [(res as any).role];
+    }
     localStorage.setItem('docos_token', res.token);
     localStorage.setItem('docos_user', JSON.stringify(res));
     setUser(res);
@@ -61,6 +79,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const roles = user?.roles ?? [];
+
+  const hasRole = (role: string): boolean => {
+    return roles.includes(role);
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -71,6 +95,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         registerClinic,
         logout,
         updateUserClinicInfo,
+        hasRole,
+        roles,
       }}
     >
       {children}

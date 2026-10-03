@@ -1,10 +1,14 @@
 using DocOS.Application.Visits;
+using DocOS.Domain.Common;
 using DocOS.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DocOS.API.Controllers;
+
+public record AssignDoctorRequest(string DoctorId);
+public record UpdateStatusRequest(VisitStatus Status, string? DoctorId = null);
 
 [ApiController]
 [Route("api/[controller]")]
@@ -21,7 +25,21 @@ public class VisitsController : ControllerBase
     [HttpPost("queue")]
     public async Task<ActionResult<VisitQueueDto>> AddToQueue([FromBody] AddToQueueRequest request)
     {
-        var result = await _mediator.Send(new AddToQueueCommand(request.PatientId));
+        var result = await _mediator.Send(new AddToQueueCommand(request.PatientId, request.DoctorId));
+        return Ok(result);
+    }
+
+    [HttpPut("{id:guid}/status")]
+    public async Task<ActionResult<bool>> UpdateStatus(Guid id, [FromBody] UpdateStatusRequest request)
+    {
+        var result = await _mediator.Send(new UpdateVisitStatusCommand(id, request.Status, request.DoctorId));
+        return Ok(result);
+    }
+
+    [HttpPut("{id:guid}/assign-doctor")]
+    public async Task<ActionResult<bool>> AssignDoctor(Guid id, [FromBody] AssignDoctorRequest request)
+    {
+        var result = await _mediator.Send(new AssignDoctorCommand(id, request.DoctorId));
         return Ok(result);
     }
 
@@ -40,9 +58,9 @@ public class VisitsController : ControllerBase
     }
 
     [HttpGet("queue/today")]
-    public async Task<ActionResult<List<VisitQueueDto>>> GetTodayQueue()
+    public async Task<ActionResult<List<VisitQueueDto>>> GetTodayQueue([FromQuery] string? doctorId = null)
     {
-        var result = await _mediator.Send(new GetTodayQueueQuery());
+        var result = await _mediator.Send(new GetTodayQueueQuery(doctorId));
         return Ok(result);
     }
 
@@ -52,10 +70,11 @@ public class VisitsController : ControllerBase
         [FromQuery] DateTime? toDate,
         [FromQuery] string? search,
         [FromQuery] VisitStatus? status,
+        [FromQuery] string? doctorId = null,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 100)
     {
-        var result = await _mediator.Send(new GetVisitHistoryQuery(fromDate, toDate, search, status, page, pageSize));
+        var result = await _mediator.Send(new GetVisitHistoryQuery(fromDate, toDate, search, status, doctorId, page, pageSize));
         return Ok(result);
     }
 
@@ -67,7 +86,7 @@ public class VisitsController : ControllerBase
     }
 
     [HttpPost("complete")]
-    [Authorize(Roles = "Doctor")]
+    [Authorize(Roles = $"{Roles.Doctor},{Roles.ClinicAdmin}")]
     public async Task<ActionResult<PrescriptionDetailDto>> CompleteConsultation([FromBody] CompleteConsultationRequest request)
     {
         var result = await _mediator.Send(new CompleteConsultationCommand(request));

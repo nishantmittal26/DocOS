@@ -3,12 +3,22 @@ import { showGlobalLoading, hideGlobalLoading } from '../context/LoadingContext'
 import {
   AuthResponse,
   ClinicProfile,
+  DoctorProfile,
   Medicine,
   Patient,
   PatientSearchResult,
   PrescriptionDetail,
+  StaffMember,
   VisitQueueItem,
   Vitals,
+  SubscriptionPlan,
+  OnboardClinicRequest,
+  OnboardClinicResponse,
+  AdminClinicItem,
+  ClinicSubscriptionDetail,
+  UpdateClinicSubscriptionRequest,
+  ClinicQuotaStatus,
+  SubscriptionPayment,
 } from '../types';
 
 const api = axios.create({
@@ -68,18 +78,52 @@ export const authApi = {
     email: string;
     password: string;
     address?: string;
+    clinicTimings?: string;
+    consultationFee?: number;
   }) => {
     const res = await api.post<AuthResponse>('/auth/register-clinic', data);
     return res.data;
   },
-  registerStaff: async (data: {
+  inviteStaff: async (data: {
     fullName: string;
     email: string;
-    phone: string;
+    phone?: string;
     password: string;
     role: string;
+    qualifications?: string;
+    regNumber?: string;
+    specialization?: string;
+    consultationFee?: number;
   }) => {
-    const res = await api.post<boolean>('/auth/register-staff', data);
+    const res = await api.post<boolean>('/auth/staff/invite', data);
+    return res.data;
+  },
+  toggleStaffActive: async (data: { userId: string; isActive: boolean }) => {
+    const res = await api.post<boolean>('/auth/staff/toggle-active', data);
+    return res.data;
+  },
+  getClinicStaff: async () => {
+    const res = await api.get<StaffMember[]>('/auth/staff');
+    return res.data;
+  },
+  getClinicDoctors: async () => {
+    const res = await api.get<DoctorProfile[]>('/auth/doctors');
+    return res.data;
+  },
+  getDoctorProfile: async (userId?: string) => {
+    const res = await api.get<DoctorProfile>('/auth/doctor-profile', {
+      params: userId ? { userId } : undefined,
+    });
+    return res.data;
+  },
+  updateDoctorProfile: async (data: {
+    fullName: string;
+    qualifications?: string;
+    medicalCouncilRegistrationNumber?: string;
+    speciality?: string;
+    consultationFee?: number;
+  }) => {
+    const res = await api.put<boolean>('/auth/doctor-profile', data);
     return res.data;
   },
   changePassword: async (data: { currentPassword: string; newPassword: string }) => {
@@ -120,8 +164,17 @@ export const patientsApi = {
 };
 
 export const visitsApi = {
-  addToQueue: async (patientId: string) => {
-    const res = await api.post<VisitQueueItem>('/visits/queue', { patientId });
+  addToQueue: async (param: string | { patientId: string; doctorId?: string }) => {
+    const payload = typeof param === 'string' ? { patientId: param } : param;
+    const res = await api.post<VisitQueueItem>('/visits/queue', payload);
+    return res.data;
+  },
+  updateStatus: async (visitId: string, status: string, doctorId?: string) => {
+    const res = await api.put<boolean>(`/visits/${visitId}/status`, { status, doctorId });
+    return res.data;
+  },
+  assignDoctor: async (visitId: string, doctorId: string) => {
+    const res = await api.put<boolean>(`/visits/${visitId}/assign-doctor`, { doctorId });
     return res.data;
   },
   removeFromQueue: async (visitId: string) => {
@@ -132,8 +185,9 @@ export const visitsApi = {
     const res = await api.delete<boolean>(`/visits/${visitId}`);
     return res.data;
   },
-  getTodayQueue: async (silent: boolean = false) => {
+  getTodayQueue: async (doctorId?: string, silent: boolean = false) => {
     const res = await api.get<VisitQueueItem[]>('/visits/queue/today', {
+      params: doctorId ? { doctorId } : undefined,
       headers: silent ? { 'x-silent': 'true' } : undefined,
     });
     return res.data;
@@ -143,6 +197,7 @@ export const visitsApi = {
     toDate?: string;
     search?: string;
     status?: string;
+    doctorId?: string;
     page?: number;
     pageSize?: number;
   }) => {
@@ -155,6 +210,7 @@ export const visitsApi = {
   },
   completeConsultation: async (data: {
     visitId: string;
+    doctorId?: string;
     chiefComplaints?: string;
     diagnosis?: string;
     clinicalNotes?: string;
@@ -218,17 +274,63 @@ export const clinicsApi = {
   },
   updateLetterhead: async (data: {
     clinicName: string;
-    doctorName: string;
-    regNumber?: string;
-    qualifications?: string;
-    specialization?: string;
     phone: string;
     email?: string;
     address?: string;
     logoUrl?: string;
     letterheadMarginTopMm: number;
+    printBottomMarginMm?: number;
+    hideLetterheadOnPrint?: boolean;
+    clinicTimings?: string;
   }) => {
     const res = await api.put<ClinicProfile>('/clinics/letterhead', data);
+    return res.data;
+  },
+  getCurrentSubscriptionQuota: async () => {
+    const res = await api.get<ClinicQuotaStatus>('/clinics/subscription/current');
+    return res.data;
+  },
+};
+
+export const adminApi = {
+  getPlans: async () => {
+    const res = await api.get<SubscriptionPlan[]>('/admin/plans');
+    return res.data;
+  },
+  onboardClinic: async (data: OnboardClinicRequest) => {
+    const res = await api.post<OnboardClinicResponse>('/admin/onboard', data);
+    return res.data;
+  },
+  getClinics: async () => {
+    const res = await api.get<AdminClinicItem[]>('/admin/clinics');
+    return res.data;
+  },
+  getClinicSubscription: async (clinicId: string) => {
+    const res = await api.get<ClinicSubscriptionDetail>(`/admin/clinics/${clinicId}/subscription`);
+    return res.data;
+  },
+  updateClinicSubscription: async (clinicId: string, data: UpdateClinicSubscriptionRequest) => {
+    const res = await api.put<boolean>(`/admin/clinics/${clinicId}/subscription`, data);
+    return res.data;
+  },
+  addTopUpVisits: async (clinicId: string, additionalVisits: number) => {
+    const res = await api.post<boolean>(`/admin/clinics/${clinicId}/subscription/topup`, {
+      additionalVisits,
+    });
+    return res.data;
+  },
+  recordPayment: async (
+    clinicId: string,
+    data: {
+      invoiceNumber: string;
+      amount: number;
+      paymentMethod: string;
+      transactionReference?: string;
+      paymentDate: string;
+      status: string;
+    }
+  ) => {
+    const res = await api.post<boolean>(`/admin/clinics/${clinicId}/subscription/payments`, data);
     return res.data;
   },
 };

@@ -29,7 +29,14 @@ public class CurrentUserService : ICurrentUserService
         }
     }
 
-    public string? Role => User?.FindFirstValue(ClaimTypes.Role);
+    public string? Role => Roles.FirstOrDefault();
+
+    public IReadOnlyList<string> Roles => User?.FindAll(ClaimTypes.Role)
+        .Select(c => c.Value)
+        .Distinct()
+        .ToList() ?? new List<string>();
+
+    public bool IsInRole(string role) => User?.IsInRole(role) ?? false;
 
     public bool IsAuthenticated => User?.Identity?.IsAuthenticated ?? false;
 }

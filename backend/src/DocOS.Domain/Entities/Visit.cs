@@ -11,11 +11,14 @@ public class Visit : BaseEntity
     public Guid PatientId { get; set; }
     public Patient Patient { get; set; } = null!;
 
+    // Assigned Doctor (Phase 2A) - nvarchar(450) matching AspNetUsers.Id
+    public string? DoctorId { get; set; }
+
     public int TokenNumber { get; set; }
-    public DateTime VisitDate { get; set; } = DateTime.UtcNow;
+    public DateTime VisitDate { get; set; } = DateTime.UtcNow.Date;
     public VisitStatus Status { get; set; } = VisitStatus.Waiting;
 
-    // Vitals (captured by Receptionist / Assistant or Doctor)
+    // Vitals (captured by Receptionist / Assistant / Nurse or Doctor - preserved through 2A & 2B)
     public int? SystolicBp { get; set; } // mmHg
     public int? DiastolicBp { get; set; } // mmHg
     public int? PulseBpm { get; set; } // bpm

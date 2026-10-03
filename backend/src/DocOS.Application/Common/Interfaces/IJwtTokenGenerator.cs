@@ -2,5 +2,5 @@ namespace DocOS.Application.Common.Interfaces;
 
 public interface IJwtTokenGenerator
 {
-    string GenerateToken(string userId, string email, string fullName, Guid clinicId, string role);
+    string GenerateToken(string userId, string email, string fullName, Guid? clinicId, IEnumerable<string> roles);
 }

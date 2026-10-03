@@ -18,18 +18,53 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
     public DbSet<Prescription> Prescriptions => Set<Prescription>();
     public DbSet<PrescriptionItem> PrescriptionItems => Set<PrescriptionItem>();
     public DbSet<Medicine> Medicines => Set<Medicine>();
+    public DbSet<SubscriptionPlanMaster> SubscriptionPlans => Set<SubscriptionPlanMaster>();
+    public DbSet<ClinicSubscription> ClinicSubscriptions => Set<ClinicSubscription>();
+    public DbSet<ClinicPeriodUsage> ClinicPeriodUsages => Set<ClinicPeriodUsage>();
+    public DbSet<SubscriptionPaymentHistory> SubscriptionPayments => Set<SubscriptionPaymentHistory>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+
+        // ApplicationUser configuration
+        builder.Entity<ApplicationUser>(entity =>
+        {
+            entity.Property(u => u.FullName).HasMaxLength(150).IsRequired();
+            entity.Property(u => u.Qualifications).HasMaxLength(200);
+            entity.Property(u => u.MedicalCouncilRegistrationNumber).HasMaxLength(100);
+            entity.Property(u => u.Speciality).HasMaxLength(100);
+            entity.Property(u => u.ConsultationFee).HasPrecision(10, 2);
+            entity.Property(u => u.IsActive).HasDefaultValue(true);
+
+            entity.HasOne<Clinic>()
+                .WithMany()
+                .HasForeignKey(u => u.ClinicId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
 
         // Clinic configuration
         builder.Entity<Clinic>(entity =>
         {
             entity.HasKey(c => c.Id);
             entity.Property(c => c.Name).HasMaxLength(200).IsRequired();
-            entity.Property(c => c.DoctorName).HasMaxLength(150).IsRequired();
             entity.Property(c => c.Phone).HasMaxLength(20).IsRequired();
+            entity.Property(c => c.Email).HasMaxLength(256);
+            entity.Property(c => c.Address).HasMaxLength(500);
+            entity.Property(c => c.LogoUrl).HasMaxLength(500);
+            entity.Property(c => c.ClinicTimings).HasMaxLength(200);
+            entity.Property(c => c.LetterheadMarginTopMm).HasDefaultValue(60);
+            entity.Property(c => c.PrintBottomMarginMm).HasDefaultValue(0);
+            entity.Property(c => c.HideLetterheadOnPrint).HasDefaultValue(false);
+            entity.Property(c => c.PatientIdPrefix).HasMaxLength(20).IsRequired().HasDefaultValue("DOC");
+            entity.Property(c => c.LastPatientSequence).HasDefaultValue(0);
+            entity.Property(c => c.OnboardedByUserId).HasMaxLength(450);
+            entity.Property(c => c.SalesNotes).HasMaxLength(500);
+
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(c => c.OnboardedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         // Patient configuration
@@ -39,6 +74,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
             entity.Property(p => p.PatientUid).HasMaxLength(50).IsRequired();
             entity.Property(p => p.FullName).HasMaxLength(150).IsRequired();
             entity.Property(p => p.MobileNumber).HasMaxLength(20).IsRequired();
+            entity.Property(p => p.Email).HasMaxLength(256);
+            entity.Property(p => p.BloodGroup).HasMaxLength(10);
+            entity.Property(p => p.Address).HasMaxLength(300);
+            entity.Property(p => p.Allergies).HasMaxLength(500);
 
             entity.HasIndex(p => new { p.ClinicId, p.PatientUid }).IsUnique();
             entity.HasIndex(p => new { p.ClinicId, p.MobileNumber });
@@ -53,15 +92,18 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
         builder.Entity<Visit>(entity =>
         {
             entity.HasKey(v => v.Id);
+            entity.Property(v => v.DoctorId).HasMaxLength(450);
+            entity.Property(v => v.VisitDate).HasColumnType("date");
 
-            entity.Property(v => v.TemperatureF).HasPrecision(5, 2);
-            entity.Property(v => v.WeightKg).HasPrecision(5, 2);
-            entity.Property(v => v.HeightCm).HasPrecision(5, 2);
-            entity.Property(v => v.Bmi).HasPrecision(5, 2);
-            entity.Property(v => v.Sugar).HasMaxLength(50);
+            // Preserved vitals precision as per Phase 2 schema
+            entity.Property(v => v.TemperatureF).HasPrecision(12, 4);
+            entity.Property(v => v.WeightKg).HasPrecision(12, 4);
+            entity.Property(v => v.HeightCm).HasPrecision(12, 4);
+            entity.Property(v => v.Bmi).HasPrecision(12, 4);
+            entity.Property(v => v.Sugar).HasMaxLength(100);
+            entity.Property(v => v.Diagnosis).HasMaxLength(500);
 
-            entity.HasIndex(v => new { v.ClinicId, v.VisitDate });
-
+            // Foreign keys
             entity.HasOne(v => v.Clinic)
                 .WithMany(c => c.Visits)
                 .HasForeignKey(v => v.ClinicId)
@@ -70,18 +112,46 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
             entity.HasOne(v => v.Patient)
                 .WithMany(p => p.Visits)
                 .HasForeignKey(v => v.PatientId)
-                .OnDelete(DeleteBehavior.Cascade);
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(v => v.DoctorId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Phase 2A Indexes: Unique token index per (ClinicId, DoctorId, VisitDate, TokenNumber)
+            entity.HasIndex(v => new { v.ClinicId, v.DoctorId, v.VisitDate, v.TokenNumber })
+                .IsUnique()
+                .HasFilter("[DoctorId] IS NOT NULL");
+
+            entity.HasIndex(v => new { v.ClinicId, v.VisitDate, v.DoctorId, v.Status });
         });
 
         // Prescription configuration
         builder.Entity<Prescription>(entity =>
         {
             entity.HasKey(p => p.Id);
+            entity.Property(p => p.DoctorId).HasMaxLength(450).IsRequired();
 
             entity.HasOne(p => p.Visit)
                 .WithOne(v => v.Prescription)
                 .HasForeignKey<Prescription>(p => p.VisitId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(p => p.Patient)
+                .WithMany()
+                .HasForeignKey(p => p.PatientId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(p => p.Clinic)
+                .WithMany()
+                .HasForeignKey(p => p.ClinicId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(p => p.DoctorId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasMany(p => p.Items)
                 .WithOne(i => i.Prescription)
@@ -96,6 +166,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
             entity.Property(i => i.MedicineName).HasMaxLength(200).IsRequired();
             entity.Property(i => i.SaltComposition).HasMaxLength(300).IsRequired();
             entity.Property(i => i.Dosage).HasMaxLength(50).IsRequired();
+            entity.Property(i => i.Instructions).HasMaxLength(300);
         });
 
         // Medicine master configuration
@@ -104,10 +175,87 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
             entity.HasKey(m => m.Id);
             entity.Property(m => m.BrandName).HasMaxLength(200).IsRequired();
             entity.Property(m => m.SaltComposition).HasMaxLength(300).IsRequired();
+            entity.Property(m => m.Strength).HasMaxLength(100).IsRequired();
+            entity.Property(m => m.Manufacturer).HasMaxLength(150);
 
+            entity.HasIndex(m => new { m.ClinicId, m.BrandName });
             entity.HasIndex(m => m.BrandName);
             entity.HasIndex(m => m.SaltComposition);
             entity.HasIndex(m => m.ClinicId);
+        });
+
+        // SubscriptionPlanMaster configuration
+        builder.Entity<SubscriptionPlanMaster>(entity =>
+        {
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.PlanCode).HasMaxLength(50).IsRequired();
+            entity.Property(p => p.PlanName).HasMaxLength(150).IsRequired();
+            entity.Property(p => p.Tier).HasMaxLength(30).IsRequired();
+            entity.Property(p => p.PriceINR).HasPrecision(10, 2);
+            entity.Property(p => p.BillingCycle).HasMaxLength(20).IsRequired();
+
+            entity.HasIndex(p => p.PlanCode).IsUnique();
+        });
+
+        // ClinicSubscription configuration
+        builder.Entity<ClinicSubscription>(entity =>
+        {
+            entity.HasKey(s => s.Id);
+            entity.Property(s => s.Status).HasMaxLength(30).IsRequired();
+            entity.Property(s => s.Notes).HasMaxLength(500);
+
+            entity.HasIndex(s => s.ClinicId).IsUnique();
+
+            entity.HasOne(s => s.Clinic)
+                .WithOne(c => c.Subscription)
+                .HasForeignKey<ClinicSubscription>(s => s.ClinicId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(s => s.Plan)
+                .WithMany(p => p.Subscriptions)
+                .HasForeignKey(s => s.PlanId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ClinicPeriodUsage configuration
+        builder.Entity<ClinicPeriodUsage>(entity =>
+        {
+            entity.HasKey(u => u.Id);
+
+            entity.HasOne(u => u.Clinic)
+                .WithMany(c => c.PeriodUsages)
+                .HasForeignKey(u => u.ClinicId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(u => u.Subscription)
+                .WithMany(s => s.PeriodUsages)
+                .HasForeignKey(u => u.SubscriptionId)
+                .OnDelete(DeleteBehavior.Restrict); // Prevent cyclic cascade in SQL Server
+
+            entity.HasIndex(u => new { u.ClinicId, u.PeriodStart }).IsUnique();
+        });
+
+        // SubscriptionPaymentHistory configuration
+        builder.Entity<SubscriptionPaymentHistory>(entity =>
+        {
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.InvoiceNumber).HasMaxLength(50).IsRequired();
+            entity.Property(p => p.Amount).HasPrecision(10, 2);
+            entity.Property(p => p.PaymentMethod).HasMaxLength(20).IsRequired();
+            entity.Property(p => p.TransactionReference).HasMaxLength(100);
+            entity.Property(p => p.Status).HasMaxLength(20).IsRequired();
+
+            entity.HasIndex(p => p.InvoiceNumber).IsUnique();
+
+            entity.HasOne(p => p.Clinic)
+                .WithMany(c => c.SubscriptionPayments)
+                .HasForeignKey(p => p.ClinicId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(p => p.Subscription)
+                .WithMany(s => s.PaymentHistories)
+                .HasForeignKey(p => p.SubscriptionId)
+                .OnDelete(DeleteBehavior.Restrict); // Prevent cyclic cascade in SQL Server
         });
     }
 }

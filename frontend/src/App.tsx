@@ -10,6 +10,9 @@ import { OpdHistoryPage } from './pages/history/OpdHistoryPage';
 import { ConsultationRoomPage } from './pages/consultation/ConsultationRoomPage';
 import { PatientsPage } from './pages/patients/PatientsPage';
 import { SettingsPage } from './pages/settings/SettingsPage';
+import { OnboardDoctorPage } from './pages/admin/OnboardDoctorPage';
+import { AdminClinicsPage } from './pages/admin/AdminClinicsPage';
+import { ClinicSubscriptionPage } from './pages/admin/ClinicSubscriptionPage';
 
 // Automatically use HashRouter on GitHub Pages to prevent 404s on subpath page reloads
 const isGitHubPages = typeof window !== 'undefined' && window.location.hostname.endsWith('github.io');
@@ -17,7 +20,7 @@ const useHash = import.meta.env.VITE_ROUTER_MODE === 'hash' || isGitHubPages;
 const AppRouter = useHash ? HashRouter : BrowserRouter;
 
 const AppContent: React.FC = () => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, hasRole } = useAuth();
   const [isNewPatientOpen, setIsNewPatientOpen] = useState(false);
   const navigate = useNavigate();
 
@@ -33,37 +36,66 @@ const AppContent: React.FC = () => {
     return <LoginPage />;
   }
 
+  const isPlatformStaff = hasRole('PlatformAdmin') || hasRole('SalesAgent');
+  const isPlatformAdmin = hasRole('PlatformAdmin');
+
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col">
       <Navbar onOpenNewPatient={() => setIsNewPatientOpen(true)} />
 
       <main className="flex-1 pb-16">
         <Routes>
-          <Route
-            path="/"
-            element={<OpdQueuePage onOpenNewPatient={() => setIsNewPatientOpen(true)} />}
-          />
-          <Route path="/history" element={<OpdHistoryPage />} />
-          <Route
-            path="/patients"
-            element={<PatientsPage onOpenNewPatient={() => setIsNewPatientOpen(true)} />}
-          />
-          <Route path="/consultation/:visitId" element={<ConsultationRoomPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          {isPlatformStaff ? (
+            /* Platform Admin & Sales Agent Routes */
+            <>
+              <Route path="/" element={<Navigate to="/admin/clinics" replace />} />
+              <Route path="/admin/clinics" element={<AdminClinicsPage />} />
+              <Route path="/admin/onboard-doctor" element={<OnboardDoctorPage />} />
+              <Route
+                path="/admin/clinics/:clinicId/subscription"
+                element={
+                  isPlatformAdmin ? (
+                    <ClinicSubscriptionPage />
+                  ) : (
+                    <Navigate to="/admin/clinics" replace />
+                  )
+                }
+              />
+              <Route path="*" element={<Navigate to="/admin/clinics" replace />} />
+            </>
+          ) : (
+            /* Clinic Staff (Doctor, ClinicAdmin, Nurse, Receptionist) Routes */
+            <>
+              <Route
+                path="/"
+                element={<OpdQueuePage onOpenNewPatient={() => setIsNewPatientOpen(true)} />}
+              />
+              <Route path="/history" element={<OpdHistoryPage />} />
+              <Route
+                path="/patients"
+                element={<PatientsPage onOpenNewPatient={() => setIsNewPatientOpen(true)} />}
+              />
+              <Route path="/consultation/:visitId" element={<ConsultationRoomPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/admin/*" element={<Navigate to="/" replace />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </>
+          )}
         </Routes>
       </main>
 
-      {/* Global New Patient Registration Modal */}
-      <NewPatientModal
-        isOpen={isNewPatientOpen}
-        onClose={() => setIsNewPatientOpen(false)}
-        onPatientAdded={(_, queued) => {
-          if (queued) {
-            navigate('/');
-          }
-        }}
-      />
+      {/* Global New Patient Registration Modal (Clinic Staff only) */}
+      {!isPlatformStaff && (
+        <NewPatientModal
+          isOpen={isNewPatientOpen}
+          onClose={() => setIsNewPatientOpen(false)}
+          onPatientAdded={(_, queued) => {
+            if (queued) {
+              navigate('/');
+            }
+          }}
+        />
+      )}
     </div>
   );
 };

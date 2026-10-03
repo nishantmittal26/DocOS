@@ -1,4 +1,5 @@
 using DocOS.Application.Common.Interfaces;
+using DocOS.Domain.Common;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -24,7 +25,7 @@ public class ClinicHandlers :
     public async Task<ClinicProfileDto> Handle(GetClinicProfileQuery request, CancellationToken cancellationToken)
     {
         var clinicId = _currentUser.ClinicId
-            ?? throw new UnauthorizedAccessException("Active clinic context is required");
+            ?? throw new UnauthorizedAccessException("Active clinic context is required to access clinic records");
 
         var clinic = await _context.Clinics
             .AsNoTracking()
@@ -37,15 +38,14 @@ public class ClinicHandlers :
         return new ClinicProfileDto(
             clinic.Id,
             clinic.Name,
-            clinic.DoctorName,
-            clinic.RegNumber,
-            clinic.Qualifications,
-            clinic.Specialization,
             clinic.Phone,
             clinic.Email,
             clinic.Address,
             clinic.LogoUrl,
             clinic.LetterheadMarginTopMm,
+            clinic.PrintBottomMarginMm,
+            clinic.HideLetterheadOnPrint,
+            clinic.ClinicTimings,
             clinic.PatientIdPrefix,
             totalPatients
         );
@@ -54,11 +54,11 @@ public class ClinicHandlers :
     public async Task<ClinicProfileDto> Handle(UpdateClinicLetterheadCommand request, CancellationToken cancellationToken)
     {
         var clinicId = _currentUser.ClinicId
-            ?? throw new UnauthorizedAccessException("Active clinic context is required");
+            ?? throw new UnauthorizedAccessException("Active clinic context is required to access clinic records");
 
-        if (_currentUser.Role != "Doctor")
+        if (!_currentUser.IsInRole(Roles.ClinicAdmin) && !_currentUser.IsInRole(Roles.Doctor))
         {
-            throw new UnauthorizedAccessException("Only doctors can update clinic letterhead settings");
+            throw new UnauthorizedAccessException("Only clinic administrators or doctors can update clinic settings");
         }
 
         var clinic = await _context.Clinics
@@ -67,15 +67,14 @@ public class ClinicHandlers :
 
         var req = request.Request;
         clinic.Name = req.ClinicName.Trim();
-        clinic.DoctorName = req.DoctorName.Trim();
-        clinic.RegNumber = req.RegNumber?.Trim();
-        clinic.Qualifications = req.Qualifications?.Trim();
-        clinic.Specialization = req.Specialization?.Trim();
         clinic.Phone = req.Phone.Trim();
         clinic.Email = req.Email?.Trim();
         clinic.Address = req.Address?.Trim();
         clinic.LogoUrl = req.LogoUrl;
         clinic.LetterheadMarginTopMm = Math.Max(0, req.LetterheadMarginTopMm);
+        clinic.PrintBottomMarginMm = Math.Max(0, req.PrintBottomMarginMm);
+        clinic.HideLetterheadOnPrint = req.HideLetterheadOnPrint;
+        clinic.ClinicTimings = req.ClinicTimings?.Trim();
         clinic.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync(cancellationToken);
@@ -86,15 +85,14 @@ public class ClinicHandlers :
         return new ClinicProfileDto(
             clinic.Id,
             clinic.Name,
-            clinic.DoctorName,
-            clinic.RegNumber,
-            clinic.Qualifications,
-            clinic.Specialization,
             clinic.Phone,
             clinic.Email,
             clinic.Address,
             clinic.LogoUrl,
             clinic.LetterheadMarginTopMm,
+            clinic.PrintBottomMarginMm,
+            clinic.HideLetterheadOnPrint,
+            clinic.ClinicTimings,
             clinic.PatientIdPrefix,
             totalPatients
         );

@@ -148,15 +148,21 @@ app.MapGet("/", () => Results.Ok(new { status = "healthy", service = "DocOS.API"
 
 app.MapControllers();
 
-// Auto-migrate or ensure database exists & seed Indian Drug Formulary
+// Auto-migrate or ensure database exists & seed Indian Drug Formulary & Phase 2A Roles
 try
 {
     using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
 
-    logger.LogInformation("Applying EF Core migrations...");
+    logger.LogInformation("Applying EF Core migrations to SQL Server database...");
     await dbContext.Database.MigrateAsync();
+
+    logger.LogInformation("Seeding standard Phase 2A roles and default Platform Admin...");
+    await RoleSeeder.SeedRolesAsync(scope.ServiceProvider);
+
+    logger.LogInformation("Seeding standard Phase 2B SaaS subscription plans & backfilling clinic subscriptions...");
+    await SubscriptionPlanSeeder.SeedSubscriptionPlansAsync(dbContext, logger);
 
     var existingFormularyCount = await dbContext.Medicines.CountAsync(m => m.ClinicId == null);
     if (existingFormularyCount > 0)
@@ -173,7 +179,7 @@ try
 catch (Exception ex)
 {
     var logger = app.Services.GetRequiredService<ILogger<Program>>();
-    logger.LogWarning(ex, "Note: Database initialization deferred (PostgreSQL might not be reachable yet). Configure your Supabase/Postgres connection string in appsettings.json.");
+    logger.LogWarning(ex, "Note: Database initialization deferred (SQL Server might not be reachable yet). Configure your SQL Server connection string in appsettings.Local.json.");
 }
 
 app.Run();

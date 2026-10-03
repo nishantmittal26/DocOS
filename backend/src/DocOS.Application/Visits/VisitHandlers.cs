@@ -1,4 +1,5 @@
 using DocOS.Application.Common.Interfaces;
+using DocOS.Domain.Common;
 using DocOS.Domain.Entities;
 using DocOS.Domain.Enums;
 using MediatR;
@@ -6,11 +7,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DocOS.Application.Visits;
 
-public record AddToQueueCommand(Guid PatientId) : IRequest<VisitQueueDto>;
+public record AddToQueueCommand(Guid PatientId, string? DoctorId = null) : IRequest<VisitQueueDto>;
 
 public record RecordVitalsCommand(RecordVitalsRequest Request) : IRequest<bool>;
 
-public record GetTodayQueueQuery : IRequest<List<VisitQueueDto>>;
+public record UpdateVisitStatusCommand(Guid VisitId, VisitStatus Status, string? DoctorId = null) : IRequest<bool>;
+
+public record AssignDoctorCommand(Guid VisitId, string DoctorId) : IRequest<bool>;
+
+public record GetTodayQueueQuery(string? DoctorId = null) : IRequest<List<VisitQueueDto>>;
 
 public record CompleteConsultationCommand(CompleteConsultationRequest Request) : IRequest<PrescriptionDetailDto>;
 
@@ -21,6 +26,7 @@ public record GetVisitHistoryQuery(
     DateTime? ToDate = null,
     string? Search = null,
     VisitStatus? Status = null,
+    string? DoctorId = null,
     int Page = 1,
     int PageSize = 100
 ) : IRequest<List<VisitQueueDto>>;
@@ -32,6 +38,8 @@ public record DeleteVisitCommand(Guid VisitId) : IRequest<bool>;
 public class VisitHandlers :
     IRequestHandler<AddToQueueCommand, VisitQueueDto>,
     IRequestHandler<RecordVitalsCommand, bool>,
+    IRequestHandler<UpdateVisitStatusCommand, bool>,
+    IRequestHandler<AssignDoctorCommand, bool>,
     IRequestHandler<GetTodayQueueQuery, List<VisitQueueDto>>,
     IRequestHandler<CompleteConsultationCommand, PrescriptionDetailDto>,
     IRequestHandler<GetPrescriptionQuery, PrescriptionDetailDto?>,
@@ -41,32 +49,42 @@ public class VisitHandlers :
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUser;
+    private readonly IIdentityService _identityService;
 
-    public VisitHandlers(IApplicationDbContext context, ICurrentUserService currentUser)
+    public VisitHandlers(
+        IApplicationDbContext context,
+        ICurrentUserService currentUser,
+        IIdentityService identityService)
     {
         _context = context;
         _currentUser = currentUser;
+        _identityService = identityService;
     }
 
     public async Task<VisitQueueDto> Handle(AddToQueueCommand request, CancellationToken cancellationToken)
     {
         var clinicId = _currentUser.ClinicId
-            ?? throw new UnauthorizedAccessException("Active clinic context is required");
+            ?? throw new UnauthorizedAccessException("Active clinic context is required to access clinic clinical records");
 
         var patient = await _context.Patients
             .FirstOrDefaultAsync(p => p.Id == request.PatientId && p.ClinicId == clinicId, cancellationToken)
             ?? throw new InvalidOperationException("Patient not found in this clinic");
 
         var today = DateTime.UtcNow.Date;
-        var tomorrow = today.AddDays(1);
 
-        // Check if patient is already in today's OPD queue (Waiting or InConsultation)
+        // If DoctorId is specified, verify doctor exists or default to current user if doctor
+        var doctorId = request.DoctorId;
+        if (string.IsNullOrWhiteSpace(doctorId) && _currentUser.IsInRole(Roles.Doctor) && !string.IsNullOrWhiteSpace(_currentUser.UserId))
+        {
+            doctorId = _currentUser.UserId;
+        }
+
+        // Check if patient is already active in today's OPD queue
         var existingActiveVisit = await _context.Visits
             .AsNoTracking()
             .Where(v => v.ClinicId == clinicId
                      && v.PatientId == patient.Id
-                     && v.VisitDate >= today
-                     && v.VisitDate < tomorrow
+                     && v.VisitDate == today
                      && (v.Status == VisitStatus.Waiting || v.Status == VisitStatus.InConsultation))
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -80,8 +98,7 @@ public class VisitHandlers :
             .AsNoTracking()
             .Where(v => v.ClinicId == clinicId
                      && v.PatientId == patient.Id
-                     && v.VisitDate >= today
-                     && v.VisitDate < tomorrow
+                     && v.VisitDate == today
                      && v.Status == VisitStatus.Completed)
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -91,9 +108,64 @@ public class VisitHandlers :
                 $"Patient '{patient.FullName}' has already completed consultation today (Token #{existingCompletedVisit.TokenNumber}).");
         }
 
-        // Find next token number (lowest unused positive integer for today so released tokens are reused)
-        var usedTokens = await _context.Visits
-            .Where(v => v.ClinicId == clinicId && v.VisitDate >= today && v.VisitDate < tomorrow)
+        // Phase 2B: Subscription Quota & Lifecycle Check
+        var subscription = await _context.ClinicSubscriptions
+            .Include(s => s.Plan)
+            .FirstOrDefaultAsync(s => s.ClinicId == clinicId, cancellationToken);
+
+        if (subscription != null)
+        {
+            var isSuspended = subscription.Status == SubscriptionStatuses.Suspended
+                || DateTime.UtcNow > subscription.CurrentPeriodEnd.AddDays(subscription.GracePeriodDays);
+
+            if (isSuspended)
+            {
+                if (subscription.Status != SubscriptionStatuses.Suspended)
+                {
+                    subscription.Status = SubscriptionStatuses.Suspended;
+                    await _context.SaveChangesAsync(cancellationToken);
+                }
+                throw new InvalidOperationException("Clinic subscription is suspended. New queue tokens cannot be issued. Patient history and clinical records remain accessible.");
+            }
+
+            if (!subscription.HasUnlimitedVisits)
+            {
+                var totalAllowed = subscription.TotalAllowedVisits ?? 0;
+                var hardCap = totalAllowed + 20;
+
+                var periodUsage = await _context.ClinicPeriodUsages
+                    .Where(u => u.ClinicId == clinicId)
+                    .OrderByDescending(u => u.PeriodStart)
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                var visitsConducted = periodUsage?.VisitsConducted ?? 0;
+
+                if (visitsConducted >= hardCap || subscription.Status == SubscriptionStatuses.QuotaExceeded)
+                {
+                    if (subscription.Status != SubscriptionStatuses.QuotaExceeded)
+                    {
+                        subscription.Status = SubscriptionStatuses.QuotaExceeded;
+                        await _context.SaveChangesAsync(cancellationToken);
+                    }
+                    throw new InvalidOperationException("Monthly visit quota exceeded (including 20-visit buffer). New tokens are blocked until plan is topped up or upgraded. Past patient records remain fully accessible.");
+                }
+            }
+        }
+
+        // Phase 2A: Token numbers are per doctor, per clinic, per calendar day
+        var query = _context.Visits
+            .Where(v => v.ClinicId == clinicId && v.VisitDate == today);
+
+        if (!string.IsNullOrWhiteSpace(doctorId))
+        {
+            query = query.Where(v => v.DoctorId == doctorId);
+        }
+        else
+        {
+            query = query.Where(v => v.DoctorId == null);
+        }
+
+        var usedTokens = await query
             .Select(v => v.TokenNumber)
             .ToListAsync(cancellationToken);
 
@@ -108,13 +180,21 @@ public class VisitHandlers :
         {
             ClinicId = clinicId,
             PatientId = patient.Id,
+            DoctorId = doctorId,
             TokenNumber = nextToken,
-            VisitDate = DateTime.UtcNow,
+            VisitDate = today,
             Status = VisitStatus.Waiting
         };
 
         _context.Visits.Add(visit);
         await _context.SaveChangesAsync(cancellationToken);
+
+        string? doctorName = null;
+        if (!string.IsNullOrWhiteSpace(doctorId))
+        {
+            var docProfile = await _identityService.GetDoctorProfileAsync(doctorId);
+            doctorName = docProfile?.FullName;
+        }
 
         return new VisitQueueDto(
             visit.Id,
@@ -126,6 +206,8 @@ public class VisitHandlers :
             patient.MobileNumber,
             patient.Allergies,
             patient.MedicalHistory,
+            visit.DoctorId,
+            doctorName,
             visit.TokenNumber,
             visit.Status,
             visit.VisitDate,
@@ -137,10 +219,83 @@ public class VisitHandlers :
         );
     }
 
+    public async Task<bool> Handle(UpdateVisitStatusCommand request, CancellationToken cancellationToken)
+    {
+        var clinicId = _currentUser.ClinicId
+            ?? throw new UnauthorizedAccessException("Active clinic context is required to access clinic clinical records");
+
+        var visit = await _context.Visits
+            .FirstOrDefaultAsync(v => v.Id == request.VisitId && v.ClinicId == clinicId, cancellationToken)
+            ?? throw new InvalidOperationException("Visit not found");
+
+        if (!string.IsNullOrWhiteSpace(request.DoctorId))
+        {
+            visit.DoctorId = request.DoctorId;
+        }
+
+        // Phase 2A Constraint: A visit cannot enter InConsultation without an assigned DoctorId
+        if (request.Status == VisitStatus.InConsultation)
+        {
+            var effectiveDoctorId = visit.DoctorId ?? request.DoctorId;
+            if (string.IsNullOrWhiteSpace(effectiveDoctorId) && _currentUser.IsInRole(Roles.Doctor))
+            {
+                effectiveDoctorId = _currentUser.UserId;
+                visit.DoctorId = effectiveDoctorId;
+            }
+
+            if (string.IsNullOrWhiteSpace(effectiveDoctorId))
+            {
+                throw new InvalidOperationException("A visit cannot enter InConsultation without an assigned Doctor.");
+            }
+        }
+
+        visit.Status = request.Status;
+        visit.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
+    public async Task<bool> Handle(AssignDoctorCommand request, CancellationToken cancellationToken)
+    {
+        var clinicId = _currentUser.ClinicId
+            ?? throw new UnauthorizedAccessException("Active clinic context is required to access clinic clinical records");
+
+        var visit = await _context.Visits
+            .FirstOrDefaultAsync(v => v.Id == request.VisitId && v.ClinicId == clinicId, cancellationToken)
+            ?? throw new InvalidOperationException("Visit not found");
+
+        if (visit.DoctorId == request.DoctorId)
+        {
+            return true;
+        }
+
+        // If visit token was assigned to another doctor, recompute token for new doctor
+        var today = visit.VisitDate;
+        var usedTokens = await _context.Visits
+            .Where(v => v.ClinicId == clinicId && v.DoctorId == request.DoctorId && v.VisitDate == today && v.Id != visit.Id)
+            .Select(v => v.TokenNumber)
+            .ToListAsync(cancellationToken);
+
+        var usedTokensSet = new HashSet<int>(usedTokens);
+        int nextToken = 1;
+        while (usedTokensSet.Contains(nextToken))
+        {
+            nextToken++;
+        }
+
+        visit.DoctorId = request.DoctorId;
+        visit.TokenNumber = nextToken;
+        visit.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
     public async Task<bool> Handle(RecordVitalsCommand request, CancellationToken cancellationToken)
     {
         var clinicId = _currentUser.ClinicId
-            ?? throw new UnauthorizedAccessException("Active clinic context is required");
+            ?? throw new UnauthorizedAccessException("Active clinic context is required to access clinic clinical records");
 
         var req = request.Request;
         var visit = await _context.Visits
@@ -170,19 +325,28 @@ public class VisitHandlers :
     public async Task<List<VisitQueueDto>> Handle(GetTodayQueueQuery request, CancellationToken cancellationToken)
     {
         var clinicId = _currentUser.ClinicId
-            ?? throw new UnauthorizedAccessException("Active clinic context is required");
+            ?? throw new UnauthorizedAccessException("Active clinic context is required to access clinic clinical records");
 
         var today = DateTime.UtcNow.Date;
-        var tomorrow = today.AddDays(1);
 
-        var visits = await _context.Visits
+        var query = _context.Visits
             .AsNoTracking()
             .Include(v => v.Patient)
             .Include(v => v.Prescription)
-            .Where(v => v.ClinicId == clinicId && v.VisitDate >= today && v.VisitDate < tomorrow)
+            .Where(v => v.ClinicId == clinicId && v.VisitDate == today);
+
+        if (!string.IsNullOrWhiteSpace(request.DoctorId))
+        {
+            query = query.Where(v => v.DoctorId == request.DoctorId);
+        }
+
+        var visits = await query
             .OrderBy(v => v.Status == VisitStatus.Completed ? 1 : 0) // Uncompleted first
             .ThenBy(v => v.TokenNumber)
             .ToListAsync(cancellationToken);
+
+        var doctorIds = visits.Select(v => v.DoctorId).Where(id => !string.IsNullOrWhiteSpace(id)).Select(id => id!).Distinct();
+        var doctorNames = await _identityService.GetDoctorNamesAsync(doctorIds) ?? new Dictionary<string, string>();
 
         return visits.Select(v => new VisitQueueDto(
             v.Id,
@@ -194,6 +358,8 @@ public class VisitHandlers :
             v.Patient.MobileNumber,
             v.Patient.Allergies,
             v.Patient.MedicalHistory,
+            v.DoctorId,
+            v.DoctorId != null && doctorNames.TryGetValue(v.DoctorId, out var dName) ? dName : null,
             v.TokenNumber,
             v.Status,
             v.VisitDate,
@@ -218,7 +384,12 @@ public class VisitHandlers :
     public async Task<PrescriptionDetailDto> Handle(CompleteConsultationCommand request, CancellationToken cancellationToken)
     {
         var clinicId = _currentUser.ClinicId
-            ?? throw new UnauthorizedAccessException("Active clinic context is required");
+            ?? throw new UnauthorizedAccessException("Active clinic context is required to access clinic clinical records");
+
+        if (!_currentUser.IsInRole(Roles.Doctor) && !_currentUser.IsInRole(Roles.ClinicAdmin))
+        {
+            throw new UnauthorizedAccessException("Only doctors can complete consultations and prescribe medication");
+        }
 
         var req = request.Request;
         var visit = await _context.Visits
@@ -229,12 +400,56 @@ public class VisitHandlers :
             .FirstOrDefaultAsync(v => v.Id == req.VisitId && v.ClinicId == clinicId, cancellationToken)
             ?? throw new InvalidOperationException("Visit not found");
 
+        // Determine consulting doctor: Request -> Visit -> Current User
+        var doctorId = req.DoctorId ?? visit.DoctorId ?? _currentUser.UserId;
+        if (string.IsNullOrWhiteSpace(doctorId))
+        {
+            throw new InvalidOperationException("A valid DoctorId is required to complete consultation and save prescription.");
+        }
+
+        var wasNotCompleted = visit.Status != VisitStatus.Completed;
+
+        visit.DoctorId = doctorId;
         visit.ChiefComplaints = req.ChiefComplaints;
         visit.Diagnosis = req.Diagnosis;
         visit.ClinicalNotes = req.ClinicalNotes;
         visit.FollowUpDate = req.FollowUpDate;
         visit.Status = VisitStatus.Completed;
         visit.UpdatedAt = DateTime.UtcNow;
+
+        // Phase 2B: Increment period visits conducted once on first completion
+        if (wasNotCompleted)
+        {
+            var activeSubscription = await _context.ClinicSubscriptions
+                .Include(s => s.Plan)
+                .FirstOrDefaultAsync(s => s.ClinicId == clinicId, cancellationToken);
+
+            if (activeSubscription != null)
+            {
+                var periodUsage = await _context.ClinicPeriodUsages
+                    .Where(u => u.ClinicId == clinicId)
+                    .OrderByDescending(u => u.PeriodStart)
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                if (periodUsage != null)
+                {
+                    periodUsage.VisitsConducted += 1;
+                    periodUsage.LastVisitRecordedAt = DateTime.UtcNow;
+                    periodUsage.UpdatedAt = DateTime.UtcNow;
+
+                    var totalAllowed = activeSubscription.TotalAllowedVisits;
+                    if (!activeSubscription.HasUnlimitedVisits && totalAllowed.HasValue)
+                    {
+                        var hardCap = totalAllowed.Value + 20;
+                        if (periodUsage.VisitsConducted >= hardCap)
+                        {
+                            activeSubscription.Status = SubscriptionStatuses.QuotaExceeded;
+                            activeSubscription.UpdatedAt = DateTime.UtcNow;
+                        }
+                    }
+                }
+            }
+        }
 
         Prescription prescription;
         if (visit.Prescription == null)
@@ -244,6 +459,7 @@ public class VisitHandlers :
                 VisitId = visit.Id,
                 PatientId = visit.PatientId,
                 ClinicId = clinicId,
+                DoctorId = doctorId,
                 PrescribedAt = DateTime.UtcNow,
                 GeneralAdvice = req.GeneralAdvice
             };
@@ -252,6 +468,7 @@ public class VisitHandlers :
         else
         {
             prescription = visit.Prescription;
+            prescription.DoctorId = doctorId;
             prescription.GeneralAdvice = req.GeneralAdvice;
             prescription.UpdatedAt = DateTime.UtcNow;
 
@@ -277,18 +494,24 @@ public class VisitHandlers :
 
         await _context.SaveChangesAsync(cancellationToken);
 
+        // Fetch doctor profile for letterhead
+        var doctorProfile = await _identityService.GetDoctorProfileAsync(doctorId);
         var clinic = visit.Clinic;
+
         var clinicDto = new ClinicLetterheadDto(
             clinic.Name,
-            clinic.DoctorName,
-            clinic.RegNumber,
-            clinic.Qualifications,
-            clinic.Specialization,
+            doctorProfile?.FullName ?? "Doctor",
+            doctorProfile?.MedicalCouncilRegistrationNumber,
+            doctorProfile?.Qualifications,
+            doctorProfile?.Speciality,
             clinic.Phone,
             clinic.Email,
             clinic.Address,
             clinic.LogoUrl,
-            clinic.LetterheadMarginTopMm
+            clinic.LetterheadMarginTopMm,
+            clinic.PrintBottomMarginMm,
+            clinic.HideLetterheadOnPrint,
+            clinic.ClinicTimings
         );
 
         return new PrescriptionDetailDto(
@@ -302,6 +525,8 @@ public class VisitHandlers :
             visit.Patient.MobileNumber,
             visit.Patient.BloodGroup,
             visit.Patient.Allergies,
+            doctorId,
+            doctorProfile?.FullName ?? "Doctor",
             prescription.PrescribedAt,
             visit.FollowUpDate,
             new VitalsDto(
@@ -335,7 +560,7 @@ public class VisitHandlers :
     public async Task<PrescriptionDetailDto?> Handle(GetPrescriptionQuery request, CancellationToken cancellationToken)
     {
         var clinicId = _currentUser.ClinicId
-            ?? throw new UnauthorizedAccessException("Active clinic context is required");
+            ?? throw new UnauthorizedAccessException("Active clinic context is required to access clinic clinical records");
 
         var visit = await _context.Visits
             .AsNoTracking()
@@ -348,18 +573,26 @@ public class VisitHandlers :
         if (visit?.Prescription == null) return null;
 
         var prescription = visit.Prescription;
+        var doctorId = prescription.DoctorId ?? visit.DoctorId ?? string.Empty;
+        var doctorProfile = !string.IsNullOrWhiteSpace(doctorId) 
+            ? await _identityService.GetDoctorProfileAsync(doctorId) 
+            : null;
+
         var clinic = visit.Clinic;
         var clinicDto = new ClinicLetterheadDto(
             clinic.Name,
-            clinic.DoctorName,
-            clinic.RegNumber,
-            clinic.Qualifications,
-            clinic.Specialization,
+            doctorProfile?.FullName ?? "Doctor",
+            doctorProfile?.MedicalCouncilRegistrationNumber,
+            doctorProfile?.Qualifications,
+            doctorProfile?.Speciality,
             clinic.Phone,
             clinic.Email,
             clinic.Address,
             clinic.LogoUrl,
-            clinic.LetterheadMarginTopMm
+            clinic.LetterheadMarginTopMm,
+            clinic.PrintBottomMarginMm,
+            clinic.HideLetterheadOnPrint,
+            clinic.ClinicTimings
         );
 
         return new PrescriptionDetailDto(
@@ -373,6 +606,8 @@ public class VisitHandlers :
             visit.Patient.MobileNumber,
             visit.Patient.BloodGroup,
             visit.Patient.Allergies,
+            doctorId,
+            doctorProfile?.FullName ?? "Doctor",
             prescription.PrescribedAt,
             visit.FollowUpDate,
             new VitalsDto(
@@ -406,7 +641,7 @@ public class VisitHandlers :
     public async Task<List<VisitQueueDto>> Handle(GetVisitHistoryQuery request, CancellationToken cancellationToken)
     {
         var clinicId = _currentUser.ClinicId
-            ?? throw new UnauthorizedAccessException("Active clinic context is required");
+            ?? throw new UnauthorizedAccessException("Active clinic context is required to access clinic clinical records");
 
         var query = _context.Visits
             .AsNoTracking()
@@ -416,14 +651,14 @@ public class VisitHandlers :
 
         if (request.FromDate.HasValue)
         {
-            var fromUtc = DateTime.SpecifyKind(request.FromDate.Value.Date, DateTimeKind.Utc);
-            query = query.Where(v => v.VisitDate >= fromUtc);
+            var from = request.FromDate.Value.Date;
+            query = query.Where(v => v.VisitDate >= from);
         }
 
         if (request.ToDate.HasValue)
         {
-            var toUtc = DateTime.SpecifyKind(request.ToDate.Value.Date.AddDays(1), DateTimeKind.Utc);
-            query = query.Where(v => v.VisitDate < toUtc);
+            var to = request.ToDate.Value.Date;
+            query = query.Where(v => v.VisitDate <= to);
         }
 
         if (request.Status.HasValue)
@@ -431,26 +666,32 @@ public class VisitHandlers :
             query = query.Where(v => v.Status == request.Status.Value);
         }
 
-        if (!string.IsNullOrWhiteSpace(request.Search))
+        if (!string.IsNullOrWhiteSpace(request.DoctorId))
         {
-            var s = request.Search.Trim().ToLower();
-            query = query.Where(v =>
-                v.Patient.FullName.ToLower().Contains(s) ||
-                v.Patient.PatientUid.ToLower().Contains(s) ||
-                v.Patient.MobileNumber.Contains(s) ||
-                (v.Diagnosis != null && v.Diagnosis.ToLower().Contains(s)) ||
-                (v.ChiefComplaints != null && v.ChiefComplaints.ToLower().Contains(s)));
+            query = query.Where(v => v.DoctorId == request.DoctorId);
         }
 
-        var pageSize = Math.Clamp(request.PageSize, 1, 200);
-        var page = Math.Max(request.Page, 1);
+        if (!string.IsNullOrWhiteSpace(request.Search))
+        {
+            var search = request.Search.Trim().ToLower();
+            query = query.Where(v =>
+                v.Patient.FullName.ToLower().Contains(search) ||
+                v.Patient.PatientUid.ToLower().Contains(search) ||
+                v.Patient.MobileNumber.Contains(search) ||
+                (v.Diagnosis != null && v.Diagnosis.ToLower().Contains(search)) ||
+                (v.ChiefComplaints != null && v.ChiefComplaints.ToLower().Contains(search))
+            );
+        }
 
         var visits = await query
             .OrderByDescending(v => v.VisitDate)
-            .ThenByDescending(v => v.TokenNumber)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .ThenByDescending(v => v.CreatedAt)
+            .Skip((request.Page - 1) * request.PageSize)
+            .Take(request.PageSize)
             .ToListAsync(cancellationToken);
+
+        var doctorIds = visits.Select(v => v.DoctorId).Where(id => !string.IsNullOrWhiteSpace(id)).Select(id => id!).Distinct();
+        var doctorNames = await _identityService.GetDoctorNamesAsync(doctorIds) ?? new Dictionary<string, string>();
 
         return visits.Select(v => new VisitQueueDto(
             v.Id,
@@ -462,6 +703,8 @@ public class VisitHandlers :
             v.Patient.MobileNumber,
             v.Patient.Allergies,
             v.Patient.MedicalHistory,
+            v.DoctorId,
+            v.DoctorId != null && doctorNames.TryGetValue(v.DoctorId, out var dName) ? dName : null,
             v.TokenNumber,
             v.Status,
             v.VisitDate,
@@ -485,34 +728,45 @@ public class VisitHandlers :
 
     public async Task<bool> Handle(RemoveFromQueueCommand request, CancellationToken cancellationToken)
     {
-        return await Handle(new DeleteVisitCommand(request.VisitId), cancellationToken);
+        var clinicId = _currentUser.ClinicId
+            ?? throw new UnauthorizedAccessException("Active clinic context is required to access clinic clinical records");
+
+        var visit = await _context.Visits
+            .FirstOrDefaultAsync(v => v.Id == request.VisitId && v.ClinicId == clinicId, cancellationToken)
+            ?? throw new InvalidOperationException("Visit not found");
+
+        if (visit.Status == VisitStatus.Completed)
+        {
+            throw new InvalidOperationException("Cannot remove completed visit from queue");
+        }
+
+        visit.Status = VisitStatus.Cancelled;
+        visit.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return true;
     }
 
     public async Task<bool> Handle(DeleteVisitCommand request, CancellationToken cancellationToken)
     {
         var clinicId = _currentUser.ClinicId
-            ?? throw new UnauthorizedAccessException("Active clinic context is required");
+            ?? throw new UnauthorizedAccessException("Active clinic context is required to access clinic clinical records");
 
         var visit = await _context.Visits
-            .FirstOrDefaultAsync(v => v.Id == request.VisitId && v.ClinicId == clinicId, cancellationToken);
+            .Include(v => v.Prescription)
+                .ThenInclude(p => p!.Items)
+            .FirstOrDefaultAsync(v => v.Id == request.VisitId && v.ClinicId == clinicId, cancellationToken)
+            ?? throw new InvalidOperationException("Visit not found");
 
-        if (visit == null)
+        if (visit.Prescription != null)
         {
-            return true; // Already deleted
+            _context.PrescriptionItems.RemoveRange(visit.Prescription.Items);
+            _context.Prescriptions.Remove(visit.Prescription);
         }
 
-        try
-        {
-            _context.Visits.Remove(visit);
-            await _context.SaveChangesAsync(cancellationToken);
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            // Row or cascaded children already deleted
-            return true;
-        }
+        _context.Visits.Remove(visit);
+        await _context.SaveChangesAsync(cancellationToken);
 
         return true;
     }
 }
-
