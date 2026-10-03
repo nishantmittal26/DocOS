@@ -705,6 +705,7 @@ public class VisitHandlers :
             doctorProfile?.Qualifications,
             doctorProfile?.Speciality,
             clinic.Phone,
+            clinic.Landline,
             clinic.Email,
             clinic.Address,
             clinic.LogoUrl,

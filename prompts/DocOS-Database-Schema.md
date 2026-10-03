@@ -60,6 +60,7 @@ EF Core table names follow pluralization where configured (for example `Prescrip
 | `SubscriptionPlanMaster`, `ClinicSubscription`, `ClinicPeriodUsage`, `SubscriptionPaymentHistory` | 2B |
 | `VitalMaster`, `ClinicVitalPreference`, `VisitVitals`; drop visit vital columns | 2C |
 | Labs, panels, advice, favorites, `VisitPayment`, share token, revisions, `AuditLogs` | 2D |
+| `Clinics.Landline`, `Clinics.Phone` nullable | E13 |
 
 ---
 
@@ -101,6 +102,8 @@ erDiagram
     Clinics {
         uniqueidentifier Id PK
         nvarchar Name
+        nvarchar Phone
+        nvarchar Landline
         int LetterheadMarginTopMm
         int PrintBottomMarginMm
         bit HideLetterheadOnPrint
@@ -210,7 +213,8 @@ Dropped in 2A: `Role` (`nvarchar`).
 | :--- | :--- | :---: | :--- |
 | `Id` | `uniqueidentifier` | No | PK |
 | `Name` | `nvarchar(200)` | No | Trade name |
-| `Phone` | `nvarchar(20)` | No | |
+| `Phone` | `nvarchar(20)` | Yes | Mobile number (max 10 digits). At least one of `Phone` or `Landline` required |
+| `Landline` | `nvarchar(20)` | Yes | Landline number (max 12 digits). Added in E13 |
 | `Email` | `nvarchar(256)` | Yes | |
 | `Address` | `nvarchar(500)` | Yes | |
 | `LogoUrl` | `nvarchar(500)` | Yes | Blank-paper letterhead |

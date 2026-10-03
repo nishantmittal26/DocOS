@@ -2,7 +2,8 @@ namespace DocOS.Application.Clinics;
 
 public record UpdateClinicLetterheadRequest(
     string ClinicName,
-    string Phone,
+    string? Phone,
+    string? Landline,
     string? Email,
     string? Address,
     string? LogoUrl,
@@ -15,7 +16,8 @@ public record UpdateClinicLetterheadRequest(
 public record ClinicProfileDto(
     Guid Id,
     string Name,
-    string Phone,
+    string? Phone,
+    string? Landline,
     string? Email,
     string? Address,
     string? LogoUrl,

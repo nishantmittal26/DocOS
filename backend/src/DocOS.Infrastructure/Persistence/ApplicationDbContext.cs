@@ -62,7 +62,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
         {
             entity.HasKey(c => c.Id);
             entity.Property(c => c.Name).HasMaxLength(200).IsRequired();
-            entity.Property(c => c.Phone).HasMaxLength(20).IsRequired();
+            entity.Property(c => c.Phone).HasMaxLength(20).IsRequired(false);
+            entity.Property(c => c.Landline).HasMaxLength(20);
             entity.Property(c => c.Email).HasMaxLength(256);
             entity.Property(c => c.Address).HasMaxLength(500);
             entity.Property(c => c.LogoUrl).HasMaxLength(500);

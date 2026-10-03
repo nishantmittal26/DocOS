@@ -368,7 +368,8 @@ export const clinicsApi = {
   },
   updateLetterhead: async (data: {
     clinicName: string;
-    phone: string;
+    phone?: string;
+    landline?: string;
     email?: string;
     address?: string;
     logoUrl?: string;

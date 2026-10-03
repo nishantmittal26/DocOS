@@ -390,5 +390,125 @@ public class Phase2ATests
         var checkPassword = await userManager.CheckPasswordAsync(admin, "Admin@123");
         checkPassword.Should().BeTrue();
     }
+
+    [Fact]
+    public async Task E13_UpdateClinicLetterhead_Requires_At_Least_One_Contact_Number()
+    {
+        using var context = CreateInMemoryDbContext();
+        var clinicId = Guid.NewGuid();
+        context.Clinics.Add(new Clinic { Id = clinicId, Name = "Alpha Clinic", Phone = "9876543210" });
+        await context.SaveChangesAsync();
+
+        var mockCurrentUser = new Mock<ICurrentUserService>();
+        mockCurrentUser.Setup(u => u.ClinicId).Returns(clinicId);
+        mockCurrentUser.Setup(u => u.IsInRole(Roles.ClinicAdmin)).Returns(true);
+
+        var handler = new ClinicHandlers(context, mockCurrentUser.Object);
+
+        // Act: Attempt to clear both phone and landline
+        var req = new UpdateClinicLetterheadRequest(
+            ClinicName: "Alpha Clinic",
+            Phone: "",
+            Landline: null,
+            Email: "info@alpha.com",
+            Address: "Delhi",
+            LogoUrl: null,
+            LetterheadMarginTopMm: 60,
+            PrintBottomMarginMm: 0,
+            HideLetterheadOnPrint: false,
+            ClinicTimings: "10am-5pm"
+        );
+
+        var act = () => handler.Handle(new UpdateClinicLetterheadCommand(req), CancellationToken.None);
+        await act.Should().ThrowAsync<ArgumentException>()
+            .WithMessage("*At least one contact number*");
+    }
+
+    [Fact]
+    public async Task E13_UpdateClinicLetterhead_Validates_Max_Digits()
+    {
+        using var context = CreateInMemoryDbContext();
+        var clinicId = Guid.NewGuid();
+        context.Clinics.Add(new Clinic { Id = clinicId, Name = "Alpha Clinic", Phone = "9876543210" });
+        await context.SaveChangesAsync();
+
+        var mockCurrentUser = new Mock<ICurrentUserService>();
+        mockCurrentUser.Setup(u => u.ClinicId).Returns(clinicId);
+        mockCurrentUser.Setup(u => u.IsInRole(Roles.Doctor)).Returns(true);
+
+        var handler = new ClinicHandlers(context, mockCurrentUser.Object);
+
+        // 11-digit mobile
+        var reqExcessMobile = new UpdateClinicLetterheadRequest(
+            ClinicName: "Alpha Clinic",
+            Phone: "98765432101",
+            Landline: null,
+            Email: null,
+            Address: null,
+            LogoUrl: null,
+            LetterheadMarginTopMm: 60,
+            PrintBottomMarginMm: 0,
+            HideLetterheadOnPrint: false,
+            ClinicTimings: null
+        );
+        var actMobile = () => handler.Handle(new UpdateClinicLetterheadCommand(reqExcessMobile), CancellationToken.None);
+        await actMobile.Should().ThrowAsync<ArgumentException>()
+            .WithMessage("*Mobile number cannot exceed 10 digits*");
+
+        // 13-digit landline
+        var reqExcessLandline = new UpdateClinicLetterheadRequest(
+            ClinicName: "Alpha Clinic",
+            Phone: null,
+            Landline: "0112345678901",
+            Email: null,
+            Address: null,
+            LogoUrl: null,
+            LetterheadMarginTopMm: 60,
+            PrintBottomMarginMm: 0,
+            HideLetterheadOnPrint: false,
+            ClinicTimings: null
+        );
+        var actLandline = () => handler.Handle(new UpdateClinicLetterheadCommand(reqExcessLandline), CancellationToken.None);
+        await actLandline.Should().ThrowAsync<ArgumentException>()
+            .WithMessage("*Landline number cannot exceed 12 digits*");
+    }
+
+    [Fact]
+    public async Task E13_UpdateClinicLetterhead_Saves_Mobile_And_Landline_Successfully()
+    {
+        using var context = CreateInMemoryDbContext();
+        var clinicId = Guid.NewGuid();
+        context.Clinics.Add(new Clinic { Id = clinicId, Name = "Alpha Clinic", Phone = "9876543210" });
+        await context.SaveChangesAsync();
+
+        var mockCurrentUser = new Mock<ICurrentUserService>();
+        mockCurrentUser.Setup(u => u.ClinicId).Returns(clinicId);
+        mockCurrentUser.Setup(u => u.IsInRole(Roles.ClinicAdmin)).Returns(true);
+
+        var handler = new ClinicHandlers(context, mockCurrentUser.Object);
+
+        // Save both 10-digit mobile and 11-digit landline
+        var req = new UpdateClinicLetterheadRequest(
+            ClinicName: "Alpha Care Clinic",
+            Phone: "9876543210",
+            Landline: "01123456789",
+            Email: "care@alphaclinic.com",
+            Address: "Connaught Place, New Delhi",
+            LogoUrl: null,
+            LetterheadMarginTopMm: 65,
+            PrintBottomMarginMm: 10,
+            HideLetterheadOnPrint: true,
+            ClinicTimings: "Mon-Sat 9am-8pm"
+        );
+
+        var updated = await handler.Handle(new UpdateClinicLetterheadCommand(req), CancellationToken.None);
+
+        updated.Phone.Should().Be("9876543210");
+        updated.Landline.Should().Be("01123456789");
+
+        var dbClinic = await context.Clinics.FindAsync(clinicId);
+        dbClinic!.Phone.Should().Be("9876543210");
+        dbClinic.Landline.Should().Be("01123456789");
+    }
 }
 

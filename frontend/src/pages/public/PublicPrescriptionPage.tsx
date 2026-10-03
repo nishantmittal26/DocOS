@@ -6,6 +6,7 @@ import {
   Printer,
   Calendar,
   Phone,
+  Smartphone,
   AlertTriangle,
   Stethoscope,
   Pill,
@@ -171,9 +172,19 @@ export const PublicPrescriptionPage: React.FC = () => {
             </div>
 
             <div className="sm:text-right text-xs text-slate-500 space-y-1">
-              <div className="flex items-center sm:justify-end space-x-1 font-semibold text-slate-700">
-                <Phone className="w-3.5 h-3.5 text-emerald-600" />
-                <span>{clinic.phone}</span>
+              <div className="flex flex-wrap items-center sm:justify-end gap-x-2 gap-y-1 font-semibold text-slate-700">
+                {clinic.phone && (
+                  <div className="flex items-center space-x-1" title="Mobile Number">
+                    <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>{clinic.phone}</span>
+                  </div>
+                )}
+                {clinic.landline && (
+                  <div className="flex items-center space-x-1" title="Landline Number">
+                    <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>{clinic.landline}</span>
+                  </div>
+                )}
               </div>
               {clinic.email && <div>{clinic.email}</div>}
               {clinic.address && (

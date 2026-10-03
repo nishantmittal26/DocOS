@@ -24,6 +24,8 @@ import {
   Activity,
   FlaskConical,
   BookOpen,
+  Phone,
+  Smartphone,
 } from 'lucide-react';
 import { AddCustomMedicineModal } from '../../components/AddCustomMedicineModal';
 import { CatalogScopeFilter, CatalogSourceBadge, CatalogScope } from '../../components/CatalogScopeFilter';
@@ -59,6 +61,8 @@ export const SettingsPage: React.FC = () => {
   const [profile, setProfile] = useState<ClinicProfile | null>(null);
   const [clinicName, setClinicName] = useState('');
   const [phone, setPhone] = useState('');
+  const [landline, setLandline] = useState('');
+  const [clinicPhoneError, setClinicPhoneError] = useState<string | null>(null);
   const [email, setEmail] = useState('');
   const [address, setAddress] = useState('');
   const [clinicTimings, setClinicTimings] = useState('');
@@ -110,7 +114,8 @@ export const SettingsPage: React.FC = () => {
       const data = await clinicsApi.getProfile();
       setProfile(data);
       setClinicName(data.name);
-      setPhone(data.phone);
+      setPhone(data.phone || '');
+      setLandline(data.landline || '');
       setEmail(data.email || '');
       setAddress(data.address || '');
       setClinicTimings(data.clinicTimings || '');
@@ -177,13 +182,24 @@ export const SettingsPage: React.FC = () => {
 
   const handleSaveClinicSettings = async (e: React.FormEvent) => {
     e.preventDefault();
+    setClinicPhoneError(null);
+
+    const cleanMobile = phone.trim().replace(/\D/g, '').slice(0, 10);
+    const cleanLandline = landline.trim().replace(/\D/g, '').slice(0, 12);
+
+    if (!cleanMobile && !cleanLandline) {
+      setClinicPhoneError('At least one contact number (Mobile number or Landline number) is required.');
+      return;
+    }
+
     setSavingClinic(true);
     setClinicSuccess(false);
 
     try {
       const updated = await clinicsApi.updateLetterhead({
         clinicName: clinicName.trim(),
-        phone: phone.trim(),
+        phone: cleanMobile || undefined,
+        landline: cleanLandline || undefined,
         email: email.trim() || undefined,
         address: address.trim() || undefined,
         letterheadMarginTopMm,
@@ -200,10 +216,13 @@ export const SettingsPage: React.FC = () => {
         clinicTimings: updated.clinicTimings,
       });
 
+      setPhone(updated.phone || '');
+      setLandline(updated.landline || '');
       setClinicSuccess(true);
       setTimeout(() => setClinicSuccess(false), 4000);
-    } catch (err) {
-      alert('Failed to update clinic settings');
+    } catch (err: any) {
+      const msg = err.response?.data?.message || 'Failed to update clinic settings';
+      alert(msg);
     } finally {
       setSavingClinic(false);
     }
@@ -451,17 +470,6 @@ export const SettingsPage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">Phone Number *</label>
-              <input
-                type="text"
-                required
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none"
-              />
-            </div>
-
-            <div>
               <label className="block text-xs font-bold text-slate-700 mb-1.5">Clinic Email</label>
               <input
                 type="email"
@@ -469,6 +477,60 @@ export const SettingsPage: React.FC = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none"
               />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                <span className="flex items-center space-x-1.5">
+                  <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Mobile Number (max 10 digits)</span>
+                </span>
+                <span className="text-[10px] text-slate-400 font-normal">Optional if Landline filled</span>
+              </label>
+              <input
+                type="tel"
+                placeholder="e.g. 9876543210"
+                maxLength={10}
+                value={phone}
+                onChange={(e) => {
+                  setClinicPhoneError(null);
+                  setPhone(e.target.value.replace(/\D/g, '').slice(0, 10));
+                }}
+                className="w-full text-xs font-mono px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                <span className="flex items-center space-x-1.5">
+                  <Phone className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Landline Number (max 12 digits)</span>
+                </span>
+                <span className="text-[10px] text-slate-400 font-normal">Optional if Mobile filled</span>
+              </label>
+              <input
+                type="tel"
+                placeholder="e.g. 0112345678"
+                maxLength={12}
+                value={landline}
+                onChange={(e) => {
+                  setClinicPhoneError(null);
+                  setLandline(e.target.value.replace(/\D/g, '').slice(0, 12));
+                }}
+                className="w-full text-xs font-mono px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-indigo-500 outline-none"
+              />
+            </div>
+
+            {clinicPhoneError && (
+              <div className="md:col-span-2 p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-xl font-bold flex items-center space-x-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{clinicPhoneError}</span>
+              </div>
+            )}
+
+            <div className="md:col-span-2 text-[11px] text-slate-500 bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex items-center space-x-2">
+              <span className="font-bold text-slate-700 shrink-0">* Contact Requirement:</span>
+              <span>At least one contact number (Mobile or Landline) must be provided. On printed prescriptions, Landline is rendered with a dedicated telephone icon.</span>
             </div>
 
             <div>

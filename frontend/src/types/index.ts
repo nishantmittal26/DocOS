@@ -235,7 +235,8 @@ export interface ClinicLetterhead {
   regNumber?: string;
   qualifications?: string;
   specialization?: string;
-  phone: string;
+  phone?: string;
+  landline?: string;
   email?: string;
   address?: string;
   logoUrl?: string;
@@ -449,7 +450,8 @@ export interface Medicine {
 export interface ClinicProfile {
   id: string;
   name: string;
-  phone: string;
+  phone?: string;
+  landline?: string;
   email?: string;
   address?: string;
   logoUrl?: string;

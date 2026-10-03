@@ -86,6 +86,12 @@ When adding a **new** date or datetime column: document it in [DocOS-Database-Sc
 
 Newest first. One block per decision or schema change.
 
+### 2026-10-03 — E13 Clinic Mobile & Landline contact numbers on `Clinics`
+
+- **Schema:** Added nullable `Clinics.Landline` (`nvarchar(20)`) and altered `Clinics.Phone` to nullable (`nvarchar(20)`).
+- **Validation & Behavior:** Clinic configuration requires at least one of Mobile (`Phone`, max 10 digits) or Landline (`Landline`, max 12 digits). On prescription headers (preview, browser print, public Rx), Mobile displays with a smartphone icon and Landline displays with a dedicated telephone handset icon (`Phone` icon).
+- **Migration:** `20261003180137_AddClinicLandlineAndNullablePhone`.
+
 ### 2026-10-03 — E07 `Visits.VisitDate` as IST `datetime2`
 
 - **Schema:** `VisitDate` changed from `date` to `datetime2` (IST wall-clock). Added stored computed `VisitDay` (`CONVERT(date, VisitDate)`) and unique index `(ClinicId, DoctorId, VisitDay, TokenNumber)` so token numbers stay unique per doctor per IST day after consultation updates the time.

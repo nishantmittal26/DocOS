@@ -32,6 +32,7 @@ Add items as you find them. No need for ADR unless behavior or schema changes.
 | E10 | **Patients list** | Support **grid view** in addition to existing **card view**; user can switch between both. | `done` |
 | E11 | **Patients** | **Edit patient** flow (demographics and related fields per clinic scope). | `done` |
 | E12 | **Subscriptions / lab module** | Per-clinic **`ClinicSubscriptions.LabModuleOverride`** (`null` = plan default, `true`/`false` = force on/off). Platform Admin sets it on **Manage Quota & Billing**; API quota exposes effective `hasLabModule`. | `done` |
+| E13 | **Clinic settings / Rx header** | Add support for **Mobile number** (max 10 digits) and **Landline number** (max 12 digits) under **Clinic & Practice Settings → Clinic Information & Print Portal Setup** (`Clinic & Print Margins` tab). Validation requires at least one of Mobile or Landline to be filled. When displayed on prescription headers (print preview, browser print, public Rx), render a dedicated telephone icon for the Landline number alongside the Mobile number. | `done` |
 
 ---
 
