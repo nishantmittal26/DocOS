@@ -55,7 +55,7 @@ public class IdentityService : IIdentityService
             Speciality = speciality,
             ConsultationFee = consultationFee,
             IsActive = true,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = IndiaTime.Now
         };
 
         var result = await _userManager.CreateAsync(user, password);

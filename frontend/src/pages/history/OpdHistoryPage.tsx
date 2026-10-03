@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { visitsApi } from '../../api/client';
 import { VisitQueueItem, PrescriptionDetail, Vitals } from '../../types';
+import { formatDateIST, formatTimeIST, formatVisitDateIST, getIstDateInputValue, shiftIstDateInput } from '../../utils/dateTime';
 import { VitalsModal } from '../../components/VitalsModal';
 import { PrescriptionPrintModal } from '../../components/PrescriptionPrintModal';
 import {
@@ -47,28 +48,21 @@ export const OpdHistoryPage: React.FC = () => {
 
   // Helper to compute fromDate and toDate based on preset
   const getDateRange = () => {
-    const today = new Date();
-    const formatDate = (d: Date) => d.toISOString().split('T')[0];
+    const now = new Date();
+    const todayStr = getIstDateInputValue(now);
 
     if (datePreset === 'today') {
-      const dStr = formatDate(today);
-      return { fromDate: dStr, toDate: dStr };
+      return { fromDate: todayStr, toDate: todayStr };
     }
     if (datePreset === 'yesterday') {
-      const y = new Date();
-      y.setDate(today.getDate() - 1);
-      const dStr = formatDate(y);
+      const dStr = shiftIstDateInput(now, -1);
       return { fromDate: dStr, toDate: dStr };
     }
     if (datePreset === '7days') {
-      const past = new Date();
-      past.setDate(today.getDate() - 7);
-      return { fromDate: formatDate(past), toDate: formatDate(today) };
+      return { fromDate: shiftIstDateInput(now, -7), toDate: todayStr };
     }
     if (datePreset === '30days') {
-      const past = new Date();
-      past.setDate(today.getDate() - 30);
-      return { fromDate: formatDate(past), toDate: formatDate(today) };
+      return { fromDate: shiftIstDateInput(now, -30), toDate: todayStr };
     }
     if (datePreset === 'custom') {
       return {
@@ -366,7 +360,6 @@ export const OpdHistoryPage: React.FC = () => {
       ) : (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden divide-y divide-slate-100">
           {visits.map((item) => {
-            const vDate = new Date(item.visitDate);
             return (
               <div
                 key={item.id}
@@ -413,16 +406,14 @@ export const OpdHistoryPage: React.FC = () => {
                       <span className="text-slate-600 font-medium">
                         Visit Date:{' '}
                         <span className="text-slate-900 font-semibold">
-                          {vDate.toLocaleDateString('en-IN', {
-                            day: 'numeric',
-                            month: 'short',
-                            year: 'numeric',
-                          })}{' '}
-                          at{' '}
-                          {vDate.toLocaleTimeString('en-IN', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
+                          {formatVisitDateIST(item.visitDate)}
+                          {item.visitDate.includes('T') &&
+                            !item.visitDate.startsWith(item.visitDate.split('T')[0] + 'T00:00:00') && (
+                              <>
+                                {' '}
+                                at {formatTimeIST(item.visitDate, { hour: '2-digit', minute: '2-digit' })}
+                              </>
+                            )}
                         </span>
                       </span>
                       <span>
@@ -515,7 +506,7 @@ export const OpdHistoryPage: React.FC = () => {
                   )}
 
                   <button
-                    onClick={() => handleDeleteVisit(item.id, item.patientName, vDate.toLocaleDateString())}
+                    onClick={() => handleDeleteVisit(item.id, item.patientName, formatVisitDateIST(item.visitDate))}
                     className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl border border-slate-200 hover:border-rose-200 transition-colors"
                     title="Delete OPD record"
                   >

@@ -1,4 +1,5 @@
 using DocOS.Application.Common.Interfaces;
+using DocOS.Domain.Common;
 using DocOS.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -207,7 +208,7 @@ public class MedicineHandlers :
         medicine.Manufacturer = string.IsNullOrWhiteSpace(req.Manufacturer) ? null : req.Manufacturer.Trim();
         medicine.DefaultDosage = string.IsNullOrWhiteSpace(req.DefaultDosage) ? null : req.DefaultDosage.Trim();
         medicine.DefaultTiming = req.DefaultTiming;
-        medicine.UpdatedAt = DateTime.UtcNow;
+        medicine.UpdatedAt = IndiaTime.Now;
 
         await _context.SaveChangesAsync(cancellationToken);
 

@@ -97,7 +97,7 @@ public class SubscriptionHandlers :
 
         // 5. Create ClinicSubscription
         var periodDays = req.IsTrial ? 14 : (plan.BillingCycle == BillingCycles.Annual ? 365 : 30);
-        var periodStart = DateTime.UtcNow;
+        var periodStart = IndiaTime.Now;
         var periodEnd = periodStart.AddDays(periodDays);
         var isUnlimited = req.IsUnlimitedOverride || plan.IsUnlimitedVisits;
         var monthlyQuota = isUnlimited ? null : (req.MonthlyVisitQuotaOverride ?? plan.DefaultMonthlyVisits);
@@ -114,7 +114,7 @@ public class SubscriptionHandlers :
             CurrentPeriodStart = periodStart,
             CurrentPeriodEnd = periodEnd,
             GracePeriodDays = 5,
-            Notes = $"Onboarded by {_currentUserService.UserId} on {DateTime.UtcNow:yyyy-MM-dd}"
+            Notes = $"Onboarded by {_currentUserService.UserId} on {IndiaTime.Now:yyyy-MM-dd}"
         };
 
         _context.ClinicSubscriptions.Add(subscription);
@@ -336,7 +336,7 @@ public class SubscriptionHandlers :
         sub.Status = req.Status;
         sub.GracePeriodDays = req.GracePeriodDays;
         sub.Notes = req.Notes;
-        sub.UpdatedAt = DateTime.UtcNow;
+        sub.UpdatedAt = IndiaTime.Now;
 
         await _context.SaveChangesAsync(cancellationToken);
         return true;
@@ -360,14 +360,14 @@ public class SubscriptionHandlers :
             ?? throw new KeyNotFoundException("Clinic subscription not found");
 
         sub.AdditionalTopUpVisits += command.AdditionalVisits;
-        sub.UpdatedAt = DateTime.UtcNow;
+        sub.UpdatedAt = IndiaTime.Now;
 
         // If quota exceeded, restore to Active or GracePeriod
         if (sub.Status == SubscriptionStatuses.QuotaExceeded)
         {
-            if (DateTime.UtcNow > sub.CurrentPeriodEnd)
+            if (IndiaTime.Now > sub.CurrentPeriodEnd)
             {
-                sub.Status = DateTime.UtcNow <= sub.CurrentPeriodEnd.AddDays(sub.GracePeriodDays)
+                sub.Status = IndiaTime.Now <= sub.CurrentPeriodEnd.AddDays(sub.GracePeriodDays)
                     ? SubscriptionStatuses.GracePeriod
                     : SubscriptionStatuses.Suspended;
             }
@@ -449,7 +449,7 @@ public class SubscriptionHandlers :
                 IsQuotaExceeded: false,
                 IsGracePeriod: false,
                 IsSuspended: false,
-                PeriodEnd: DateTime.UtcNow.AddDays(30),
+                PeriodEnd: IndiaTime.Now.AddDays(30),
                 CanIssueTokens: true
             );
         }
@@ -464,8 +464,8 @@ public class SubscriptionHandlers :
         var isUnlimited = sub.HasUnlimitedVisits;
         var totalAllowed = sub.TotalAllowedVisits;
 
-        var isGracePeriod = DateTime.UtcNow > sub.CurrentPeriodEnd && DateTime.UtcNow <= sub.CurrentPeriodEnd.AddDays(sub.GracePeriodDays);
-        var isSuspended = sub.Status == SubscriptionStatuses.Suspended || DateTime.UtcNow > sub.CurrentPeriodEnd.AddDays(sub.GracePeriodDays);
+        var isGracePeriod = IndiaTime.Now > sub.CurrentPeriodEnd && IndiaTime.Now <= sub.CurrentPeriodEnd.AddDays(sub.GracePeriodDays);
+        var isSuspended = sub.Status == SubscriptionStatuses.Suspended || IndiaTime.Now > sub.CurrentPeriodEnd.AddDays(sub.GracePeriodDays);
 
         var isWithinBuffer = false;
         var remainingBuffer = 20;

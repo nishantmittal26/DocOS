@@ -1,4 +1,5 @@
 using DocOS.Application.Common.Interfaces;
+using DocOS.Domain.Common;
 using DocOS.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -41,7 +42,7 @@ public class PatientHandlers :
 
         // Increment sequence atomically
         clinic.LastPatientSequence += 1;
-        var currentYear = DateTime.UtcNow.Year;
+        var currentYear = IndiaTime.Now.Year;
         var prefix = string.IsNullOrWhiteSpace(clinic.PatientIdPrefix) ? "DOC" : clinic.PatientIdPrefix.Trim().ToUpper();
         var patientUid = $"{prefix}-{currentYear}-{clinic.LastPatientSequence:D4}";
 
@@ -117,7 +118,7 @@ public class PatientHandlers :
         }
 
         var patientIds = patients.Select(p => p.Id).ToList();
-        var today = DateTime.UtcNow.Date;
+        var today = IndiaTime.Today;
 
         var visits = await _context.Visits
             .AsNoTracking()

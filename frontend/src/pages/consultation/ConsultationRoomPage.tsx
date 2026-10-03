@@ -12,6 +12,7 @@ import {
   LabTestPanel,
   AdviceTemplate,
 } from '../../types';
+import { shiftIstDateInput } from '../../utils/dateTime';
 import { PrescriptionPrintModal } from '../../components/PrescriptionPrintModal';
 import { VitalsModal } from '../../components/VitalsModal';
 import {
@@ -373,9 +374,7 @@ export const ConsultationRoomPage: React.FC = () => {
   };
 
   const setQuickFollowUp = (days: number) => {
-    const d = new Date();
-    d.setDate(d.getDate() + days);
-    setFollowUpDate(d.toISOString().split('T')[0]);
+    setFollowUpDate(shiftIstDateInput(new Date(), days));
   };
 
   if (loading) {

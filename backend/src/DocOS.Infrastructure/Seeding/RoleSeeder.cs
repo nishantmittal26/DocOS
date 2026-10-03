@@ -42,7 +42,7 @@ public static class RoleSeeder
                 PhoneNumber = "+919999999999",
                 ClinicId = null,
                 IsActive = true,
-                CreatedAt = DateTime.UtcNow
+                CreatedAt = IndiaTime.Now
             };
 
             var createResult = await userManager.CreateAsync(adminUser, "Admin@123");

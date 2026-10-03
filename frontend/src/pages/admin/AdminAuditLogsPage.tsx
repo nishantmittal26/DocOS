@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Shield, Search, Filter, Clock, Activity, FileText, User } from 'lucide-react';
 import { adminApi } from '../../api/client';
 import { AuditLog } from '../../types';
+import { formatDateTimeIST } from '../../utils/dateTime';
 
 export const AdminAuditLogsPage: React.FC = () => {
   const [logs, setLogs] = useState<AuditLog[]>([]);
@@ -118,7 +119,7 @@ export const AdminAuditLogsPage: React.FC = () => {
                 {filteredLogs.map((log) => (
                   <tr key={log.id} className="hover:bg-slate-50/70 transition-colors">
                     <td className="py-3 px-4 text-slate-500 whitespace-nowrap">
-                      {new Date(log.timestamp).toLocaleString('en-IN')}
+                      {formatDateTimeIST(log.timestamp)}
                     </td>
                     <td className="py-3 px-4">
                       <span

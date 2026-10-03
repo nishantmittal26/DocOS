@@ -1,4 +1,5 @@
 using DocOS.Application.Common.Interfaces;
+using DocOS.Domain.Common;
 using DocOS.Domain.Entities;
 using Microsoft.Extensions.Logging;
 
@@ -39,7 +40,7 @@ public class AuditService : IAuditService
                 Action = action.ToUpperInvariant(),
                 EntityName = entityName,
                 EntityId = entityId,
-                Timestamp = DateTime.UtcNow,
+                Timestamp = IndiaTime.Now,
                 IpAddress = ipAddress,
                 ChangesJson = changesJson
             };

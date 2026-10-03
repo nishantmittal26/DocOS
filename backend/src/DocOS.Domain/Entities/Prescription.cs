@@ -16,7 +16,7 @@ public class Prescription : BaseEntity
     // Consulting Doctor (Phase 2A) - nvarchar(450) matching AspNetUsers.Id
     public string DoctorId { get; set; } = string.Empty;
 
-    public DateTime PrescribedAt { get; set; } = DateTime.UtcNow;
+    public DateTime PrescribedAt { get; set; } = IndiaTime.Now;
     public string? GeneralAdvice { get; set; } // Free-text advice line e.g., "Drink plenty of fluids, rest"
 
     // Phase 2D: Public Share Link & Revisions

@@ -29,6 +29,7 @@ import {
   RefreshCw,
   Hash,
 } from 'lucide-react';
+import { formatDateIST, formatDateTimeIST, getIstDateInputValue } from '../../utils/dateTime';
 
 export const ClinicSubscriptionPage: React.FC = () => {
   const { clinicId } = useParams<{ clinicId: string }>();
@@ -58,9 +59,7 @@ export const ClinicSubscriptionPage: React.FC = () => {
   const [paymentAmount, setPaymentAmount] = useState<number>(1499);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('UPI');
   const [transactionRef, setTransactionRef] = useState<string>('');
-  const [paymentDate, setPaymentDate] = useState<string>(
-    new Date().toISOString().split('T')[0]
-  );
+  const [paymentDate, setPaymentDate] = useState<string>(() => getIstDateInputValue());
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('Success');
   const [paymentSubmitting, setPaymentSubmitting] = useState<boolean>(false);
 
@@ -371,13 +370,13 @@ export const ClinicSubscriptionPage: React.FC = () => {
               <div className="flex justify-between pt-2">
                 <span className="text-slate-500">Current Period Start:</span>
                 <span className="font-medium text-slate-800">
-                  {new Date(detail.currentPeriodStart).toLocaleDateString('en-IN')}
+                  {formatDateIST(detail.currentPeriodStart)}
                 </span>
               </div>
               <div className="flex justify-between pt-2">
                 <span className="text-slate-500">Current Period End:</span>
                 <span className="font-medium text-slate-800">
-                  {new Date(detail.currentPeriodEnd).toLocaleDateString('en-IN')}
+                  {formatDateIST(detail.currentPeriodEnd)}
                 </span>
               </div>
               <div className="flex justify-between pt-2">
@@ -390,7 +389,7 @@ export const ClinicSubscriptionPage: React.FC = () => {
                 <div className="flex justify-between pt-2">
                   <span className="text-slate-500">Last Visit Recorded:</span>
                   <span className="font-medium text-slate-600">
-                    {new Date(detail.lastVisitRecordedAt).toLocaleString('en-IN', {
+                    {formatDateTimeIST(detail.lastVisitRecordedAt, {
                       dateStyle: 'short',
                       timeStyle: 'short',
                     })}
@@ -635,7 +634,7 @@ export const ClinicSubscriptionPage: React.FC = () => {
                           {p.invoiceNumber}
                         </td>
                         <td className="py-3 px-3">
-                          {new Date(p.paymentDate).toLocaleDateString('en-IN')}
+                          {formatDateIST(p.paymentDate)}
                         </td>
                         <td className="py-3 px-3 font-bold text-emerald-700">
                           ₹{p.amount.toLocaleString('en-IN')}

@@ -15,7 +15,7 @@ public class Visit : BaseEntity
     public string? DoctorId { get; set; }
 
     public int TokenNumber { get; set; }
-    public DateTime VisitDate { get; set; } = DateTime.UtcNow.Date;
+    public DateTime VisitDate { get; set; } = IndiaTime.Today;
     public VisitStatus Status { get; set; } = VisitStatus.Waiting;
 
     // Dynamic Vitals (Phase 2C) - captured in VisitVitals rows

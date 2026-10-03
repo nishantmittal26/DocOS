@@ -14,6 +14,6 @@ public class SubscriptionPaymentHistory : BaseEntity
     public decimal Amount { get; set; }
     public string PaymentMethod { get; set; } = PaymentMethods.UPI;
     public string? TransactionReference { get; set; }
-    public DateTime PaymentDate { get; set; } = DateTime.UtcNow;
+    public DateTime PaymentDate { get; set; } = IndiaTime.Now;
     public string Status { get; set; } = PaymentStatuses.Success;
 }

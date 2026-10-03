@@ -1,4 +1,5 @@
 using DocOS.Application.Common.Interfaces;
+using DocOS.Domain.Common;
 using DocOS.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -72,7 +73,7 @@ public class VitalHandlers :
                     IsEnabled = true,
                     IsMandatory = false,
                     DisplayOrder = master.DefaultDisplayOrder > 0 ? master.DefaultDisplayOrder : order++,
-                    CreatedAt = DateTime.UtcNow
+                    CreatedAt = IndiaTime.Now
                 };
                 _context.ClinicVitalPreferences.Add(pref);
                 preferences.Add(pref);
@@ -106,7 +107,7 @@ public class VitalHandlers :
                         IsEnabled = true,
                         IsMandatory = false,
                         DisplayOrder = master.DefaultDisplayOrder > 0 ? master.DefaultDisplayOrder : maxOrder++,
-                        CreatedAt = DateTime.UtcNow
+                        CreatedAt = IndiaTime.Now
                     };
                     _context.ClinicVitalPreferences.Add(pref);
                     preferences.Add(pref);
@@ -159,7 +160,7 @@ public class VitalHandlers :
                 pref.DisplayOrder = update.DisplayOrder;
                 pref.NormalRangeMinOverride = update.NormalRangeMinOverride;
                 pref.NormalRangeMaxOverride = update.NormalRangeMaxOverride;
-                pref.UpdatedAt = DateTime.UtcNow;
+                pref.UpdatedAt = IndiaTime.Now;
             }
         }
 
@@ -207,7 +208,7 @@ public class VitalHandlers :
             NormalRangeMax = req.NormalRangeMax,
             DefaultDisplayOrder = req.DisplayOrder,
             IsActive = true,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = IndiaTime.Now
         };
 
         _context.VitalMasters.Add(customMaster);
@@ -228,7 +229,7 @@ public class VitalHandlers :
             IsEnabled = true,
             IsMandatory = req.IsMandatory,
             DisplayOrder = nextOrder,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = IndiaTime.Now
         };
 
         _context.ClinicVitalPreferences.Add(pref);
@@ -305,7 +306,7 @@ public class VitalHandlers :
             NormalRangeMax = req.NormalRangeMax,
             DefaultDisplayOrder = req.DefaultDisplayOrder,
             IsActive = true,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = IndiaTime.Now
         };
 
         _context.VitalMasters.Add(master);
@@ -342,7 +343,7 @@ public class VitalHandlers :
         master.NormalRangeMax = req.NormalRangeMax;
         master.DefaultDisplayOrder = req.DefaultDisplayOrder;
         master.IsActive = req.IsActive;
-        master.UpdatedAt = DateTime.UtcNow;
+        master.UpdatedAt = IndiaTime.Now;
 
         await _context.SaveChangesAsync(cancellationToken);
 
@@ -466,7 +467,7 @@ public class VitalHandlers :
         }
 
         var existingVitals = visit.Vitals.ToList();
-        var now = DateTime.UtcNow;
+        var now = IndiaTime.Now;
         var userId = _currentUser.UserId;
 
         foreach (var item in submittedItems)

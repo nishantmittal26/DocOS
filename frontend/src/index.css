@@ -15,8 +15,8 @@
     margin: 8mm 10mm;
   }
 
-  /* 1. Hide the entire application tree completely from layout */
-  #root {
+  /* 1. Hide main app only when printing from the portal modal (see printPrescriptionModal) */
+  body.print-modal-active #root {
     display: none !important;
   }
 
@@ -98,5 +98,60 @@
   /* When printing on doctor's pre-printed letterhead pad */
   .pad-mode .digital-header {
     display: none !important;
+  }
+
+  /* Public /rx page shell */
+  .public-rx-shell {
+    min-height: 0 !important;
+    background: white !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .public-rx-shell .print-page-wrapper {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
+  }
+
+  /* Keep compact box layout on paper (Tailwind sm:/md: breakpoints often fail in print) */
+  .rx-print-patient-grid {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 0.75rem !important;
+  }
+
+  .rx-print-clinical-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 1rem !important;
+  }
+
+  .rx-print-vitals-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 0.5rem !important;
+  }
+
+  .rx-print-header-row {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: flex-start !important;
+    justify-content: space-between !important;
+  }
+
+  .rx-print-signature-row {
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: flex-end !important;
+    justify-content: space-between !important;
+  }
+
+  .rx-print-page-inner {
+    display: block !important;
+  }
+
+  .print-page .digital-header > div:last-child {
+    text-align: right !important;
   }
 }

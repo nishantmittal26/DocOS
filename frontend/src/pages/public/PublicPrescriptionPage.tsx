@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   Share2,
 } from 'lucide-react';
+import { formatDateIST } from '../../utils/dateTime';
 
 export const PublicPrescriptionPage: React.FC = () => {
   const { token } = useParams<{ token: string }>();
@@ -107,7 +108,7 @@ export const PublicPrescriptionPage: React.FC = () => {
   const vitals = prescription.vitals;
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-900 font-sans pb-16">
+    <div className="public-rx-shell min-h-screen bg-slate-100 text-slate-900 font-sans pb-16">
       {/* Top Floating App Bar (Hidden on print) */}
       <div className="no-print bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30 shadow-sm">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -141,10 +142,10 @@ export const PublicPrescriptionPage: React.FC = () => {
       </div>
 
       {/* Main Prescription Paper Document */}
-      <div className="max-w-4xl mx-auto px-4 pt-6">
-        <div className="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden p-6 sm:p-12 space-y-6">
+      <div className="print-page-wrapper max-w-4xl mx-auto px-4 pt-6">
+        <div className="print-page bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden p-6 sm:p-12 space-y-6">
           {/* Clinic & Doctor Header */}
-          <div className="border-b-2 border-emerald-700 pb-5 flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+          <div className="digital-header border-b-2 border-emerald-700 pb-5 flex flex-col sm:flex-row sm:items-start justify-between gap-4 rx-print-header-row">
             <div>
               <h1 className="text-2xl font-black text-emerald-800 tracking-tight uppercase">
                 {clinic.clinicName}
@@ -189,7 +190,7 @@ export const PublicPrescriptionPage: React.FC = () => {
           </div>
 
           {/* Patient Demographics Bar */}
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs rx-print-patient-grid">
             <div>
               <span className="text-slate-400 block text-[10px] font-bold uppercase tracking-wider">Patient Name</span>
               <span className="font-bold text-slate-900 text-sm">{prescription.patientName}</span>
@@ -205,7 +206,7 @@ export const PublicPrescriptionPage: React.FC = () => {
             <div className="sm:text-right">
               <span className="text-slate-400 block text-[10px] font-bold uppercase tracking-wider">Prescribed Date</span>
               <span className="font-semibold text-slate-800">
-                {new Date(prescription.prescribedAt).toLocaleDateString('en-IN', {
+                {formatDateIST(prescription.prescribedAt, {
                   day: 'numeric',
                   month: 'short',
                   year: 'numeric',
@@ -223,14 +224,14 @@ export const PublicPrescriptionPage: React.FC = () => {
           )}
 
           {/* Clinical Impression & Vitals */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rx-print-clinical-grid">
             {/* Vitals */}
             {vitals && (
               <div className="text-xs bg-slate-50/70 border border-slate-200 rounded-xl p-3.5 space-y-2">
                 <span className="font-bold text-slate-700 uppercase tracking-wider text-[10px] block">
                   Vitals Recorded
                 </span>
-                <div className="grid grid-cols-3 gap-2 text-slate-600">
+                <div className="grid grid-cols-3 gap-2 text-slate-600 rx-print-vitals-grid">
                   {vitals.recordedVitals && vitals.recordedVitals.length > 0 ? (
                     <>
                       {(() => {
@@ -474,7 +475,7 @@ export const PublicPrescriptionPage: React.FC = () => {
               <Calendar className="w-4 h-4 text-emerald-600" />
               <span>
                 Recommended Follow-up Visit:{' '}
-                {new Date(prescription.followUpDate).toLocaleDateString('en-IN', {
+                {formatDateIST(prescription.followUpDate, {
                   day: 'numeric',
                   month: 'short',
                   year: 'numeric',
@@ -484,7 +485,7 @@ export const PublicPrescriptionPage: React.FC = () => {
           )}
 
           {/* Doctor Signature & Authentication Block */}
-          <div className="pt-8 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6 text-xs">
+          <div className="pt-8 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6 text-xs rx-print-signature-row">
             <div className="space-y-1">
               <div className="flex items-center space-x-1.5 text-emerald-700 font-bold">
                 <ShieldCheck className="w-4 h-4" />
@@ -497,7 +498,7 @@ export const PublicPrescriptionPage: React.FC = () => {
                 <div className="text-[10px] text-slate-500 flex items-center space-x-1">
                   <Clock className="w-3 h-3" />
                   <span>
-                    Valid until {new Date(prescription.expiresAt).toLocaleDateString('en-IN')}
+                    Valid until {formatDateIST(prescription.expiresAt)}
                   </span>
                 </div>
               )}

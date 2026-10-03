@@ -18,6 +18,6 @@ public class VisitVitals : BaseEntity
     public string UnitSnapshot { get; set; } = null!; // Unit at record time, e.g. "mmHg", "°F"
     public bool IsAbnormal { get; set; } = false; // Evaluated against effective range
 
-    public DateTime RecordedAt { get; set; } = DateTime.UtcNow;
+    public DateTime RecordedAt { get; set; } = IndiaTime.Now;
     public string? RecordedByUserId { get; set; } // FK to AspNetUsers(Id), null for backfilled historical visits
 }

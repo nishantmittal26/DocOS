@@ -29,9 +29,12 @@ public static class DependencyInjection
             throw new InvalidOperationException("Database connection string 'DefaultConnection' is not configured.");
         }
 
-        services.AddDbContext<ApplicationDbContext>(options =>
+        services.AddSingleton<IstTimestampSaveChangesInterceptor>();
+
+        services.AddDbContext<ApplicationDbContext>((sp, options) =>
             options.UseSqlServer(connectionString, b =>
-                b.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName)));
+                    b.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName))
+                .AddInterceptors(sp.GetRequiredService<IstTimestampSaveChangesInterceptor>()));
 
         services.AddScoped<IApplicationDbContext>(provider =>
             provider.GetRequiredService<ApplicationDbContext>());

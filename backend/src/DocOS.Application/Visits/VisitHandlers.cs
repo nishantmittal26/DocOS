@@ -1,10 +1,10 @@
 using System.Security.Cryptography;
 using DocOS.Application.Advice;
+using DocOS.Domain.Common;
 using DocOS.Application.Common.Interfaces;
 using DocOS.Application.Labs;
 using DocOS.Application.Payments;
 using DocOS.Application.Vitals;
-using DocOS.Domain.Common;
 using DocOS.Domain.Entities;
 using DocOS.Domain.Enums;
 using MediatR;
@@ -126,7 +126,7 @@ public class VisitHandlers :
             }
         }
 
-        var today = DateTime.UtcNow.Date;
+        var today = IndiaTime.Today;
         var doctorId = request.DoctorId;
 
         var query = _context.Visits
@@ -223,7 +223,7 @@ public class VisitHandlers :
         }
 
         visit.Status = request.Status;
-        visit.UpdatedAt = DateTime.UtcNow;
+        visit.UpdatedAt = IndiaTime.Now;
 
         await _context.SaveChangesAsync(cancellationToken);
         return true;
@@ -259,7 +259,7 @@ public class VisitHandlers :
 
         visit.DoctorId = request.DoctorId;
         visit.TokenNumber = nextToken;
-        visit.UpdatedAt = DateTime.UtcNow;
+        visit.UpdatedAt = IndiaTime.Now;
 
         await _context.SaveChangesAsync(cancellationToken);
         return true;
@@ -299,7 +299,7 @@ public class VisitHandlers :
         var clinicId = _currentUser.ClinicId
             ?? throw new UnauthorizedAccessException("Active clinic context is required to access clinic clinical records");
 
-        var today = DateTime.UtcNow.Date;
+        var today = IndiaTime.Today;
 
         var query = _context.Visits
             .AsNoTracking()
@@ -397,7 +397,7 @@ public class VisitHandlers :
         visit.ClinicalNotes = req.ClinicalNotes;
         visit.FollowUpDate = req.FollowUpDate;
         visit.Status = VisitStatus.Completed;
-        visit.UpdatedAt = DateTime.UtcNow;
+        visit.UpdatedAt = IndiaTime.Now;
 
         // Phase 2B: Increment period visits conducted once on first completion
         if (wasNotCompleted)
@@ -416,8 +416,8 @@ public class VisitHandlers :
                 if (periodUsage != null)
                 {
                     periodUsage.VisitsConducted += 1;
-                    periodUsage.LastVisitRecordedAt = DateTime.UtcNow;
-                    periodUsage.UpdatedAt = DateTime.UtcNow;
+                    periodUsage.LastVisitRecordedAt = IndiaTime.Now;
+                    periodUsage.UpdatedAt = IndiaTime.Now;
 
                     var totalAllowed = activeSubscription.TotalAllowedVisits;
                     if (!activeSubscription.HasUnlimitedVisits && totalAllowed.HasValue)
@@ -426,7 +426,7 @@ public class VisitHandlers :
                         if (periodUsage.VisitsConducted >= hardCap)
                         {
                             activeSubscription.Status = SubscriptionStatuses.QuotaExceeded;
-                            activeSubscription.UpdatedAt = DateTime.UtcNow;
+                            activeSubscription.UpdatedAt = IndiaTime.Now;
                         }
                     }
                 }
@@ -443,7 +443,7 @@ public class VisitHandlers :
         {
             // The printed prescription must remain unchanged. Mark it as non-current and create a new revision.
             currentPrescription.IsCurrent = false;
-            currentPrescription.UpdatedAt = DateTime.UtcNow;
+            currentPrescription.UpdatedAt = IndiaTime.Now;
 
             targetPrescription = new Prescription
             {
@@ -451,7 +451,7 @@ public class VisitHandlers :
                 PatientId = visit.PatientId,
                 ClinicId = clinicId,
                 DoctorId = doctorId,
-                PrescribedAt = DateTime.UtcNow,
+                PrescribedAt = IndiaTime.Now,
                 GeneralAdvice = req.GeneralAdvice,
                 PreviousPrescriptionId = currentPrescription.Id,
                 IsCurrent = true,
@@ -467,7 +467,7 @@ public class VisitHandlers :
             targetPrescription = currentPrescription;
             targetPrescription.DoctorId = doctorId;
             targetPrescription.GeneralAdvice = req.GeneralAdvice;
-            targetPrescription.UpdatedAt = DateTime.UtcNow;
+            targetPrescription.UpdatedAt = IndiaTime.Now;
 
             // Clear old items, lab orders, advice items
             _context.PrescriptionItems.RemoveRange(targetPrescription.Items);
@@ -486,7 +486,7 @@ public class VisitHandlers :
                 PatientId = visit.PatientId,
                 ClinicId = clinicId,
                 DoctorId = doctorId,
-                PrescribedAt = DateTime.UtcNow,
+                PrescribedAt = IndiaTime.Now,
                 GeneralAdvice = req.GeneralAdvice,
                 IsCurrent = true,
                 IsPrinted = false
@@ -593,11 +593,11 @@ public class VisitHandlers :
         // Cryptographically secure 128+ bit token (16 bytes = 128 bits)
         var tokenBytes = RandomNumberGenerator.GetBytes(16);
         var token = Convert.ToHexString(tokenBytes).ToLowerInvariant();
-        var expiresAt = DateTime.UtcNow.AddDays(request.ExpiryDays > 0 ? request.ExpiryDays : 7);
+        var expiresAt = IndiaTime.Now.AddDays(request.ExpiryDays > 0 ? request.ExpiryDays : 7);
 
         prescription.PdfShareToken = token;
         prescription.ExpiresAt = expiresAt;
-        prescription.UpdatedAt = DateTime.UtcNow;
+        prescription.UpdatedAt = IndiaTime.Now;
 
         await _context.SaveChangesAsync(cancellationToken);
 
@@ -627,7 +627,7 @@ public class VisitHandlers :
         }
 
         prescription.IsPrinted = true;
-        prescription.UpdatedAt = DateTime.UtcNow;
+        prescription.UpdatedAt = IndiaTime.Now;
 
         await _context.SaveChangesAsync(cancellationToken);
 
@@ -653,7 +653,7 @@ public class VisitHandlers :
 
         var prescriptionId = await _context.Prescriptions
             .AsNoTracking()
-            .Where(p => p.PdfShareToken == token && (p.ExpiresAt == null || p.ExpiresAt > DateTime.UtcNow))
+            .Where(p => p.PdfShareToken == token && (p.ExpiresAt == null || p.ExpiresAt > IndiaTime.Now))
             .Select(p => p.Id)
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -867,7 +867,7 @@ public class VisitHandlers :
         }
 
         visit.Status = VisitStatus.Cancelled;
-        visit.UpdatedAt = DateTime.UtcNow;
+        visit.UpdatedAt = IndiaTime.Now;
         await _context.SaveChangesAsync(cancellationToken);
 
         return true;

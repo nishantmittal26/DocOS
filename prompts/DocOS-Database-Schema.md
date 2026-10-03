@@ -13,15 +13,17 @@ Phase 1’s PostgreSQL database is the historical MVP. Production Phase 2+ uses 
 | Identifiers on domain entities | `uniqueidentifier` (`BaseEntity.Id`) |
 | Identity user and role ids | `nvarchar(450)` (`AspNetUsers.Id`, `AspNetRoles.Id`) |
 | Doctor foreign keys | `nvarchar(450)` to `AspNetUsers.Id` |
-| Date and time | `datetime2` |
-| Calendar day for tokens | `date` |
+| Date and time | `datetime2` — **IST wall-clock** for clinic/product timestamps (see [ADR §3](DocOS-Architecture-Decisions.md#3-locked-rules-ongoing)); use `IndiaTime` in code, not UTC |
+| Calendar day for tokens / visit day | `date` or `datetime2` date portion — **IST calendar day** (`IndiaTime.Today`) |
 | Strings | `nvarchar` |
 | Money and fees | `decimal(10,2)` |
 | Vital numbers | `decimal(12,4)` |
 | Booleans | `bit` |
 | Migrations | `DocOS.Infrastructure/Migrations` only |
 
-`BaseEntity` on domain tables: `Id` `uniqueidentifier` not null, `CreatedAt` `datetime2` not null, `UpdatedAt` `datetime2` null. Column lists below include those three unless the table is an Identity table or a pure join.
+`BaseEntity` on domain tables: `Id` `uniqueidentifier` not null, `CreatedAt` `datetime2` not null, `UpdatedAt` `datetime2` null. Column lists below include those three unless the table is an Identity table or a pure join. All three are stored in **IST** via `IstTimestampSaveChangesInterceptor`.
+
+**New date/datetime columns:** Must follow the IST rule in [DocOS-Architecture-Decisions.md §3](DocOS-Architecture-Decisions.md#3-locked-rules-ongoing) and [`AGENTS.md`](../AGENTS.md) §4.
 
 **Nullable `ClinicId` means different things on different tables.**
 

@@ -14,5 +14,5 @@ public class VisitPayment : BaseEntity
     public string Method { get; set; } = "Cash"; // "Cash", "UPI"
     public string? Reference { get; set; } // UPI reference when used
     public string CollectedByUserId { get; set; } = string.Empty; // AspNetUsers.Id (Staff/Doctor)
-    public DateTime CollectedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CollectedAt { get; set; } = IndiaTime.Now;
 }

@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import { PrescriptionDetail } from '../types';
 import { visitsApi } from '../api/client';
+import { printPrescriptionModal } from '../utils/printUtils';
+import { formatDateIST } from '../utils/dateTime';
 
 interface PrescriptionPrintModalProps {
   isOpen: boolean;
@@ -52,7 +54,7 @@ export const PrescriptionPrintModal: React.FC<PrescriptionPrintModalProps> = ({
         console.warn('Could not record print audit', err);
       });
     }
-    window.print();
+    printPrescriptionModal();
   };
 
   const handleGenerateShareLink = async () => {
@@ -212,7 +214,7 @@ export const PrescriptionPrintModal: React.FC<PrescriptionPrintModalProps> = ({
             <div>
               {/* DIGITAL LETTERHEAD (Hidden in 'pad' mode) */}
               {printMode === 'blank' && (
-                <div className="digital-header border-b-2 border-emerald-700 pb-5 mb-6 flex items-start justify-between">
+                <div className="digital-header border-b-2 border-emerald-700 pb-5 mb-6 flex items-start justify-between rx-print-header-row">
                   <div>
                     <h1 className="text-2xl font-black text-emerald-800 tracking-tight uppercase">
                       {clinic.clinicName}
@@ -258,7 +260,7 @@ export const PrescriptionPrintModal: React.FC<PrescriptionPrintModalProps> = ({
               )}
 
               {/* PATIENT DEMOGRAPHICS BAR */}
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 mb-5 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 mb-5 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs rx-print-patient-grid">
                 <div>
                   <span className="text-slate-400 block text-[10px] font-semibold uppercase tracking-wider">Patient Name</span>
                   <span className="font-bold text-slate-900 text-sm">{prescription.patientName}</span>
@@ -274,7 +276,7 @@ export const PrescriptionPrintModal: React.FC<PrescriptionPrintModalProps> = ({
                 <div className="text-right sm:text-left">
                   <span className="text-slate-400 block text-[10px] font-semibold uppercase tracking-wider">Date</span>
                   <span className="font-semibold text-slate-800">
-                    {new Date(prescription.prescribedAt).toLocaleDateString('en-IN', {
+                    {formatDateIST(prescription.prescribedAt, {
                       day: 'numeric',
                       month: 'short',
                       year: 'numeric',
@@ -292,14 +294,14 @@ export const PrescriptionPrintModal: React.FC<PrescriptionPrintModalProps> = ({
               )}
 
               {/* VITALS & CLINICAL IMPRESSION */}
-              <div className="mb-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="mb-5 grid grid-cols-1 md:grid-cols-2 gap-4 rx-print-clinical-grid">
                 {/* Vitals */}
                 {vitals && (
                   <div className="text-xs bg-white border border-slate-200 rounded-xl p-3">
                     <span className="font-bold text-slate-700 uppercase tracking-wider text-[10px] block mb-2">
                       Vitals Recorded
                     </span>
-                    <div className="grid grid-cols-3 gap-2 text-slate-600">
+                    <div className="grid grid-cols-3 gap-2 text-slate-600 rx-print-vitals-grid">
                       {vitals.recordedVitals && vitals.recordedVitals.length > 0 ? (
                         <>
                           {(() => {
@@ -549,7 +551,7 @@ export const PrescriptionPrintModal: React.FC<PrescriptionPrintModalProps> = ({
                     <div className="flex items-center space-x-1.5 text-emerald-800 font-bold pt-1">
                       <Calendar className="w-3.5 h-3.5 text-emerald-600" />
                       <span>
-                        Follow-up Visit: {new Date(prescription.followUpDate).toLocaleDateString('en-IN', {
+                        Follow-up Visit: {formatDateIST(prescription.followUpDate, {
                           day: 'numeric',
                           month: 'short',
                           year: 'numeric',
@@ -562,7 +564,7 @@ export const PrescriptionPrintModal: React.FC<PrescriptionPrintModalProps> = ({
             </div>
 
             {/* DOCTOR SIGNATURE SECTION */}
-            <div className="pt-8 border-t border-slate-200 flex justify-between items-end text-xs">
+            <div className="pt-8 border-t border-slate-200 flex justify-between items-end text-xs rx-print-signature-row">
               <div className="text-[10px] text-slate-400 font-mono">
                 Prescription generated digitally via DocOS Clinic SaaS
               </div>

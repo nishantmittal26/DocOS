@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { adminApi } from '../../api/client';
 import { AdminClinicItem, SubscriptionStatus } from '../../types';
+import { formatDateIST } from '../../utils/dateTime';
 import {
   Building2,
   Users,
@@ -399,12 +400,12 @@ export const AdminClinicsPage: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <span>Period:</span>
                       <span className="font-medium text-slate-700">
-                        {new Date(clinic.currentPeriodStart).toLocaleDateString('en-IN', {
+                        {formatDateIST(clinic.currentPeriodStart, {
                           day: 'numeric',
                           month: 'short',
                         })}{' '}
                         -{' '}
-                        {new Date(clinic.currentPeriodEnd).toLocaleDateString('en-IN', {
+                        {formatDateIST(clinic.currentPeriodEnd, {
                           day: 'numeric',
                           month: 'short',
                           year: 'numeric',

@@ -3,7 +3,7 @@
 **Locked:** 3 October 2026  
 **Purpose:** Historical record and ongoing log of *why* DocOS is shaped this way—superseded drafts, rationale, and dated notes for new architecture or schema decisions. *What* to build and *when it is done* live in the master spec—not here.
 
-**Agents:** Any new architecture decision or database schema change must append an entry to [§4 Change log](#4-change-log) below and, for schema, update [DocOS-Database-Schema.md](DocOS-Database-Schema.md) in the same work. See [`AGENTS.md`](../AGENTS.md) §3.
+**Agents:** Any new architecture decision or database schema change must append an entry to [§5 Change log](#5-change-log) below and, for schema, update [DocOS-Database-Schema.md](DocOS-Database-Schema.md) in the same work. See [`AGENTS.md`](../AGENTS.md) §4 (including the **IST** rule for date/time columns).
 
 | Document | Use for |
 | :--- | :--- |
@@ -52,18 +52,37 @@
 
 ---
 
-## 3. Reading order
+## 3. Locked rules (ongoing)
+
+These apply to **all new work**, including tables and columns added after Phase 2.
+
+### Date and time — India Standard Time (IST)
+
+| Layer | Rule |
+| :--- | :--- |
+| **Database** | Clinic-facing `date` / `datetime2` values are **IST wall-clock** (what staff see in SSMS), not UTC. |
+| **Backend** | Use `IndiaTime.Now`, `IndiaTime.Today`, and `IndiaTime.DayRange` from `DocOS.Domain.Common`. Do **not** assign `DateTime.UtcNow` when persisting clinic timestamps. |
+| **EF Core** | `IstTimestampSaveChangesInterceptor` sets `BaseEntity.CreatedAt` / `UpdatedAt`, `VisitVitals.RecordedAt`, and `AuditLog.Timestamp` on save. New entities with other timestamp columns must set IST in handlers or extend the interceptor. |
+| **Frontend** | Format and parse with `frontend/src/utils/dateTime.ts` (`Asia/Kolkata`; naive API strings = `+05:30`). |
+| **Exceptions** | JWT expiry and other protocol-mandated UTC only—note the exception in the change log when introducing a column. |
+
+When adding a **new** date or datetime column: document it in [DocOS-Database-Schema.md](DocOS-Database-Schema.md) and confirm writes go through `IndiaTime` (see change log entry **E01 IST date/time policy**).
+
+---
+
+## 4. Reading order
 
 1. **Status and what’s next** → [DocOS-Product-Roadmap.md](DocOS-Product-Roadmap.md).  
 2. **Building a part** → [DocOS-(Phase 2).md](<DocOS-(Phase 2).md>) for scope and done-when.  
 3. **Columns and indexes** → [DocOS-Database-Schema.md](DocOS-Database-Schema.md).  
 4. **Future / deferred work** → [DocOS-Backlog.md](DocOS-Backlog.md).  
 5. **Why a rejected idea stays out** → this file, §1–2.  
-6. **What changed after Oct 2026** → this file, §4.
+6. **What changed after Oct 2026** → this file, §5.  
+7. **Date/time rules for new columns** → this file, §3.
 
 ---
 
-## 4. Change log
+## 5. Change log
 
 Newest first. One block per decision or schema change.
 
@@ -76,6 +95,11 @@ Newest first. One block per decision or schema change.
 
 - **Decision:** Add `DocOS-Product-Roadmap.md` as the entry point; keep Phase 1 as locked archive; move post–2D **Later** items to `DocOS-Backlog.md` with promotion rules.
 - **Rationale:** Single place for completion status and stack truth; backlog items can be picked up later without living inside the Phase 2 execution spec.
+
+### 2026-10-03 — E01 IST date/time policy (locked rule §3)
+
+- **Decision:** All clinic-facing `datetime2` values are stored and written as **IST wall-clock** (`DocOS.Domain.Common.IndiaTime`, `IstTimestampSaveChangesInterceptor`). JWT expiry remains UTC. UI uses `frontend/src/utils/dateTime.ts` with `Asia/Kolkata` and parses naive API timestamps as IST (`+05:30`). Formalized as ongoing rule in **§3**; agents must apply to every new date/datetime column.
+- **Rationale:** Doctors and staff expect SQL Server and the app to show India local time (e.g. ~18:42 when saving at 6:42 PM IST), not UTC.
 
 ### 2026-10-03 — Phase 2 (2A–2D) sign-off
 

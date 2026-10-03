@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { formatDateIST } from '../../utils/dateTime';
 import { patientsApi, visitsApi, authApi } from '../../api/client';
 import { PatientSearchResult, VisitQueueItem, DoctorProfile } from '../../types';
 import { useAuth } from '../../context/AuthContext';
@@ -239,7 +240,7 @@ export const PatientsPage: React.FC<PatientsPageProps> = ({ onOpenNewPatient }) 
                         <span>
                           Last Visit:{' '}
                           {p.lastVisitDate
-                            ? new Date(p.lastVisitDate).toLocaleDateString('en-IN')
+                            ? formatDateIST(p.lastVisitDate)
                             : '—'}
                           {p.lastDoctorName && (
                             <strong className="text-slate-700 ml-1">

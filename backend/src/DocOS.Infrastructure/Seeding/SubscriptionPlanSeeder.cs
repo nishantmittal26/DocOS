@@ -81,7 +81,7 @@ public static class SubscriptionPlanSeeder
 
         foreach (var clinic in clinicsWithoutSubscription)
         {
-            var periodStart = DateTime.UtcNow;
+            var periodStart = IndiaTime.Now;
             var periodEnd = periodStart.AddDays(30);
 
             var subscription = new ClinicSubscription
@@ -112,7 +112,7 @@ public static class SubscriptionPlanSeeder
                 PeriodStart = periodStart,
                 PeriodEnd = periodEnd,
                 VisitsConducted = completedCount,
-                LastVisitRecordedAt = completedCount > 0 ? DateTime.UtcNow : null
+                LastVisitRecordedAt = completedCount > 0 ? IndiaTime.Now : null
             };
 
             context.ClinicPeriodUsages.Add(usage);

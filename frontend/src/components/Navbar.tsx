@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { formatDateIST } from '../utils/dateTime';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { clinicsApi } from '../api/client';
@@ -467,7 +468,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onOpenNewPatient }) => {
                   <Clock className="w-4 h-4 flex-shrink-0 text-amber-700" />
                   <span>
                     Subscription Grace Period: Your billing cycle ended on{' '}
-                    {new Date(quota.periodEnd).toLocaleDateString('en-IN')}. Please contact your administrator to renew your plan.
+                    {formatDateIST(quota.periodEnd)}. Please contact your administrator to renew your plan.
                   </span>
                 </div>
                 <span className="text-[11px] font-bold text-amber-800">

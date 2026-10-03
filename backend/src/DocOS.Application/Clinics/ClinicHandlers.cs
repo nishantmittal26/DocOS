@@ -75,7 +75,7 @@ public class ClinicHandlers :
         clinic.PrintBottomMarginMm = Math.Max(0, req.PrintBottomMarginMm);
         clinic.HideLetterheadOnPrint = req.HideLetterheadOnPrint;
         clinic.ClinicTimings = req.ClinicTimings?.Trim();
-        clinic.UpdatedAt = DateTime.UtcNow;
+        clinic.UpdatedAt = IndiaTime.Now;
 
         await _context.SaveChangesAsync(cancellationToken);
 

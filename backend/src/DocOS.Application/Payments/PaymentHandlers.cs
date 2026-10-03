@@ -1,4 +1,5 @@
 using DocOS.Application.Common.Interfaces;
+using DocOS.Domain.Common;
 using DocOS.Domain.Entities;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -60,8 +61,8 @@ public class PaymentHandlers :
             payment.Method = method;
             payment.Reference = string.IsNullOrWhiteSpace(request.Request.Reference) ? null : request.Request.Reference.Trim();
             payment.CollectedByUserId = userId;
-            payment.CollectedAt = DateTime.UtcNow;
-            payment.UpdatedAt = DateTime.UtcNow;
+            payment.CollectedAt = IndiaTime.Now;
+            payment.UpdatedAt = IndiaTime.Now;
         }
         else
         {
@@ -74,7 +75,7 @@ public class PaymentHandlers :
                 Method = method,
                 Reference = string.IsNullOrWhiteSpace(request.Request.Reference) ? null : request.Request.Reference.Trim(),
                 CollectedByUserId = userId,
-                CollectedAt = DateTime.UtcNow
+                CollectedAt = IndiaTime.Now
             };
             _context.VisitPayments.Add(payment);
         }
@@ -138,11 +139,11 @@ public class PaymentHandlers :
         var clinicId = _currentUser.ClinicId
             ?? throw new UnauthorizedAccessException("Active clinic context is required");
 
-        var targetDate = (request.Date ?? DateTime.UtcNow).Date;
-        var nextDate = targetDate.AddDays(1);
+        var targetIstDate = request.Date?.Date ?? IndiaTime.Today;
+        var (dayStart, dayEnd) = IndiaTime.DayRange(targetIstDate);
 
         var payments = await _context.VisitPayments
-            .Where(p => p.ClinicId == clinicId && p.CollectedAt >= targetDate && p.CollectedAt < nextDate)
+            .Where(p => p.ClinicId == clinicId && p.CollectedAt >= dayStart && p.CollectedAt < dayEnd)
             .OrderByDescending(p => p.CollectedAt)
             .ToListAsync(cancellationToken);
 
@@ -178,7 +179,7 @@ public class PaymentHandlers :
             .ToList();
 
         return new DailyCollectionReportDto(
-            targetDate,
+            targetIstDate,
             totalCash,
             totalUpi,
             grandTotal,

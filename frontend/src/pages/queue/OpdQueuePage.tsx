@@ -12,6 +12,7 @@ import {
   VisitPayment,
   DailyCollectionReport,
 } from '../../types';
+import { formatDateIST, formatTimeIST, getIstDateInputValue } from '../../utils/dateTime';
 import { VitalsModal } from '../../components/VitalsModal';
 import { PrescriptionPrintModal } from '../../components/PrescriptionPrintModal';
 import {
@@ -75,7 +76,7 @@ export const OpdQueuePage: React.FC<OpdQueuePageProps> = ({ onOpenNewPatient }) 
 
   // Daily Collection Report State (Phase 2D)
   const [isReportOpen, setIsReportOpen] = useState<boolean>(false);
-  const [reportDate, setReportDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [reportDate, setReportDate] = useState<string>(() => getIstDateInputValue());
   const [dailyReport, setDailyReport] = useState<DailyCollectionReport | null>(null);
   const [loadingReport, setLoadingReport] = useState<boolean>(false);
 
@@ -327,7 +328,7 @@ export const OpdQueuePage: React.FC<OpdQueuePageProps> = ({ onOpenNewPatient }) 
             </button>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            {new Date().toLocaleDateString('en-IN', {
+            {formatDateIST(new Date(), {
               weekday: 'long',
               day: 'numeric',
               month: 'long',
@@ -877,7 +878,7 @@ export const OpdQueuePage: React.FC<OpdQueuePageProps> = ({ onOpenNewPatient }) 
                           {dailyReport.payments.map((p) => (
                             <tr key={p.id} className="hover:bg-slate-50">
                               <td className="py-2 px-3 text-slate-500 whitespace-nowrap">
-                                {new Date(p.collectedAt).toLocaleTimeString('en-IN', {
+                                {formatTimeIST(p.collectedAt, {
                                   hour: '2-digit',
                                   minute: '2-digit',
                                 })}
