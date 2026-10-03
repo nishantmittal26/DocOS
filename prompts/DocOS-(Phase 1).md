@@ -139,4 +139,4 @@ DocOS/
 
 ## 6. Next Phase: Phase 2 (V2) Master Prompt
 Phase 2 (Distribution, Super Admin, Multi-Doctor SaaS & Enterprise Architecture) has been separated into its own dedicated master specification:
-- Please refer to [DocOS-(Phase 2).md](file:///c:/Nishant/Code/Antigravity/DocOS/DocOS-%28Phase%202%29.md) for the active V2 specification, architecture plan, and roadmap.
+- Please refer to [DocOS-(Phase 2).md](DocOS-(Phase%202).md) for the active V2 specification, architecture plan, and roadmap.
