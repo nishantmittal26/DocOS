@@ -7,9 +7,11 @@
 
 | Document | Use for |
 | :--- | :--- |
-| [DocOS-(Phase 2).md](<DocOS-(Phase 2).md>) | Parts 2A–2D, in/out of scope, done-when checklists, locked decision bullets |
+| [DocOS-Product-Roadmap.md](DocOS-Product-Roadmap.md) | Hub: status, stack, reading order |
+| [DocOS-(Phase 2).md](<DocOS-(Phase 2).md>) | Parts 2A–2D, in/out of scope, done-when checklists |
+| [DocOS-Backlog.md](DocOS-Backlog.md) | Post–2D deferred work; promotion rules |
 | [DocOS-Database-Schema.md](DocOS-Database-Schema.md) | Tables, columns, indexes, ERDs |
-| [DocOS-(Phase 1).md](DocOS-(Phase%201).md) | Locked MVP baseline (do not rewrite for Phase 2) |
+| [DocOS-(Phase 1).md](DocOS-(Phase%201).md) | Locked MVP archive (do not rewrite for Phase 2) |
 
 ---
 
@@ -18,7 +20,7 @@
 | Earlier draft | Locked decision |
 | :--- | :--- |
 | PostgreSQL + SQL Server, two migration folders | SQL Server only; one folder under `DocOS.Infrastructure/Migrations` |
-| One big Phase 2 release (identity, billing, vitals, labs, messaging, ABDM) | Sequential **2A → 2B → 2C → 2D**, then an explicit **Later** list |
+| One big Phase 2 release (identity, billing, vitals, labs, messaging, ABDM) | Sequential **2A → 2B → 2C → 2D**, then **[DocOS-Backlog.md](DocOS-Backlog.md)** |
 | `DosageFrequencyMaster` / `DosageTimingMaster` | Dosage string (`1-0-1`) + `DosageTiming` enum; `DurationDays` as `int` |
 | `ComplaintMaster` in Phase 2 | `ChiefComplaints` stays free text |
 | ABDM as Phase 2 compliance work | ABDM deferred; identifiers ≠ compliance; `IsAbhaVerified` false until a real flow exists |
@@ -46,16 +48,18 @@
 
 **Audit as a normal table.** `AuditLogs` with `ChangesJson` for create/update/delete/login/print—not a tamper-proof ledger, not a row per queue view.
 
-**Handover on screen in 2B.** WhatsApp/SMS need provider, templates, and consent; QR + credentials on the login page until messaging is on the Later list.
+**Handover on screen in 2B.** WhatsApp/SMS need provider, templates, and consent; QR + credentials on the login page until messaging is promoted from the backlog.
 
 ---
 
 ## 3. Reading order
 
-1. **Building a part** → [DocOS-(Phase 2).md](<DocOS-(Phase 2).md>) for that part’s scope and done-when list.  
-2. **Columns and indexes** → [DocOS-Database-Schema.md](DocOS-Database-Schema.md).  
-3. **Why a rejected idea stays out** → this file, §1–2.  
-4. **What changed after Oct 2026** → this file, §4.
+1. **Status and what’s next** → [DocOS-Product-Roadmap.md](DocOS-Product-Roadmap.md).  
+2. **Building a part** → [DocOS-(Phase 2).md](<DocOS-(Phase 2).md>) for scope and done-when.  
+3. **Columns and indexes** → [DocOS-Database-Schema.md](DocOS-Database-Schema.md).  
+4. **Future / deferred work** → [DocOS-Backlog.md](DocOS-Backlog.md).  
+5. **Why a rejected idea stays out** → this file, §1–2.  
+6. **What changed after Oct 2026** → this file, §4.
 
 ---
 
@@ -67,3 +71,13 @@ Newest first. One block per decision or schema change.
 
 - **Decision:** Keep a dedicated ADR file for superseded drafts and rationale; scope and done-when lists stay in `DocOS-(Phase 2).md`; columns stay in `DocOS-Database-Schema.md`.
 - **Rationale:** Avoid three documents repeating the same checklists; preserve history for future architecture discussion.
+
+### 2026-10-03 — Hub + backlog doc set
+
+- **Decision:** Add `DocOS-Product-Roadmap.md` as the entry point; keep Phase 1 as locked archive; move post–2D **Later** items to `DocOS-Backlog.md` with promotion rules.
+- **Rationale:** Single place for completion status and stack truth; backlog items can be picked up later without living inside the Phase 2 execution spec.
+
+### 2026-10-03 — Phase 2 (2A–2D) sign-off
+
+- **Decision:** Mark parts 2A–2D complete on the roadmap; done-when checklists checked in `DocOS-(Phase 2).md`. Residual bugs and small enhancements go in `DocOS-Follow-ups.md`, not backlog promotion.
+- **Rationale:** Ship milestone without blocking on polish; separate follow-ups from new feature backlog.

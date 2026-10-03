@@ -1,5 +1,7 @@
 # Project Name: DocOS — OPD Clinic Management SaaS (India Edition)
 
+> **Archive — MVP baseline (locked).** This document describes the **Phase 1 PostgreSQL MVP** as shipped historically. It is not updated for SQL Server or Phase 2. For current stack, delivery status, and what to build next, start at **[DocOS-Product-Roadmap.md](DocOS-Product-Roadmap.md)**.
+
 ## 1. Executive Summary
 DocOS is a high-speed, lightweight SaaS platform tailored specifically for Indian outpatient department (OPD) doctors and small clinics transitioning from paper-based prescriptions to digital workflows. The system streamlines patient check-in, vitals capture by clinic assistants/receptionists, OPD consultation by doctors, rapid prescription generation featuring Indian brand names alongside their active generic salt compositions, and comprehensive historical patient record management.
 
@@ -137,6 +139,10 @@ DocOS/
 
 ---
 
-## 6. Next Phase: Phase 2 (V2) Master Prompt
-Phase 2 (Distribution, Super Admin, Multi-Doctor SaaS & Enterprise Architecture) has been separated into its own dedicated master specification:
-- Please refer to [DocOS-(Phase 2).md](DocOS-(Phase%202).md) for the active V2 specification, architecture plan, and roadmap.
+## 6. After MVP (Phase 2+)
+
+Phase 2 execution, status, and backlog are not maintained in this file.
+
+- **Hub:** [DocOS-Product-Roadmap.md](DocOS-Product-Roadmap.md)  
+- **Parts 2A–2D:** [DocOS-(Phase 2).md](DocOS-(Phase%202).md)  
+- **Deferred work:** [DocOS-Backlog.md](DocOS-Backlog.md)

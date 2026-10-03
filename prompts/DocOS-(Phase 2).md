@@ -1,5 +1,7 @@
 # DocOS — Phase 2 Master Specification
 
+> **Phase 2 spec (2A–2D signed off 3 Oct 2026).** Status: **[DocOS-Product-Roadmap.md](DocOS-Product-Roadmap.md)**. Bugs/polish: **[DocOS-Follow-ups.md](DocOS-Follow-ups.md)**. New features: **[DocOS-Backlog.md](DocOS-Backlog.md)**. MVP archive: **[DocOS-(Phase 1).md](DocOS-(Phase%201).md)**.
+
 Phase 2 turns the single-doctor MVP into a sellable multi-doctor SaaS. It is built as four sequential parts. Each part ships on its own and leaves the previous part working.
 
 | Part | What it delivers |
@@ -8,9 +10,9 @@ Phase 2 turns the single-doctor MVP into a sellable multi-doctor SaaS. It is bui
 | **2B** | Sales onboarding, plans, quotas, SaaS billing history |
 | **2C** | Dynamic vitals |
 | **2D** | Labs, advice snippets, medicine favorites, public prescription link, OPD fee collection, audit, printed-prescription revisions |
-| **Later** | Work that is specified so it is not rebuilt by accident, and is outside Phase 2 execution |
+| **Backlog** | Post–2D items in [DocOS-Backlog.md](DocOS-Backlog.md)—promote before implementing |
 
-Column-level detail is in [DocOS-Database-Schema.md](DocOS-Database-Schema.md). Rationale and superseded drafts are in [DocOS-Architecture-Decisions.md](DocOS-Architecture-Decisions.md). Phase 1 stays the locked MVP baseline in `DocOS-(Phase 1).md`.
+Column-level detail is in [DocOS-Database-Schema.md](DocOS-Database-Schema.md). Rationale and superseded drafts are in [DocOS-Architecture-Decisions.md](DocOS-Architecture-Decisions.md).
 
 ---
 
@@ -74,7 +76,7 @@ Domain entities use `BaseEntity`: `Id` (`uniqueidentifier`), `CreatedAt`, `Updat
 
 ### Rules for implementers
 
-1. Implement the earliest part whose done-when list is still open. Do not pull a later part’s tables forward. Deferred columns and tables stay in the Later section until a future spec promotes them.
+1. Implement the earliest part whose done-when list is still open. Do not pull a later part’s tables forward. Deferred work stays in [DocOS-Backlog.md](DocOS-Backlog.md) until promoted.
 2. Preserve Phase 1 behavior that this spec keeps: patient registration and `PatientUid` sequencing, queue statuses, allergy banner, brand-plus-salt formulary search, dosage shorthand, and the dual-mode letterhead print engine (blank A4 and pre-printed pad). In multi-doctor clinics, ensure patient registration and check-in enforce doctor assignment, and patient search supports filtering by doctor.
 3. Put entities in `DocOS.Domain`, handlers and DTOs in `DocOS.Application`, EF mappings and SQL Server in `DocOS.Infrastructure`, and controllers that only dispatch MediatR in `DocOS.API`.
 4. Authorize with `[Authorize(Roles = "...")]` against `ClaimTypes.Role`. Clinic-scoped handlers also require a non-null `ClinicId` and filter every query by that id.
@@ -114,7 +116,7 @@ Domain entities use `BaseEntity`: `Id` (`uniqueidentifier`), `CreatedAt`, `Updat
 - Subscription tables, quota enforcement, the onboarding wizard, and `OnboardedByUserId`.
 - `VitalMaster`, `VisitVitals`, and any rewrite of the vitals modal.
 - Labs, advice templates, favorites, OPD fee collection, `PdfShareToken`, audit logs, and prescription revisions.
-- `HprId` and every Later item.
+- `HprId` and every [backlog](DocOS-Backlog.md) item unless promoted.
 
 ### Main tables
 
@@ -138,19 +140,19 @@ Nurse records vitals on the existing columns and can see the clinic queue. Presc
 
 ### Done when
 
-- [ ] `main` is tagged `v1.0-mvp`. Phase 2 work is on branch `phase-2` against a new SQL Server database.
-- [ ] Migrations live only in `DocOS.Infrastructure/Migrations` and apply with `UseSqlServer`.
-- [ ] The six roles are seeded. A user can be ClinicAdmin and Doctor. The `Role` string column is gone. JWT contains one `ClaimTypes.Role` per role.
-- [ ] PlatformAdmin and SalesAgent have null `ClinicId` and receive an authorization failure from patient, visit, and prescription APIs. The test “platform admin cannot read clinic clinical records” passes.
-- [ ] Clinic staff cannot be saved without `ClinicId`.
-- [ ] Two doctors in one clinic have independent token sequences on the same calendar day. A visit cannot enter `InConsultation` without `DoctorId`. A saved prescription has `DoctorId`.
-- [ ] Registering a new patient with queue check-in (`NewPatientModal`) or queueing from `/patients` requires or assigns a specific doctor. Visits are never queued unassigned.
-- [ ] Patient search (`GET /api/patients/search`) supports filtering by `doctorId` and enriches results with `LastDoctorName`, `TodayVisitTokenNumber`, `TodayVisitDoctorName`, and `TodayVisitStatus`.
-- [ ] In multi-doctor clinics, doctors default to their own queue and patient directory, while receptionists can toggle between all doctors or a specific doctor.
-- [ ] Print still supports blank A4 and pad margin, using the doctor’s qualifications and council number and the clinic’s logo, margins, and hide-letterhead flag.
-- [ ] Deactivated staff cannot sign in. Their past visits still display.
-- [ ] Formulary search, allergy banner, free-text complaints, vital columns, and `1-0-1` dosage lines still work.
-- [ ] JWT signing key comes from configuration. Access-token lifetime is short.
+- [x] `main` is tagged `v1.0-mvp`. Phase 2 work is on branch `phase-2` against a new SQL Server database.
+- [x] Migrations live only in `DocOS.Infrastructure/Migrations` and apply with `UseSqlServer`.
+- [x] The six roles are seeded. A user can be ClinicAdmin and Doctor. The `Role` string column is gone. JWT contains one `ClaimTypes.Role` per role.
+- [x] PlatformAdmin and SalesAgent have null `ClinicId` and receive an authorization failure from patient, visit, and prescription APIs. The test “platform admin cannot read clinic clinical records” passes.
+- [x] Clinic staff cannot be saved without `ClinicId`.
+- [x] Two doctors in one clinic have independent token sequences on the same calendar day. A visit cannot enter `InConsultation` without `DoctorId`. A saved prescription has `DoctorId`.
+- [x] Registering a new patient with queue check-in (`NewPatientModal`) or queueing from `/patients` requires or assigns a specific doctor. Visits are never queued unassigned.
+- [x] Patient search (`GET /api/patients/search`) supports filtering by `doctorId` and enriches results with `LastDoctorName`, `TodayVisitTokenNumber`, `TodayVisitDoctorName`, and `TodayVisitStatus`.
+- [x] In multi-doctor clinics, doctors default to their own queue and patient directory, while receptionists can toggle between all doctors or a specific doctor.
+- [x] Print still supports blank A4 and pad margin, using the doctor’s qualifications and council number and the clinic’s logo, margins, and hide-letterhead flag.
+- [x] Deactivated staff cannot sign in. Their past visits still display.
+- [x] Formulary search, allergy banner, free-text complaints, vital columns, and `1-0-1` dosage lines still work.
+- [x] JWT signing key comes from configuration. Access-token lifetime is short.
 
 ---
 
@@ -193,13 +195,13 @@ Nurse records vitals on the existing columns and can see the clinic queue. Presc
 
 ### Done when
 
-- [ ] A SalesAgent completes the four-step wizard and sees only clinics they onboarded. The handover screen shows URL, credentials, and a login QR. No message is sent to a phone network.
-- [ ] The new clinic has one `ClinicSubscription` and no status column on `Clinics`.
-- [ ] Completing a visit increments `ClinicPeriodUsage` for `CurrentPeriodStart`, not for a calendar `YearMonth` string.
-- [ ] A top-up increases the current period only. The next period starts at 0 top-up and does not inherit unused quota.
-- [ ] From the quota through 20 extra completed visits, the navbar warns and new tokens still issue. Visit 21 beyond the quota is refused. Existing history still opens.
-- [ ] PlatformAdmin can set unlimited, edit the quota, add +250 / +500 / +1000, set `MaxDoctorsOverride`, and record a SaaS payment with invoice number and UTR.
-- [ ] 2A queues, print, and the tenant guard still pass.
+- [x] A SalesAgent completes the four-step wizard and sees only clinics they onboarded. The handover screen shows URL, credentials, and a login QR. No message is sent to a phone network.
+- [x] The new clinic has one `ClinicSubscription` and no status column on `Clinics`.
+- [x] Completing a visit increments `ClinicPeriodUsage` for `CurrentPeriodStart`, not for a calendar `YearMonth` string.
+- [x] A top-up increases the current period only. The next period starts at 0 top-up and does not inherit unused quota.
+- [x] From the quota through 20 extra completed visits, the navbar warns and new tokens still issue. Visit 21 beyond the quota is refused. Existing history still opens.
+- [x] PlatformAdmin can set unlimited, edit the quota, add +250 / +500 / +1000, set `MaxDoctorsOverride`, and record a SaaS payment with invoice number and UTR.
+- [x] 2A queues, print, and the tenant guard still pass.
 
 ---
 
@@ -252,12 +254,12 @@ Nurse records vitals on the existing columns and can see the clinic queue. Presc
 
 ### Done when
 
-- [ ] Historical visits show the same readings after the copy, including sugar strings such as `140 PP`.
-- [ ] BMI fills from weight and height and is not a typed field. Systolic and diastolic render as one blood-pressure control.
-- [ ] A clinic can disable, reorder, mark mandatory, override a range, and add a custom vital (when the plan flag allows).
-- [ ] Out-of-range values show a warning color. Print and queue cards match `VisitVitals`.
-- [ ] New visits do not write the old vital columns, and those columns are dropped.
-- [ ] 2A and 2B flows still pass, including quota checks on completed visits.
+- [x] Historical visits show the same readings after the copy, including sugar strings such as `140 PP`.
+- [x] BMI fills from weight and height and is not a typed field. Systolic and diastolic render as one blood-pressure control.
+- [x] A clinic can disable, reorder, mark mandatory, override a range, and add a custom vital (when the plan flag allows).
+- [x] Out-of-range values show a warning color. Print and queue cards match `VisitVitals`.
+- [x] New visits do not write the old vital columns, and those columns are dropped.
+- [x] 2A and 2B flows still pass, including quota checks on completed visits.
 
 ---
 
@@ -282,7 +284,7 @@ Nurse records vitals on the existing columns and can see the clinic queue. Presc
 
 ### Out of scope for 2D
 
-- Every item in section 7.
+- Every item in [DocOS-Backlog.md](DocOS-Backlog.md) unless promoted.
 - `ComplaintMaster`, dosage master tables, and a pharmacist role.
 
 ### Main tables
@@ -295,35 +297,21 @@ Nurse records vitals on the existing columns and can see the clinic queue. Presc
 
 ### Done when
 
-- [ ] A doctor orders a panel and the prescription stores one lab row per test, plus optional `GeneralAdvice` and selected advice snippets.
-- [ ] Starring a medicine creates a `DoctorMedicineFavorite` for that user only. A global formulary row is not flagged on `Medicines`.
-- [ ] A share link opens one prescription until `ExpiresAt`, and does not list patients. The public endpoint is rate-limited.
-- [ ] Reception records Cash or UPI against a visit and can list that day’s collections. SaaS invoices remain on `SubscriptionPaymentHistory`.
-- [ ] Audit rows exist for create, update, delete, login, and print. Opening the queue does not write a view audit.
-- [ ] Editing a printed prescription creates a new revision linked by `PreviousPrescriptionId`. The visit shows the new row. The printed row is unchanged. Usage does not increment again.
-- [ ] Print still renders medicines, advice, labs, and letterhead. Parts 2A–2C still pass.
+- [x] A doctor orders a panel and the prescription stores one lab row per test, plus optional `GeneralAdvice` and selected advice snippets.
+- [x] Starring a medicine creates a `DoctorMedicineFavorite` for that user only. A global formulary row is not flagged on `Medicines`.
+- [x] A share link opens one prescription until `ExpiresAt`, and does not list patients. The public endpoint is rate-limited.
+- [x] Reception records Cash or UPI against a visit and can list that day’s collections. SaaS invoices remain on `SubscriptionPaymentHistory`.
+- [x] Audit rows exist for create, update, delete, login, and print. Opening the queue does not write a view audit.
+- [x] Editing a printed prescription creates a new revision linked by `PreviousPrescriptionId`. The visit shows the new row. The printed row is unchanged. Usage does not increment again.
+- [x] Print still renders medicines, advice, labs, and letterhead. Parts 2A–2C still pass.
 
 ---
 
-## 7. Later
+## 7. Companion documents
 
-These items are outside Phase 2 execution. Do not add their tables or UI while building 2A–2D.
-
-- **WhatsApp and SMS.** Needs a provider, a template approval, and patient or doctor consent. The 2B handover does not call WhatsApp or SMS.
-- **ABDM / NHA APIs.** Optional identifier columns `AbhaNumber`, `AbhaAddress`, `IsAbhaVerified`, `HfrId`, `HprId`, and `EnableAbdmIntegration` wait until this work starts. When they are added, `EnableAbdmIntegration` defaults to false. Storing an identifier is not ABDM compliance. `IsAbhaVerified` stays false until a real verification flow exists. ABDM is not a plan differentiator (`HasAbdmIntegration` is not a column on `SubscriptionPlanMaster`).
-- **Subdomain tenant routing and wildcard DNS.** `ClinicId` on the JWT remains the tenant key through Phase 2.
-- **Kubernetes, Helm, and white-label packaging.**
-- **Analytics dashboards and daily revenue charts** beyond the 2D `VisitPayment` report.
-- **`ComplaintMaster` and `VisitComplaints`.** `ChiefComplaints` stays free text.
-- **`DosageFrequencyMaster` and `DosageTimingMaster`.** Dosage stays the shorthand string and the `DosageTiming` enum. `DurationDays` stays an `int`.
-- **Pharmacist role.**
-- **PostgreSQL or Supabase as a Phase 2 provider.**
-- **An audit row for every VIEW.**
-
----
-
-## 8. Companion documents
-
+- [DocOS-Product-Roadmap.md](DocOS-Product-Roadmap.md) — hub: status, stack, reading order.
 - [DocOS-Database-Schema.md](DocOS-Database-Schema.md) — tables, columns, indexes, and an ERD per part.
-- [DocOS-Architecture-Decisions.md](DocOS-Architecture-Decisions.md) — ADR: superseded drafts and rationale (not duplicate scope checklists).
-- `DocOS-(Phase 1).md` — locked MVP baseline. Do not revise it for Phase 2.
+- [DocOS-Architecture-Decisions.md](DocOS-Architecture-Decisions.md) — ADR: superseded drafts, rationale, change log.
+- [DocOS-Follow-ups.md](DocOS-Follow-ups.md) — bugs and small enhancements after 2A–2D sign-off.
+- [DocOS-Backlog.md](DocOS-Backlog.md) — post–2D deferred work and promotion rules.
+- [DocOS-(Phase 1).md](DocOS-(Phase%201).md) — locked MVP archive. Do not revise for Phase 2.

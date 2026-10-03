@@ -2,7 +2,9 @@
 
 DocOS is a lightweight, high-performance SaaS platform engineered specifically for Indian outpatient department (OPD) clinics and doctors transitioning from paper prescriptions to digital medical records.
 
-Built with **.NET 10 (Clean Architecture)**, **PostgreSQL (Supabase)**, and **React + Vite + Tailwind CSS**.
+Built with **.NET 10 (Clean Architecture)**, **SQL Server**, and **React + Vite + Tailwind CSS**.
+
+**Specs & roadmap:** [`prompts/DocOS-Product-Roadmap.md`](prompts/DocOS-Product-Roadmap.md)
 
 ---
 
@@ -79,11 +81,14 @@ npm run dev
 
 ```
 DocOS/
-├── prompts/                         # Phase specifications & architecture decisions
-│   ├── DocOS-(Phase 1).md
-│   ├── DocOS-(Phase 2).md
-│   ├── DocOS-Architecture-Decisions.md
-│   └── DocOS-Database-Schema.md
+├── prompts/                         # Product specs (start at Product-Roadmap.md)
+│   ├── DocOS-Product-Roadmap.md     # Hub: status, stack, reading order
+│   ├── DocOS-(Phase 1).md           # MVP archive (PostgreSQL era, locked)
+│   ├── DocOS-(Phase 2).md           # Parts 2A–2D execution spec
+│   ├── DocOS-Follow-ups.md          # Bugs & small enhancements (post 2A–2D)
+│   ├── DocOS-Backlog.md             # Post–2D deferred work
+│   ├── DocOS-Database-Schema.md
+│   └── DocOS-Architecture-Decisions.md
 ├── backend/
 │   ├── DocOS.slnx
 │   └── src/
