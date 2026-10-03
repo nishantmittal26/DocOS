@@ -3,6 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { adminApi } from '../../api/client';
 import { SubscriptionPlan, OnboardClinicRequest, OnboardClinicResponse } from '../../types';
 import {
+  derivePatientIdPrefixFromClinicName,
+  sanitizePatientIdPrefixInput,
+} from '../../utils/patientIdPrefix';
+import { OnboardWizardTimeline, OnboardWizardStep } from '../../components/OnboardWizardTimeline';
+import {
   Building2,
   Stethoscope,
   CreditCard,
@@ -23,6 +28,13 @@ import {
   EyeOff
 } from 'lucide-react';
 
+const ONBOARD_WIZARD_STEPS: OnboardWizardStep[] = [
+  { num: 1, label: 'Clinic & Doctor', shortLabel: 'Clinic', icon: Building2 },
+  { num: 2, label: 'Plan & Quota', shortLabel: 'Plan', icon: CreditCard },
+  { num: 3, label: 'Letterhead Margins', shortLabel: 'Print', icon: FileText },
+  { num: 4, label: 'Handover & QR', shortLabel: 'Done', icon: ShieldCheck },
+];
+
 export const OnboardDoctorPage: React.FC = () => {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState<number>(1);
@@ -32,6 +44,7 @@ export const OnboardDoctorPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [patientIdPrefixTouched, setPatientIdPrefixTouched] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState<OnboardClinicRequest>({
@@ -54,6 +67,7 @@ export const OnboardDoctorPage: React.FC = () => {
     printBottomMarginMm: 15,
     hideLetterheadOnPrint: false,
     salesNotes: '',
+    patientIdPrefix: '',
   });
 
   // Handover state
@@ -97,6 +111,21 @@ export const OnboardDoctorPage: React.FC = () => {
     return null;
   };
 
+  const isStepDataReady = (stepNum: number): boolean => {
+    switch (stepNum) {
+      case 1:
+        return validateStep1() === null;
+      case 2:
+        return validateStep2() === null;
+      case 3:
+        return currentStep >= 3 || handoverResult !== null;
+      case 4:
+        return handoverResult !== null;
+      default:
+        return false;
+    }
+  };
+
   const handleNextStep = () => {
     setError(null);
     if (currentStep === 1) {
@@ -120,7 +149,10 @@ export const OnboardDoctorPage: React.FC = () => {
     try {
       setError(null);
       setSubmitting(true);
-      const response = await adminApi.onboardClinic(formData);
+      const response = await adminApi.onboardClinic({
+        ...formData,
+        patientIdPrefix: formData.patientIdPrefix?.trim() || undefined,
+      });
       setHandoverResult(response);
       setCurrentStep(4);
     } catch (err: any) {
@@ -157,46 +189,13 @@ export const OnboardDoctorPage: React.FC = () => {
           </button>
         </div>
 
-        {/* Stepper Progress Ribbon */}
-        <div className="mb-8 bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-          <div className="grid grid-cols-4 gap-2 sm:gap-4 text-center">
-            {[
-              { num: 1, label: 'Clinic & Doctor', icon: Building2 },
-              { num: 2, label: 'Plan & Quota', icon: CreditCard },
-              { num: 3, label: 'Letterhead Margins', icon: FileText },
-              { num: 4, label: 'Handover & QR', icon: ShieldCheck },
-            ].map((step) => {
-              const isCurrent = currentStep === step.num;
-              const isCompleted = currentStep > step.num;
-              const Icon = step.icon;
-
-              return (
-                <div
-                  key={step.num}
-                  className={`flex flex-col items-center p-2 rounded-lg transition ${
-                    isCurrent
-                      ? 'bg-emerald-50 text-emerald-900 font-semibold border border-emerald-200'
-                      : isCompleted
-                      ? 'text-emerald-700'
-                      : 'text-slate-400'
-                  }`}
-                >
-                  <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold mb-1.5 transition ${
-                      isCurrent
-                        ? 'bg-emerald-600 text-white shadow-sm'
-                        : isCompleted
-                        ? 'bg-emerald-100 text-emerald-700'
-                        : 'bg-slate-100 text-slate-500'
-                    }`}
-                  >
-                    {isCompleted ? <Check className="w-4 h-4 stroke-[3]" /> : step.num}
-                  </div>
-                  <span className="text-xs hidden sm:inline">{step.label}</span>
-                </div>
-              );
-            })}
-          </div>
+        {/* Wizard timeline */}
+        <div className="mb-8 bg-white border border-slate-200 rounded-xl p-4 sm:p-6 shadow-sm">
+          <OnboardWizardTimeline
+            steps={ONBOARD_WIZARD_STEPS}
+            currentStep={currentStep}
+            isStepDataReady={isStepDataReady}
+          />
         </div>
 
         {/* Error Alert */}
@@ -231,9 +230,46 @@ export const OnboardDoctorPage: React.FC = () => {
                     required
                     placeholder="e.g. Apollo Super Clinic or Sharma Polyclinic"
                     value={formData.clinicName}
-                    onChange={(e) => setFormData({ ...formData, clinicName: e.target.value })}
+                    onChange={(e) => {
+                      const clinicName = e.target.value;
+                      setFormData((prev) => ({
+                        ...prev,
+                        clinicName,
+                        patientIdPrefix: patientIdPrefixTouched
+                          ? prev.patientIdPrefix
+                          : derivePatientIdPrefixFromClinicName(clinicName),
+                      }));
+                    }}
                     className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                    Patient ID prefix
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g. CITY"
+                    maxLength={20}
+                    value={formData.patientIdPrefix || ''}
+                    onChange={(e) => {
+                      setPatientIdPrefixTouched(true);
+                      setFormData((prev) => ({
+                        ...prev,
+                        patientIdPrefix: sanitizePatientIdPrefixInput(e.target.value),
+                      }));
+                    }}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-mono font-bold text-slate-900 uppercase focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    New patients get IDs like{' '}
+                    <span className="font-mono font-semibold text-slate-700">
+                      {(formData.patientIdPrefix || derivePatientIdPrefixFromClinicName(formData.clinicName)) || 'DOC'}
+                      -2026-0001
+                    </span>
+                    . Default: first 4 letters of clinic name.
+                  </p>
                 </div>
 
                 <div>
@@ -789,6 +825,11 @@ export const OnboardDoctorPage: React.FC = () => {
                   <div className="flex justify-between items-center py-2 border-b border-slate-200">
                     <span className="text-slate-500 text-xs">Clinic Name</span>
                     <span className="font-semibold text-slate-900">{handoverResult.clinicName}</span>
+                  </div>
+
+                  <div className="flex justify-between items-center py-2 border-b border-slate-200">
+                    <span className="text-slate-500 text-xs">Patient ID prefix</span>
+                    <span className="font-mono font-bold text-slate-900">{handoverResult.patientIdPrefix}</span>
                   </div>
 
                   <div className="flex justify-between items-center py-2 border-b border-slate-200">

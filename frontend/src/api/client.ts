@@ -212,6 +212,23 @@ export const patientsApi = {
     const res = await api.get<Patient>(`/patients/${id}`);
     return res.data;
   },
+  update: async (
+    id: string,
+    data: {
+      fullName: string;
+      age: number;
+      gender: string;
+      mobileNumber: string;
+      email?: string;
+      bloodGroup?: string;
+      address?: string;
+      allergies?: string;
+      medicalHistory?: string;
+    }
+  ) => {
+    const res = await api.put<Patient>(`/patients/${id}`, data);
+    return res.data;
+  },
 };
 
 export const visitsApi = {

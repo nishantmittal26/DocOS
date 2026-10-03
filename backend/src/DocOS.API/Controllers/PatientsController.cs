@@ -38,4 +38,22 @@ public class PatientsController : ControllerBase
         if (result == null) return NotFound();
         return Ok(result);
     }
+
+    [HttpPut("{id:guid}")]
+    public async Task<ActionResult<PatientDto>> UpdatePatient(Guid id, [FromBody] UpdatePatientRequest request)
+    {
+        try
+        {
+            var result = await _mediator.Send(new UpdatePatientCommand(id, request));
+            return Ok(result);
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 }

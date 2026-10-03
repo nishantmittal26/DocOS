@@ -13,10 +13,13 @@ public record SearchPatientsQuery(string Query, string? DoctorId = null) : IRequ
 
 public record GetPatientByIdQuery(Guid Id) : IRequest<PatientDto?>;
 
+public record UpdatePatientCommand(Guid Id, UpdatePatientRequest Request) : IRequest<PatientDto>;
+
 public class PatientHandlers :
     IRequestHandler<CreatePatientCommand, PatientDto>,
     IRequestHandler<SearchPatientsQuery, List<PatientSearchResultDto>>,
-    IRequestHandler<GetPatientByIdQuery, PatientDto?>
+    IRequestHandler<GetPatientByIdQuery, PatientDto?>,
+    IRequestHandler<UpdatePatientCommand, PatientDto>
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUser;
@@ -187,6 +190,62 @@ public class PatientHandlers :
             .FirstOrDefaultAsync(p => p.Id == request.Id && p.ClinicId == clinicId, cancellationToken);
 
         if (patient == null) return null;
+
+        return new PatientDto(
+            patient.Id,
+            patient.ClinicId,
+            patient.PatientUid,
+            patient.FullName,
+            patient.Age,
+            patient.Gender,
+            patient.MobileNumber,
+            patient.Email,
+            patient.BloodGroup,
+            patient.Address,
+            patient.Allergies,
+            patient.MedicalHistory,
+            patient.CreatedAt
+        );
+    }
+
+    public async Task<PatientDto> Handle(UpdatePatientCommand command, CancellationToken cancellationToken)
+    {
+        var clinicId = _currentUser.ClinicId
+            ?? throw new UnauthorizedAccessException("Active clinic context is required");
+
+        var patient = await _context.Patients
+            .FirstOrDefaultAsync(p => p.Id == command.Id && p.ClinicId == clinicId, cancellationToken)
+            ?? throw new KeyNotFoundException("Patient not found");
+
+        var req = command.Request;
+        if (string.IsNullOrWhiteSpace(req.FullName))
+        {
+            throw new InvalidOperationException("Patient full name is required");
+        }
+
+        if (req.Age <= 0 || req.Age > 130)
+        {
+            throw new InvalidOperationException("Please provide a valid age");
+        }
+
+        var mobile = req.MobileNumber.Trim();
+        if (mobile.Length < 10)
+        {
+            throw new InvalidOperationException("Please provide a valid mobile number");
+        }
+
+        patient.FullName = req.FullName.Trim();
+        patient.Age = req.Age;
+        patient.Gender = req.Gender;
+        patient.MobileNumber = mobile;
+        patient.Email = string.IsNullOrWhiteSpace(req.Email) ? null : req.Email.Trim();
+        patient.BloodGroup = string.IsNullOrWhiteSpace(req.BloodGroup) ? null : req.BloodGroup.Trim();
+        patient.Address = string.IsNullOrWhiteSpace(req.Address) ? null : req.Address.Trim();
+        patient.Allergies = string.IsNullOrWhiteSpace(req.Allergies) ? null : req.Allergies.Trim();
+        patient.MedicalHistory = string.IsNullOrWhiteSpace(req.MedicalHistory) ? null : req.MedicalHistory.Trim();
+        patient.UpdatedAt = IndiaTime.Now;
+
+        await _context.SaveChangesAsync(cancellationToken);
 
         return new PatientDto(
             patient.Id,

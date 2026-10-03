@@ -503,6 +503,7 @@ export interface OnboardClinicRequest {
   printBottomMarginMm: number;
   hideLetterheadOnPrint: boolean;
   salesNotes?: string;
+  patientIdPrefix?: string;
 }
 
 export interface OnboardClinicResponse {
@@ -519,6 +520,7 @@ export interface OnboardClinicResponse {
   periodEnd: string;
   monthlyVisitQuota?: number;
   isUnlimited: boolean;
+  patientIdPrefix: string;
 }
 
 export interface AdminClinicItem {

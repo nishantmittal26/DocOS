@@ -65,7 +65,7 @@ public class SubscriptionHandlers :
             LetterheadMarginTopMm = req.LetterheadMarginTopMm > 0 ? req.LetterheadMarginTopMm : 60,
             PrintBottomMarginMm = req.PrintBottomMarginMm >= 0 ? req.PrintBottomMarginMm : 0,
             HideLetterheadOnPrint = req.HideLetterheadOnPrint,
-            PatientIdPrefix = "DOC",
+            PatientIdPrefix = PatientIdPrefixRules.Resolve(req.PatientIdPrefix, req.ClinicName),
             LastPatientSequence = 0,
             OnboardedByUserId = _currentUserService.UserId,
             SalesNotes = req.SalesNotes?.Trim()
@@ -147,7 +147,8 @@ public class SubscriptionHandlers :
             PeriodStart: periodStart,
             PeriodEnd: periodEnd,
             MonthlyVisitQuota: monthlyQuota,
-            IsUnlimited: isUnlimited
+            IsUnlimited: isUnlimited,
+            PatientIdPrefix: clinic.PatientIdPrefix
         );
     }
 

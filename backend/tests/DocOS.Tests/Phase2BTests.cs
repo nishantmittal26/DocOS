@@ -109,7 +109,9 @@ public class Phase2BTests
         var savedClinic = await context.Clinics.Include(c => c.Subscription).FirstOrDefaultAsync(c => c.Id == response.ClinicId);
         savedClinic.Should().NotBeNull();
         savedClinic!.OnboardedByUserId.Should().Be(agent1Id);
+        savedClinic.PatientIdPrefix.Should().Be("CITY");
         savedClinic.SalesNotes.Should().Be("Lead converted via doctor referral");
+        response.PatientIdPrefix.Should().Be("CITY");
         savedClinic.Subscription.Should().NotBeNull();
         savedClinic.Subscription!.Status.Should().Be(SubscriptionStatuses.Active);
 

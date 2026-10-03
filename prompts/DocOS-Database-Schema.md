@@ -218,7 +218,7 @@ Dropped in 2A: `Role` (`nvarchar`).
 | `PrintBottomMarginMm` | `int` | No | Default 0. Added in 2A |
 | `HideLetterheadOnPrint` | `bit` | No | Default 0. Added in 2A. 0 draws the digital letterhead; 1 hides it for a pre-printed pad |
 | `ClinicTimings` | `nvarchar(200)` | Yes | Added in 2A |
-| `PatientIdPrefix` | `nvarchar(20)` | No | Default `DOC` |
+| `PatientIdPrefix` | `nvarchar(20)` | No | Patient UID prefix (e.g. `CITY-2026-0001`). Platform onboarding default: **first 4 letters** of clinic name (letters only, uppercase); legacy/default column value `DOC` |
 | `LastPatientSequence` | `int` | No | Default 0 |
 | `CreatedAt` | `datetime2` | No | |
 | `UpdatedAt` | `datetime2` | Yes | |

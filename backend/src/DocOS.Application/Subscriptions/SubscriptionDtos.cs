@@ -42,7 +42,10 @@ public record OnboardClinicRequest(
     bool HideLetterheadOnPrint,
 
     // Step 4: Sales Attribution & Notes
-    string? SalesNotes
+    string? SalesNotes,
+
+    /// <summary>Optional; default = first 4 letters of clinic name (see PatientIdPrefixRules).</summary>
+    string? PatientIdPrefix = null
 );
 
 public record OnboardClinicResponse(
@@ -58,7 +61,8 @@ public record OnboardClinicResponse(
     DateTime PeriodStart,
     DateTime PeriodEnd,
     int? MonthlyVisitQuota,
-    bool IsUnlimited
+    bool IsUnlimited,
+    string PatientIdPrefix
 );
 
 public record AdminClinicItemDto(
