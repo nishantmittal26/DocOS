@@ -38,6 +38,7 @@ for /f "tokens=5" %%a in ('netstat -ano ^| findstr :5173 ^| findstr LISTENING') 
 REM 3. Close launcher cmd windows by Window Title if they exist
 taskkill /FI "WINDOWTITLE eq DocOS Backend API (.NET 10)*" /T /F >nul 2>nul
 taskkill /FI "WINDOWTITLE eq DocOS Frontend (React + Vite)*" /T /F >nul 2>nul
+taskkill /IM DocOS.API.exe /F >nul 2>nul
 
 if %QUIET% equ 0 (
     echo.

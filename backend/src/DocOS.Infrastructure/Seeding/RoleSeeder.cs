@@ -1,6 +1,7 @@
 using DocOS.Domain.Common;
 using DocOS.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
@@ -12,11 +13,16 @@ public static class RoleSeeder
     {
         var roleManager = serviceProvider.GetRequiredService<RoleManager<IdentityRole>>();
 
-        foreach (var role in Roles.All)
+        // Fast-path: Check if all standard roles are already created
+        var existingRoleCount = await roleManager.Roles.CountAsync();
+        if (existingRoleCount < Roles.All.Count)
         {
-            if (!await roleManager.RoleExistsAsync(role))
+            foreach (var role in Roles.All)
             {
-                await roleManager.CreateAsync(new IdentityRole(role));
+                if (!await roleManager.RoleExistsAsync(role))
+                {
+                    await roleManager.CreateAsync(new IdentityRole(role));
+                }
             }
         }
 
@@ -30,47 +36,41 @@ public static class RoleSeeder
 
         const string adminEmail = "platformadmin@docos.com";
 
+        // Fast-path: If platform admin already exists, nothing to do
         var adminUser = await userManager.FindByEmailAsync(adminEmail);
-        if (adminUser == null)
+        if (adminUser != null)
         {
-            adminUser = new ApplicationUser
-            {
-                UserName = adminEmail,
-                Email = adminEmail,
-                EmailConfirmed = true,
-                FullName = "DocOS Platform Admin",
-                PhoneNumber = "+919999999999",
-                ClinicId = null,
-                IsActive = true,
-                CreatedAt = IndiaTime.Now
-            };
-
-            var createResult = await userManager.CreateAsync(adminUser, "Admin@123");
-            if (createResult.Succeeded)
-            {
-                await userManager.AddToRoleAsync(adminUser, Roles.PlatformAdmin);
-                logger?.LogInformation("Successfully seeded default PlatformAdmin user: {Email}", adminEmail);
-            }
-            else
-            {
-                var errors = string.Join(", ", createResult.Errors.Select(e => e.Description));
-                logger?.LogError("Failed to seed default PlatformAdmin user: {Errors}", errors);
-            }
-        }
-        else
-        {
+            // Ensure PlatformAdmin role is assigned if somehow missing
             if (!await userManager.IsInRoleAsync(adminUser, Roles.PlatformAdmin))
             {
                 await userManager.AddToRoleAsync(adminUser, Roles.PlatformAdmin);
                 logger?.LogInformation("Assigned PlatformAdmin role to existing user: {Email}", adminEmail);
             }
+            return;
+        }
 
-            if (!await userManager.CheckPasswordAsync(adminUser, "Admin@123"))
-            {
-                adminUser.PasswordHash = userManager.PasswordHasher.HashPassword(adminUser, "Admin@123");
-                await userManager.UpdateAsync(adminUser);
-                logger?.LogInformation("Reset PlatformAdmin password to default for: {Email}", adminEmail);
-            }
+        adminUser = new ApplicationUser
+        {
+            UserName = adminEmail,
+            Email = adminEmail,
+            EmailConfirmed = true,
+            FullName = "DocOS Platform Admin",
+            PhoneNumber = "+919999999999",
+            ClinicId = null,
+            IsActive = true,
+            CreatedAt = IndiaTime.Now
+        };
+
+        var createResult = await userManager.CreateAsync(adminUser, "Admin@123");
+        if (createResult.Succeeded)
+        {
+            await userManager.AddToRoleAsync(adminUser, Roles.PlatformAdmin);
+            logger?.LogInformation("Successfully seeded default PlatformAdmin user: {Email}", adminEmail);
+        }
+        else
+        {
+            var errors = string.Join(", ", createResult.Errors.Select(e => e.Description));
+            logger?.LogError("Failed to seed default PlatformAdmin user: {Errors}", errors);
         }
     }
 }

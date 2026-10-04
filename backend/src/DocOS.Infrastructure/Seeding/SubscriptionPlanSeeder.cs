@@ -11,69 +11,81 @@ public static class SubscriptionPlanSeeder
 {
     public static async Task SeedSubscriptionPlansAsync(ApplicationDbContext context, ILogger? logger = null)
     {
-        // 1. Seed standard master subscription plans
-        var defaultPlans = new List<SubscriptionPlanMaster>
+        // 1. Seed standard master subscription plans (fast-path: skip if 3 plans already exist)
+        var plansCount = await context.SubscriptionPlans.CountAsync();
+        if (plansCount < 3)
         {
-            new()
+            var defaultPlans = new List<SubscriptionPlanMaster>
             {
-                PlanCode = "STARTER_MONTHLY",
-                PlanName = "DocOS Solo Doctor Starter (Monthly)",
-                Tier = SubscriptionTiers.Starter,
-                IsUnlimitedVisits = false,
-                DefaultMonthlyVisits = 300,
-                MaxDoctors = 1,
-                MaxStaff = 2,
-                PriceINR = 999.00m,
-                BillingCycle = BillingCycles.Monthly,
-                HasCustomVitals = false,
-                HasLabModule = false,
-                IsActive = true
-            },
-            new()
-            {
-                PlanCode = "MULTIDOC_MONTHLY",
-                PlanName = "DocOS Polyclinic Pro (Monthly)",
-                Tier = SubscriptionTiers.MultiDoctor,
-                IsUnlimitedVisits = false,
-                DefaultMonthlyVisits = 1500,
-                MaxDoctors = 5,
-                MaxStaff = 10,
-                PriceINR = 2499.00m,
-                BillingCycle = BillingCycles.Monthly,
-                HasCustomVitals = true,
-                HasLabModule = false,
-                IsActive = true
-            },
-            new()
-            {
-                PlanCode = "ENTERPRISE_ANNUAL",
-                PlanName = "DocOS Hospital Enterprise (Annual)",
-                Tier = SubscriptionTiers.Enterprise,
-                IsUnlimitedVisits = true,
-                DefaultMonthlyVisits = null,
-                MaxDoctors = 25,
-                MaxStaff = 50,
-                PriceINR = 29999.00m,
-                BillingCycle = BillingCycles.Annual,
-                HasCustomVitals = true,
-                HasLabModule = true,
-                IsActive = true
-            }
-        };
+                new()
+                {
+                    PlanCode = "STARTER_MONTHLY",
+                    PlanName = "DocOS Solo Doctor Starter (Monthly)",
+                    Tier = SubscriptionTiers.Starter,
+                    IsUnlimitedVisits = false,
+                    DefaultMonthlyVisits = 300,
+                    MaxDoctors = 1,
+                    MaxStaff = 2,
+                    PriceINR = 999.00m,
+                    BillingCycle = BillingCycles.Monthly,
+                    HasCustomVitals = false,
+                    HasLabModule = false,
+                    IsActive = true
+                },
+                new()
+                {
+                    PlanCode = "MULTIDOC_MONTHLY",
+                    PlanName = "DocOS Polyclinic Pro (Monthly)",
+                    Tier = SubscriptionTiers.MultiDoctor,
+                    IsUnlimitedVisits = false,
+                    DefaultMonthlyVisits = 1500,
+                    MaxDoctors = 5,
+                    MaxStaff = 10,
+                    PriceINR = 2499.00m,
+                    BillingCycle = BillingCycles.Monthly,
+                    HasCustomVitals = true,
+                    HasLabModule = false,
+                    IsActive = true
+                },
+                new()
+                {
+                    PlanCode = "ENTERPRISE_ANNUAL",
+                    PlanName = "DocOS Hospital Enterprise (Annual)",
+                    Tier = SubscriptionTiers.Enterprise,
+                    IsUnlimitedVisits = true,
+                    DefaultMonthlyVisits = null,
+                    MaxDoctors = 25,
+                    MaxStaff = 50,
+                    PriceINR = 29999.00m,
+                    BillingCycle = BillingCycles.Annual,
+                    HasCustomVitals = true,
+                    HasLabModule = true,
+                    IsActive = true
+                }
+            };
 
-        foreach (var plan in defaultPlans)
-        {
-            var exists = await context.SubscriptionPlans.AnyAsync(p => p.PlanCode == plan.PlanCode);
-            if (!exists)
+            foreach (var plan in defaultPlans)
             {
-                context.SubscriptionPlans.Add(plan);
-                logger?.LogInformation("Seeding SaaS subscription plan: {PlanCode} ({PlanName})", plan.PlanCode, plan.PlanName);
+                var exists = await context.SubscriptionPlans.AnyAsync(p => p.PlanCode == plan.PlanCode);
+                if (!exists)
+                {
+                    context.SubscriptionPlans.Add(plan);
+                    logger?.LogInformation("Seeding SaaS subscription plan: {PlanCode} ({PlanName})", plan.PlanCode, plan.PlanName);
+                }
             }
+
+            await context.SaveChangesAsync();
         }
 
-        await context.SaveChangesAsync();
+        // 2. Fast-path: Check if any clinic is missing a subscription before querying / loading
+        var hasClinicsWithoutSubscription = await context.Clinics
+            .AnyAsync(c => !context.ClinicSubscriptions.Any(s => s.ClinicId == c.Id));
 
-        // 2. Ensure every existing clinic has an active ClinicSubscription & ClinicPeriodUsage (backfill for 2A clinics)
+        if (!hasClinicsWithoutSubscription)
+        {
+            return;
+        }
+
         var starterPlan = await context.SubscriptionPlans.FirstAsync(p => p.PlanCode == "STARTER_MONTHLY");
         var clinicsWithoutSubscription = await context.Clinics
             .Where(c => !context.ClinicSubscriptions.Any(s => s.ClinicId == c.Id))

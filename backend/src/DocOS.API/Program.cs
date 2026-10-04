@@ -158,18 +158,11 @@ try
     logger.LogInformation("Applying EF Core migrations to SQL Server database...");
     await dbContext.Database.MigrateAsync();
 
-    logger.LogInformation("Seeding standard Phase 2A roles and default Platform Admin...");
     await RoleSeeder.SeedRolesAsync(scope.ServiceProvider);
-
-    logger.LogInformation("Seeding standard Phase 2B SaaS subscription plans & backfilling clinic subscriptions...");
     await SubscriptionPlanSeeder.SeedSubscriptionPlansAsync(dbContext, logger);
 
-    var existingFormularyCount = await dbContext.Medicines.CountAsync(m => m.ClinicId == null);
-    if (existingFormularyCount > 0)
-    {
-        logger.LogInformation("Indian Drug Formulary already seeded ({Count} medicines found in catalog). Skipping seeding.", existingFormularyCount);
-    }
-    else
+    // Fast-path: Check if formulary exists before attempting to seed
+    if (!await dbContext.Medicines.AnyAsync(m => m.ClinicId == null))
     {
         logger.LogInformation("Seeding Indian Drug Formulary (generic salts & top brands)...");
         await IndianDrugFormularySeeder.SeedFormularyAsync(dbContext);

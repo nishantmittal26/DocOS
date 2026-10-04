@@ -46,7 +46,7 @@ if %errorlevel% equ 0 (
     echo [INFO] Previous DocOS processes detected on port 5107 or 5173.
     echo Cleaning up stale processes before starting fresh...
     if exist "%~dp0stop.bat" call "%~dp0stop.bat" /q
-    timeout /t 1 /nobreak >nul
+    timeout /t 2 /nobreak >nul
 )
 
 echo Active Configuration Profile: Local Development (Phase 2A)
@@ -59,6 +59,26 @@ echo.
 echo [1/2] Launching .NET 10 Web API Backend (using appsettings.Local.json)...
 start "DocOS Backend API (.NET 10)" cmd /k "cd /d "%~dp0backend\src\DocOS.API" && dotnet run --launch-profile http"
 
+<nul set /p="Waiting for Backend API to initialize on port 5107"
+set /a WAIT_SECONDS=0
+:WAIT_BACKEND_LOOP
+timeout /t 1 /nobreak >nul
+netstat -ano | findstr ":5107" | findstr "LISTENING" >nul 2>nul
+if %errorlevel% equ 0 (
+    echo  [READY]
+    goto LAUNCH_FRONTEND
+)
+set /a WAIT_SECONDS+=1
+<nul set /p=.
+if !WAIT_SECONDS! geq 35 (
+    echo.
+    echo [WARNING] Backend API startup took longer than 35s. Launching frontend anyway...
+    goto LAUNCH_FRONTEND
+)
+goto WAIT_BACKEND_LOOP
+
+:LAUNCH_FRONTEND
+echo.
 echo [2/2] Launching React + Vite Frontend (connecting locally)...
 start "DocOS Frontend (React + Vite)" cmd /k "cd /d "%~dp0frontend" && npm run dev"
 

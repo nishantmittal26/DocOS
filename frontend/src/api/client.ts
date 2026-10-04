@@ -101,14 +101,21 @@ export function getApiErrorMessage(err: unknown, fallback: string): string {
       : undefined;
 
   const status = err.response?.status;
+  if (status === 503) {
+    return message ?? 'DocOS Backend API is still initializing. Please wait a few seconds and refresh.';
+  }
   if (status === 401) {
     return message ?? 'Your session has expired. Please sign in again.';
   }
   if (status === 403) {
-    return message ?? 'You do not have permission to manage clinic subscriptions.';
+    return message ?? 'You do not have permission to perform this action.';
   }
   if (status === 404) {
-    return message ?? 'The requested clinic or subscription could not be found.';
+    return message ?? 'The requested resource could not be found.';
+  }
+
+  if (err.code === 'ERR_NETWORK' || !err.response) {
+    return 'Unable to connect to DocOS Backend API. Please verify the backend is running.';
   }
 
   return message ?? fallback;
