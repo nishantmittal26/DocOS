@@ -390,8 +390,8 @@ export const SettingsPage: React.FC = () => {
         <button
           onClick={() => handleTabChange('clinic')}
           className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center space-x-2 whitespace-nowrap transition-all ${activeTab === 'clinic'
-              ? 'border-emerald-600 text-emerald-800'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
+            ? 'border-emerald-600 text-emerald-800'
+            : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
         >
           <Building2 className="w-4 h-4" />
@@ -402,8 +402,8 @@ export const SettingsPage: React.FC = () => {
           <button
             onClick={() => handleTabChange('doctor')}
             className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center space-x-2 whitespace-nowrap transition-all ${activeTab === 'doctor'
-                ? 'border-emerald-600 text-emerald-800'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
+              ? 'border-emerald-600 text-emerald-800'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
           >
             <Stethoscope className="w-4 h-4" />
@@ -415,8 +415,8 @@ export const SettingsPage: React.FC = () => {
           <button
             onClick={() => handleTabChange('staff')}
             className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center space-x-2 whitespace-nowrap transition-all ${activeTab === 'staff'
-                ? 'border-emerald-600 text-emerald-800'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
+              ? 'border-emerald-600 text-emerald-800'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
           >
             <Users className="w-4 h-4" />
@@ -427,8 +427,8 @@ export const SettingsPage: React.FC = () => {
         <button
           onClick={() => handleTabChange('medicines')}
           className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center space-x-2 whitespace-nowrap transition-all ${activeTab === 'medicines'
-              ? 'border-emerald-600 text-emerald-800'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
+            ? 'border-emerald-600 text-emerald-800'
+            : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
         >
           <Pill className="w-4 h-4" />
@@ -438,8 +438,8 @@ export const SettingsPage: React.FC = () => {
         <button
           onClick={() => handleTabChange('vitals')}
           className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center space-x-2 whitespace-nowrap transition-all ${activeTab === 'vitals'
-              ? 'border-emerald-600 text-emerald-800'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
+            ? 'border-emerald-600 text-emerald-800'
+            : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
         >
           <Activity className="w-4 h-4" />
@@ -449,8 +449,8 @@ export const SettingsPage: React.FC = () => {
         <button
           onClick={() => handleTabChange('labs')}
           className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center space-x-2 whitespace-nowrap transition-all ${activeTab === 'labs'
-              ? 'border-emerald-600 text-emerald-800'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
+            ? 'border-emerald-600 text-emerald-800'
+            : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
         >
           <FlaskConical className="w-4 h-4" />
@@ -460,8 +460,8 @@ export const SettingsPage: React.FC = () => {
         <button
           onClick={() => handleTabChange('advice')}
           className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center space-x-2 whitespace-nowrap transition-all ${activeTab === 'advice'
-              ? 'border-emerald-600 text-emerald-800'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
+            ? 'border-emerald-600 text-emerald-800'
+            : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
         >
           <BookOpen className="w-4 h-4" />
@@ -478,10 +478,10 @@ export const SettingsPage: React.FC = () => {
                 <div className="flex items-center space-x-3">
                   <div
                     className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold shadow-sm ${quotaStatus.isQuotaExceeded
-                        ? 'bg-rose-100 text-rose-700'
-                        : quotaStatus.isWithinBuffer
-                          ? 'bg-amber-100 text-amber-800'
-                          : 'bg-emerald-100 text-emerald-800'
+                      ? 'bg-rose-100 text-rose-700'
+                      : quotaStatus.isWithinBuffer
+                        ? 'bg-amber-100 text-amber-800'
+                        : 'bg-emerald-100 text-emerald-800'
                       }`}
                   >
                     <FileText className="w-5 h-5" />
@@ -500,10 +500,10 @@ export const SettingsPage: React.FC = () => {
                 </div>
                 <span
                   className={`self-start sm:self-auto text-xs font-bold px-2.5 py-1 rounded-full ${quotaStatus.isQuotaExceeded
-                      ? 'bg-rose-100 text-rose-700 border border-rose-200'
-                      : quotaStatus.isWithinBuffer
-                        ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                        : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                    ? 'bg-rose-100 text-rose-700 border border-rose-200'
+                    : quotaStatus.isWithinBuffer
+                      ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                      : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                     }`}
                 >
                   Status: {quotaStatus.status}
@@ -528,10 +528,10 @@ export const SettingsPage: React.FC = () => {
                   </span>
                   <span
                     className={`text-xl font-black mt-0.5 block font-mono ${quotaStatus.isQuotaExceeded
-                        ? 'text-rose-600'
-                        : quotaStatus.isWithinBuffer
-                          ? 'text-amber-700'
-                          : 'text-emerald-700'
+                      ? 'text-rose-600'
+                      : quotaStatus.isWithinBuffer
+                        ? 'text-amber-700'
+                        : 'text-emerald-700'
                       }`}
                   >
                     {quotaStatus.isUnlimited ? 'Unlimited' : quotaStatus.remainingVisits ?? 0}
@@ -579,10 +579,10 @@ export const SettingsPage: React.FC = () => {
                   <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all duration-300 ${quotaStatus.isQuotaExceeded
-                          ? 'bg-rose-600'
-                          : quotaStatus.isWithinBuffer
-                            ? 'bg-amber-500'
-                            : 'bg-emerald-600'
+                        ? 'bg-rose-600'
+                        : quotaStatus.isWithinBuffer
+                          ? 'bg-amber-500'
+                          : 'bg-emerald-600'
                         }`}
                       style={{
                         width: `${Math.min(
@@ -683,11 +683,6 @@ export const SettingsPage: React.FC = () => {
                   <span>{clinicPhoneError}</span>
                 </div>
               )}
-
-              <div className="md:col-span-2 text-[11px] text-slate-500 bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex items-center space-x-2">
-                <span className="font-bold text-slate-700 shrink-0">* Contact Requirement:</span>
-                <span>At least one contact number (Mobile or Landline) must be provided. On printed prescriptions, Landline is rendered with a dedicated telephone icon.</span>
-              </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">Clinic Timings</label>
@@ -889,8 +884,8 @@ export const SettingsPage: React.FC = () => {
                   <h2 className="text-base font-bold text-slate-900">Clinic Staff Members</h2>
                   <span
                     className={`inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${isDoctorSeatLimitReached
-                        ? 'bg-amber-50 text-amber-800 border-amber-200'
-                        : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                      ? 'bg-amber-50 text-amber-800 border-amber-200'
+                      : 'bg-emerald-50 text-emerald-800 border-emerald-200'
                       }`}
                   >
                     <span
@@ -963,12 +958,12 @@ export const SettingsPage: React.FC = () => {
                                 <span
                                   key={r}
                                   className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${r === 'Doctor'
-                                      ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                                      : r === 'ClinicAdmin'
-                                        ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                                        : r === 'Nurse'
-                                          ? 'bg-teal-50 text-teal-700 border border-teal-200'
-                                          : 'bg-slate-100 text-slate-700'
+                                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                    : r === 'ClinicAdmin'
+                                      ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                                      : r === 'Nurse'
+                                        ? 'bg-teal-50 text-teal-700 border border-teal-200'
+                                        : 'bg-slate-100 text-slate-700'
                                     }`}
                                 >
                                   {r}
@@ -1005,8 +1000,8 @@ export const SettingsPage: React.FC = () => {
                               <button
                                 onClick={() => handleToggleStaffActive(member)}
                                 className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${member.isActive
-                                    ? 'text-rose-600 hover:bg-rose-50 border border-rose-200'
-                                    : 'text-emerald-700 hover:bg-emerald-50 border border-emerald-200'
+                                  ? 'text-rose-600 hover:bg-rose-50 border border-rose-200'
+                                  : 'text-emerald-700 hover:bg-emerald-50 border border-emerald-200'
                                   }`}
                               >
                                 <span>{member.isActive ? 'Deactivate' : 'Activate'}</span>
