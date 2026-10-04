@@ -389,11 +389,10 @@ export const SettingsPage: React.FC = () => {
       <div className="flex border-b border-slate-200 space-x-2 overflow-x-auto pb-px">
         <button
           onClick={() => handleTabChange('clinic')}
-          className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center space-x-2 whitespace-nowrap transition-all ${
-            activeTab === 'clinic'
+          className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center space-x-2 whitespace-nowrap transition-all ${activeTab === 'clinic'
               ? 'border-emerald-600 text-emerald-800'
               : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
+            }`}
         >
           <Building2 className="w-4 h-4" />
           <span>Clinic & Print Margins</span>
@@ -402,11 +401,10 @@ export const SettingsPage: React.FC = () => {
         {isDoctor && (
           <button
             onClick={() => handleTabChange('doctor')}
-            className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center space-x-2 whitespace-nowrap transition-all ${
-              activeTab === 'doctor'
+            className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center space-x-2 whitespace-nowrap transition-all ${activeTab === 'doctor'
                 ? 'border-emerald-600 text-emerald-800'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
+              }`}
           >
             <Stethoscope className="w-4 h-4" />
             <span>Doctor Profile & Credentials</span>
@@ -416,11 +414,10 @@ export const SettingsPage: React.FC = () => {
         {isClinicAdmin && (
           <button
             onClick={() => handleTabChange('staff')}
-            className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center space-x-2 whitespace-nowrap transition-all ${
-              activeTab === 'staff'
+            className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center space-x-2 whitespace-nowrap transition-all ${activeTab === 'staff'
                 ? 'border-emerald-600 text-emerald-800'
                 : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
+              }`}
           >
             <Users className="w-4 h-4" />
             <span>Staff Management</span>
@@ -429,11 +426,10 @@ export const SettingsPage: React.FC = () => {
 
         <button
           onClick={() => handleTabChange('medicines')}
-          className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center space-x-2 whitespace-nowrap transition-all ${
-            activeTab === 'medicines'
+          className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center space-x-2 whitespace-nowrap transition-all ${activeTab === 'medicines'
               ? 'border-emerald-600 text-emerald-800'
               : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
+            }`}
         >
           <Pill className="w-4 h-4" />
           <span>Clinic Medicines ({clinicMedicineCount})</span>
@@ -441,11 +437,10 @@ export const SettingsPage: React.FC = () => {
 
         <button
           onClick={() => handleTabChange('vitals')}
-          className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center space-x-2 whitespace-nowrap transition-all ${
-            activeTab === 'vitals'
+          className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center space-x-2 whitespace-nowrap transition-all ${activeTab === 'vitals'
               ? 'border-emerald-600 text-emerald-800'
               : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
+            }`}
         >
           <Activity className="w-4 h-4" />
           <span>Vitals Setup</span>
@@ -453,11 +448,10 @@ export const SettingsPage: React.FC = () => {
 
         <button
           onClick={() => handleTabChange('labs')}
-          className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center space-x-2 whitespace-nowrap transition-all ${
-            activeTab === 'labs'
+          className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center space-x-2 whitespace-nowrap transition-all ${activeTab === 'labs'
               ? 'border-emerald-600 text-emerald-800'
               : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
+            }`}
         >
           <FlaskConical className="w-4 h-4" />
           <span>Labs & Panels</span>
@@ -465,11 +459,10 @@ export const SettingsPage: React.FC = () => {
 
         <button
           onClick={() => handleTabChange('advice')}
-          className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center space-x-2 whitespace-nowrap transition-all ${
-            activeTab === 'advice'
+          className={`pb-3 px-4 text-xs font-bold border-b-2 flex items-center space-x-2 whitespace-nowrap transition-all ${activeTab === 'advice'
               ? 'border-emerald-600 text-emerald-800'
               : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
+            }`}
         >
           <BookOpen className="w-4 h-4" />
           <span>Advice Templates</span>
@@ -484,13 +477,12 @@ export const SettingsPage: React.FC = () => {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
                 <div className="flex items-center space-x-3">
                   <div
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold shadow-sm ${
-                      quotaStatus.isQuotaExceeded
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold shadow-sm ${quotaStatus.isQuotaExceeded
                         ? 'bg-rose-100 text-rose-700'
                         : quotaStatus.isWithinBuffer
-                        ? 'bg-amber-100 text-amber-800'
-                        : 'bg-emerald-100 text-emerald-800'
-                    }`}
+                          ? 'bg-amber-100 text-amber-800'
+                          : 'bg-emerald-100 text-emerald-800'
+                      }`}
                   >
                     <FileText className="w-5 h-5" />
                   </div>
@@ -507,13 +499,12 @@ export const SettingsPage: React.FC = () => {
                   </div>
                 </div>
                 <span
-                  className={`self-start sm:self-auto text-xs font-bold px-2.5 py-1 rounded-full ${
-                    quotaStatus.isQuotaExceeded
+                  className={`self-start sm:self-auto text-xs font-bold px-2.5 py-1 rounded-full ${quotaStatus.isQuotaExceeded
                       ? 'bg-rose-100 text-rose-700 border border-rose-200'
                       : quotaStatus.isWithinBuffer
-                      ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                      : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                  }`}
+                        ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                        : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                    }`}
                 >
                   Status: {quotaStatus.status}
                 </span>
@@ -536,13 +527,12 @@ export const SettingsPage: React.FC = () => {
                     Remaining Prescriptions
                   </span>
                   <span
-                    className={`text-xl font-black mt-0.5 block font-mono ${
-                      quotaStatus.isQuotaExceeded
+                    className={`text-xl font-black mt-0.5 block font-mono ${quotaStatus.isQuotaExceeded
                         ? 'text-rose-600'
                         : quotaStatus.isWithinBuffer
-                        ? 'text-amber-700'
-                        : 'text-emerald-700'
-                    }`}
+                          ? 'text-amber-700'
+                          : 'text-emerald-700'
+                      }`}
                   >
                     {quotaStatus.isUnlimited ? 'Unlimited' : quotaStatus.remainingVisits ?? 0}
                   </span>
@@ -588,13 +578,12 @@ export const SettingsPage: React.FC = () => {
                   </div>
                   <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
                     <div
-                      className={`h-full rounded-full transition-all duration-300 ${
-                        quotaStatus.isQuotaExceeded
+                      className={`h-full rounded-full transition-all duration-300 ${quotaStatus.isQuotaExceeded
                           ? 'bg-rose-600'
                           : quotaStatus.isWithinBuffer
-                          ? 'bg-amber-500'
-                          : 'bg-emerald-600'
-                      }`}
+                            ? 'bg-amber-500'
+                            : 'bg-emerald-600'
+                        }`}
                       style={{
                         width: `${Math.min(
                           100,
@@ -616,185 +605,185 @@ export const SettingsPage: React.FC = () => {
                   Set trade name, contact information, timings, and dual-mode print alignment options.
                 </p>
               </div>
-            {clinicSuccess && (
-              <span className="inline-flex items-center space-x-1.5 text-xs text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 font-bold">
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Saved Successfully!</span>
-              </span>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">Clinic Name *</label>
-              <input
-                type="text"
-                required
-                value={clinicName}
-                onChange={(e) => setClinicName(e.target.value)}
-                className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">Clinic Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
-                <span className="flex items-center space-x-1.5">
-                  <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Mobile Number (max 10 digits)</span>
+              {clinicSuccess && (
+                <span className="inline-flex items-center space-x-1.5 text-xs text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 font-bold">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Saved Successfully!</span>
                 </span>
-                <span className="text-[10px] text-slate-400 font-normal">Optional if Landline filled</span>
-              </label>
-              <input
-                type="tel"
-                placeholder="e.g. 9876543210"
-                maxLength={10}
-                value={phone}
-                onChange={(e) => {
-                  setClinicPhoneError(null);
-                  setPhone(e.target.value.replace(/\D/g, '').slice(0, 10));
-                }}
-                className="w-full text-xs font-mono px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none"
-              />
+              )}
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
-                <span className="flex items-center space-x-1.5">
-                  <Phone className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>Landline Number (max 12 digits)</span>
-                </span>
-                <span className="text-[10px] text-slate-400 font-normal">Optional if Mobile filled</span>
-              </label>
-              <input
-                type="tel"
-                placeholder="e.g. 0112345678"
-                maxLength={12}
-                value={landline}
-                onChange={(e) => {
-                  setClinicPhoneError(null);
-                  setLandline(e.target.value.replace(/\D/g, '').slice(0, 12));
-                }}
-                className="w-full text-xs font-mono px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-indigo-500 outline-none"
-              />
-            </div>
-
-            {clinicPhoneError && (
-              <div className="md:col-span-2 p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-xl font-bold flex items-center space-x-2">
-                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                <span>{clinicPhoneError}</span>
-              </div>
-            )}
-
-            <div className="md:col-span-2 text-[11px] text-slate-500 bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex items-center space-x-2">
-              <span className="font-bold text-slate-700 shrink-0">* Contact Requirement:</span>
-              <span>At least one contact number (Mobile or Landline) must be provided. On printed prescriptions, Landline is rendered with a dedicated telephone icon.</span>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">Clinic Timings</label>
-              <input
-                type="text"
-                placeholder="e.g. Mon-Sat: 10:00 AM - 02:00 PM, 05:00 PM - 09:00 PM"
-                value={clinicTimings}
-                onChange={(e) => setClinicTimings(e.target.value)}
-                className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none"
-              />
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">Clinic Address</label>
-              <input
-                type="text"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none"
-              />
-            </div>
-          </div>
-
-          {/* Dual-Mode Print Settings */}
-          <div className="pt-6 border-t border-slate-100 space-y-4">
-            <h3 className="text-sm font-bold text-slate-900">Letterhead Print Portal Engine</h3>
-            <p className="text-xs text-slate-500">
-              Configure how prescriptions print on blank A4 paper versus physical pre-printed doctor letterhead pads.
-            </p>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Pad Top Margin (mm)
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">Clinic Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={clinicName}
+                  onChange={(e) => setClinicName(e.target.value)}
+                  className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">Clinic Email</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                  <span className="flex items-center space-x-1.5">
+                    <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Mobile Number (max 10 digits)</span>
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-normal">Optional if Landline filled</span>
                 </label>
                 <input
-                  type="number"
-                  min="0"
-                  max="150"
-                  value={letterheadMarginTopMm}
-                  onChange={(e) => setLetterheadMarginTopMm(parseInt(e.target.value) || 0)}
-                  className="w-full text-xs font-mono font-bold px-3.5 py-2 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none"
+                  type="tel"
+                  placeholder="e.g. 9876543210"
+                  maxLength={10}
+                  value={phone}
+                  onChange={(e) => {
+                    setClinicPhoneError(null);
+                    setPhone(e.target.value.replace(/\D/g, '').slice(0, 10));
+                  }}
+                  className="w-full text-xs font-mono px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none"
                 />
-                <span className="text-[11px] text-slate-400 mt-1 block">
-                  Top spacing before content starts on pre-printed pads.
-                </span>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Pad Bottom Margin (mm)
+                <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                  <span className="flex items-center space-x-1.5">
+                    <Phone className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Landline Number (max 12 digits)</span>
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-normal">Optional if Mobile filled</span>
                 </label>
                 <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={printBottomMarginMm}
-                  onChange={(e) => setPrintBottomMarginMm(parseInt(e.target.value) || 0)}
-                  className="w-full text-xs font-mono font-bold px-3.5 py-2 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none"
+                  type="tel"
+                  placeholder="e.g. 0112345678"
+                  maxLength={12}
+                  value={landline}
+                  onChange={(e) => {
+                    setClinicPhoneError(null);
+                    setLandline(e.target.value.replace(/\D/g, '').slice(0, 12));
+                  }}
+                  className="w-full text-xs font-mono px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-indigo-500 outline-none"
                 />
-                <span className="text-[11px] text-slate-400 mt-1 block">
-                  Bottom spacing to avoid pre-printed pad footers.
-                </span>
+              </div>
+
+              {clinicPhoneError && (
+                <div className="md:col-span-2 p-3 bg-rose-50 border border-rose-200 text-rose-800 text-xs rounded-xl font-bold flex items-center space-x-2">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{clinicPhoneError}</span>
+                </div>
+              )}
+
+              <div className="md:col-span-2 text-[11px] text-slate-500 bg-slate-50 p-2.5 rounded-xl border border-slate-200 flex items-center space-x-2">
+                <span className="font-bold text-slate-700 shrink-0">* Contact Requirement:</span>
+                <span>At least one contact number (Mobile or Landline) must be provided. On printed prescriptions, Landline is rendered with a dedicated telephone icon.</span>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Default Print Mode
-                </label>
-                <div className="flex items-center space-x-2 pt-2">
-                  <input
-                    type="checkbox"
-                    id="hideLetterheadToggle"
-                    checked={hideLetterheadOnPrint}
-                    onChange={(e) => setHideLetterheadOnPrint(e.target.checked)}
-                    className="w-4 h-4 text-emerald-600 rounded border-slate-300"
-                  />
-                  <label htmlFor="hideLetterheadToggle" className="text-xs font-medium text-slate-700 cursor-pointer">
-                    Hide digital letterhead on print (use pre-printed pad by default)
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">Clinic Timings</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Mon-Sat: 10:00 AM - 02:00 PM, 05:00 PM - 09:00 PM"
+                  value={clinicTimings}
+                  onChange={(e) => setClinicTimings(e.target.value)}
+                  className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">Clinic Address</label>
+                <input
+                  type="text"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none"
+                />
+              </div>
+            </div>
+
+            {/* Dual-Mode Print Settings */}
+            <div className="pt-6 border-t border-slate-100 space-y-4">
+              <h3 className="text-sm font-bold text-slate-900">Letterhead Print Portal Engine</h3>
+              <p className="text-xs text-slate-500">
+                Configure how prescriptions print on blank A4 paper versus physical pre-printed doctor letterhead pads.
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Pad Top Margin (mm)
                   </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="150"
+                    value={letterheadMarginTopMm}
+                    onChange={(e) => setLetterheadMarginTopMm(parseInt(e.target.value) || 0)}
+                    className="w-full text-xs font-mono font-bold px-3.5 py-2 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none"
+                  />
+                  <span className="text-[11px] text-slate-400 mt-1 block">
+                    Top spacing before content starts on pre-printed pads.
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Pad Bottom Margin (mm)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={printBottomMarginMm}
+                    onChange={(e) => setPrintBottomMarginMm(parseInt(e.target.value) || 0)}
+                    className="w-full text-xs font-mono font-bold px-3.5 py-2 rounded-xl border border-slate-200 focus:border-emerald-500 outline-none"
+                  />
+                  <span className="text-[11px] text-slate-400 mt-1 block">
+                    Bottom spacing to avoid pre-printed pad footers.
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Default Print Mode
+                  </label>
+                  <div className="flex items-center space-x-2 pt-2">
+                    <input
+                      type="checkbox"
+                      id="hideLetterheadToggle"
+                      checked={hideLetterheadOnPrint}
+                      onChange={(e) => setHideLetterheadOnPrint(e.target.checked)}
+                      className="w-4 h-4 text-emerald-600 rounded border-slate-300"
+                    />
+                    <label htmlFor="hideLetterheadToggle" className="text-xs font-medium text-slate-700 cursor-pointer">
+                      Hide digital letterhead on print (use pre-printed pad by default)
+                    </label>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div className="pt-4 border-t border-slate-100 flex justify-end">
-            <button
-              type="submit"
-              disabled={savingClinic}
-              className="inline-flex items-center space-x-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all disabled:opacity-50"
-            >
-              <Save className="w-4 h-4" />
-              <span>{savingClinic ? 'Saving...' : 'Save Clinic Settings'}</span>
-            </button>
-          </div>
-        </form>
+            <div className="pt-4 border-t border-slate-100 flex justify-end">
+              <button
+                type="submit"
+                disabled={savingClinic}
+                className="inline-flex items-center space-x-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all disabled:opacity-50"
+              >
+                <Save className="w-4 h-4" />
+                <span>{savingClinic ? 'Saving...' : 'Save Clinic Settings'}</span>
+              </button>
+            </div>
+          </form>
         </div>
       )}
 
@@ -899,16 +888,14 @@ export const SettingsPage: React.FC = () => {
                 <div className="flex items-center space-x-3">
                   <h2 className="text-base font-bold text-slate-900">Clinic Staff Members</h2>
                   <span
-                    className={`inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
-                      isDoctorSeatLimitReached
+                    className={`inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${isDoctorSeatLimitReached
                         ? 'bg-amber-50 text-amber-800 border-amber-200'
                         : 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                    }`}
+                      }`}
                   >
                     <span
-                      className={`w-1.5 h-1.5 rounded-full ${
-                        isDoctorSeatLimitReached ? 'bg-amber-500' : 'bg-emerald-500'
-                      }`}
+                      className={`w-1.5 h-1.5 rounded-full ${isDoctorSeatLimitReached ? 'bg-amber-500' : 'bg-emerald-500'
+                        }`}
                     />
                     <span>Doctor Seats: {activeDoctorCount} / {maxDoctors}</span>
                   </span>
@@ -975,15 +962,14 @@ export const SettingsPage: React.FC = () => {
                               {member.roles.map((r) => (
                                 <span
                                   key={r}
-                                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                    r === 'Doctor'
+                                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${r === 'Doctor'
                                       ? 'bg-blue-50 text-blue-700 border border-blue-200'
                                       : r === 'ClinicAdmin'
-                                      ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                                      : r === 'Nurse'
-                                      ? 'bg-teal-50 text-teal-700 border border-teal-200'
-                                      : 'bg-slate-100 text-slate-700'
-                                  }`}
+                                        ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                                        : r === 'Nurse'
+                                          ? 'bg-teal-50 text-teal-700 border border-teal-200'
+                                          : 'bg-slate-100 text-slate-700'
+                                    }`}
                                 >
                                   {r}
                                 </span>
@@ -1018,11 +1004,10 @@ export const SettingsPage: React.FC = () => {
                             ) : (
                               <button
                                 onClick={() => handleToggleStaffActive(member)}
-                                className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-                                  member.isActive
+                                className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${member.isActive
                                     ? 'text-rose-600 hover:bg-rose-50 border border-rose-200'
                                     : 'text-emerald-700 hover:bg-emerald-50 border border-emerald-200'
-                                }`}
+                                  }`}
                               >
                                 <span>{member.isActive ? 'Deactivate' : 'Activate'}</span>
                               </button>
