@@ -315,6 +315,42 @@ public class Phase2ATests
     }
 
     [Fact]
+    public async Task ClinicAdmin_Cannot_Deactivate_Own_Account()
+    {
+        // Arrange
+        var clinicId = Guid.NewGuid();
+        const string currentAdminId = "admin-user-123";
+
+        var mockCurrentUser = new Mock<ICurrentUserService>();
+        mockCurrentUser.Setup(u => u.IsInRole(Roles.ClinicAdmin)).Returns(true);
+        mockCurrentUser.Setup(u => u.ClinicId).Returns(clinicId);
+        mockCurrentUser.Setup(u => u.UserId).Returns(currentAdminId);
+
+        var mockIdentityService = new Mock<IIdentityService>();
+        var mockJwtGenerator = new Mock<IJwtTokenGenerator>();
+        var mockAuditService = new Mock<IAuditService>();
+        using var context = CreateInMemoryDbContext();
+
+        var handler = new AuthCommandHandler(
+            context,
+            mockIdentityService.Object,
+            mockJwtGenerator.Object,
+            mockCurrentUser.Object,
+            mockAuditService.Object
+        );
+
+        // Act & Assert: Attempting to deactivate own account must throw InvalidOperationException
+        var deactivateOwnCommand = new ToggleStaffActiveCommand(new ToggleStaffActiveRequest(currentAdminId, false));
+        var act = () => handler.Handle(deactivateOwnCommand, CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("You cannot deactivate your own account.");
+
+        // And verify identity service was never invoked for self-deactivation
+        mockIdentityService.Verify(i => i.SetUserActiveStatusAsync(It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<bool>()), Times.Never);
+    }
+
+    [Fact]
     public void Jwt_Token_Emits_One_ClaimTypes_Role_Per_Role_And_ClinicId_Without_InCode_Fallback()
     {
         // Arrange

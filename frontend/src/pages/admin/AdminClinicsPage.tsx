@@ -347,18 +347,18 @@ export const AdminClinicsPage: React.FC = () => {
 
                 {/* Card Body: Usage Meter & Period */}
                 <div className="p-5 space-y-4 bg-slate-50/40 flex-1">
-                  {/* Visit Usage */}
+                  {/* Prescription / Visit Usage */}
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold text-slate-600">Period Visit Usage:</span>
+                      <span className="font-semibold text-slate-600">Prescriptions / Visits:</span>
                       <span className="font-mono font-bold text-slate-800">
                         {clinic.isUnlimited ? (
                           <span className="text-emerald-700">
-                            {clinic.visitsConducted} (Unlimited Quota)
+                            {clinic.visitsConducted} used (Unlimited)
                           </span>
                         ) : (
                           <span className={isOverQuota ? 'text-rose-600' : 'text-slate-900'}>
-                            {clinic.visitsConducted} / {clinic.totalAllowedVisits} visits
+                            {clinic.visitsConducted} / {clinic.totalAllowedVisits} ({Math.max(0, (clinic.totalAllowedVisits || 0) - clinic.visitsConducted)} left)
                           </span>
                         )}
                       </span>

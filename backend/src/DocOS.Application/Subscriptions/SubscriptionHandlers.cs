@@ -466,7 +466,8 @@ public class SubscriptionHandlers :
                 PeriodEnd: IndiaTime.Now.AddDays(30),
                 CanIssueTokens: true,
                 HasLabModule: false,
-                HasCustomVitals: false
+                HasCustomVitals: false,
+                EffectiveMaxDoctors: 1
             );
         }
 
@@ -524,7 +525,8 @@ public class SubscriptionHandlers :
             PeriodEnd: sub.CurrentPeriodEnd,
             CanIssueTokens: canIssueTokens,
             HasLabModule: sub.EffectiveHasLabModule,
-            HasCustomVitals: sub.Plan?.HasCustomVitals == true
+            HasCustomVitals: sub.Plan?.HasCustomVitals == true,
+            EffectiveMaxDoctors: sub.EffectiveMaxDoctors
         );
     }
 

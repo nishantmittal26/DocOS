@@ -353,7 +353,7 @@ export const ClinicSubscriptionPage: React.FC = () => {
             {/* Big Counter */}
             <div className="text-center p-4 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
               <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                Visits Conducted
+                Prescriptions / Visits Conducted
               </span>
               <div className="text-3xl font-black text-slate-900 font-mono">
                 {detail.visitsConducted}
@@ -365,8 +365,8 @@ export const ClinicSubscriptionPage: React.FC = () => {
               </div>
               <p className="text-xs text-slate-500">
                 {detail.isUnlimitedVisits
-                  ? 'Unlimited visits enabled on this subscription.'
-                  : `${detail.remainingVisits ?? 0} visits remaining in base + top-up quota.`}
+                  ? 'Unlimited prescriptions & visits enabled on this subscription.'
+                  : `${detail.remainingVisits ?? 0} prescriptions remaining in base + top-up quota.`}
               </p>
             </div>
 

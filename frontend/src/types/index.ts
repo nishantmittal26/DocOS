@@ -546,6 +546,9 @@ export interface AdminClinicItem {
   totalAllowedVisits?: number;
   isUnlimited: boolean;
   gracePeriodDays: number;
+  usedPrescriptions?: number;
+  remainingPrescriptions?: number;
+  totalAllowedPrescriptions?: number;
 }
 
 export interface SubscriptionPayment {
@@ -585,6 +588,9 @@ export interface ClinicSubscriptionDetail {
   planHasLabModule: boolean;
   effectiveHasLabModule: boolean;
   paymentHistory: SubscriptionPayment[];
+  usedPrescriptions?: number;
+  remainingPrescriptions?: number;
+  totalAllowedPrescriptions?: number;
 }
 
 /** inherit = use plan default; enabled/disabled = per-clinic override */
@@ -620,5 +626,9 @@ export interface ClinicQuotaStatus {
   canIssueTokens: boolean;
   hasLabModule: boolean;
   hasCustomVitals: boolean;
+  effectiveMaxDoctors?: number;
+  usedPrescriptions?: number;
+  remainingPrescriptions?: number;
+  totalAllowedPrescriptions?: number;
 }
 

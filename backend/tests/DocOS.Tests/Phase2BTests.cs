@@ -1,3 +1,5 @@
+using DocOS.Application.Auth;
+using DocOS.Application.Auth.Commands;
 using DocOS.Application.Common.Interfaces;
 using DocOS.Application.Patients;
 using DocOS.Application.Subscriptions;
@@ -582,6 +584,336 @@ public class Phase2BTests
         // Act 3: Clinic-wide search without doctor filter -> returns all
         var allPatients = await patientHandlers.Handle(new SearchPatientsQuery(string.Empty), CancellationToken.None);
         allPatients.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public async Task InviteStaff_Enforces_Doctor_Seat_Limit_Per_Plan()
+    {
+        // Arrange
+        using var context = CreateInMemoryDbContext();
+        var plan = SeedStarterPlan(context); // MaxDoctors = 1
+
+        var clinicId = Guid.NewGuid();
+        var adminId = "admin-user-1";
+
+        var subscription = new ClinicSubscription
+        {
+            Id = Guid.NewGuid(),
+            ClinicId = clinicId,
+            PlanId = plan.Id,
+            Plan = plan,
+            Status = SubscriptionStatuses.Active,
+            CurrentPeriodStart = DateTime.UtcNow,
+            CurrentPeriodEnd = DateTime.UtcNow.AddDays(30),
+            MaxDoctorsOverride = null
+        };
+        context.ClinicSubscriptions.Add(subscription);
+        await context.SaveChangesAsync();
+
+        var mockCurrentUser = new Mock<ICurrentUserService>();
+        mockCurrentUser.Setup(u => u.UserId).Returns(adminId);
+        mockCurrentUser.Setup(u => u.ClinicId).Returns(clinicId);
+        mockCurrentUser.Setup(u => u.IsInRole(Roles.ClinicAdmin)).Returns(true);
+
+        var mockIdentityService = new Mock<IIdentityService>();
+        // 1 active doctor already exists
+        mockIdentityService.Setup(i => i.GetClinicDoctorsAsync(clinicId))
+            .ReturnsAsync(new List<DoctorProfileDto>
+            {
+                new("doc-1", "Dr. Initial", "MBBS", "REG-1", "GP", 500m)
+            });
+        mockIdentityService.Setup(i => i.CreateUserAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Guid?>(), It.IsAny<IEnumerable<string>>(),
+            It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<decimal?>()))
+            .ReturnsAsync((true, null, "new-user-id"));
+
+        var mockJwtGenerator = new Mock<IJwtTokenGenerator>();
+        var mockAuditService = new Mock<IAuditService>();
+
+        var handler = new AuthCommandHandler(
+            context,
+            mockIdentityService.Object,
+            mockJwtGenerator.Object,
+            mockCurrentUser.Object,
+            mockAuditService.Object
+        );
+
+        // Act 1: Attempt to invite a 2nd doctor when Starter plan max is 1 -> Should Throw
+        var inviteDoctorReq = new InviteStaffRequest(
+            FullName: "Dr. Second",
+            Email: "second@clinic.com",
+            Password: "Pass@123",
+            Role: Roles.Doctor,
+            Phone: "9876543210",
+            Qualifications: "MBBS",
+            RegNumber: "REG-2",
+            Specialization: "Cardio",
+            ConsultationFee: 700m
+        );
+        var actDoctor = () => handler.Handle(new InviteStaffCommand(inviteDoctorReq), CancellationToken.None);
+
+        await actDoctor.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*Doctor seat limit reached (1/1 doctor(s) assigned)*");
+
+        // Act 2: Inviting a Nurse is NOT restricted by doctor seat limit
+        var inviteNurseReq = new InviteStaffRequest(
+            FullName: "Nurse Joy",
+            Email: "nurse@clinic.com",
+            Password: "Pass@123",
+            Role: Roles.Nurse,
+            Phone: "9876543211"
+        );
+        var nurseResult = await handler.Handle(new InviteStaffCommand(inviteNurseReq), CancellationToken.None);
+
+        nurseResult.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task InviteStaff_Allows_Additional_Doctor_When_MaxDoctorsOverride_Is_Configured()
+    {
+        // Arrange
+        using var context = CreateInMemoryDbContext();
+        var plan = SeedStarterPlan(context); // Default MaxDoctors = 1
+
+        var clinicId = Guid.NewGuid();
+        var adminId = "admin-user-1";
+
+        var subscription = new ClinicSubscription
+        {
+            Id = Guid.NewGuid(),
+            ClinicId = clinicId,
+            PlanId = plan.Id,
+            Plan = plan,
+            Status = SubscriptionStatuses.Active,
+            CurrentPeriodStart = DateTime.UtcNow,
+            CurrentPeriodEnd = DateTime.UtcNow.AddDays(30),
+            MaxDoctorsOverride = 2 // Custom override allows 2 doctors on Starter plan
+        };
+        context.ClinicSubscriptions.Add(subscription);
+        await context.SaveChangesAsync();
+
+        var mockCurrentUser = new Mock<ICurrentUserService>();
+        mockCurrentUser.Setup(u => u.UserId).Returns(adminId);
+        mockCurrentUser.Setup(u => u.ClinicId).Returns(clinicId);
+        mockCurrentUser.Setup(u => u.IsInRole(Roles.ClinicAdmin)).Returns(true);
+
+        var mockIdentityService = new Mock<IIdentityService>();
+        // Currently 1 active doctor
+        var doctorList = new List<DoctorProfileDto>
+        {
+            new("doc-1", "Dr. Initial", "MBBS", "REG-1", "GP", 500m)
+        };
+        mockIdentityService.Setup(i => i.GetClinicDoctorsAsync(clinicId))
+            .ReturnsAsync(() => doctorList);
+
+        mockIdentityService.Setup(i => i.CreateUserAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Guid?>(), It.IsAny<IEnumerable<string>>(),
+            It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<decimal?>()))
+            .ReturnsAsync((true, null, "doc-2"));
+
+        var mockJwtGenerator = new Mock<IJwtTokenGenerator>();
+        var mockAuditService = new Mock<IAuditService>();
+
+        var handler = new AuthCommandHandler(
+            context,
+            mockIdentityService.Object,
+            mockJwtGenerator.Object,
+            mockCurrentUser.Object,
+            mockAuditService.Object
+        );
+
+        // Act 1: Inviting 2nd doctor succeeds because override is 2
+        var inviteDoctor2 = new InviteStaffRequest(
+            FullName: "Dr. Second",
+            Email: "second@clinic.com",
+            Password: "Pass@123",
+            Role: Roles.Doctor,
+            Phone: "9876543210",
+            Qualifications: "MBBS",
+            RegNumber: "REG-2",
+            Specialization: "Cardio",
+            ConsultationFee: 700m
+        );
+        var result2 = await handler.Handle(new InviteStaffCommand(inviteDoctor2), CancellationToken.None);
+        result2.Should().BeTrue();
+
+        // Now clinic has 2 active doctors
+        doctorList.Add(new("doc-2", "Dr. Second", "MBBS", "REG-2", "Cardio", 700m));
+
+        // Act 2: Attempting to invite 3rd doctor must throw because override of 2 is now reached
+        var inviteDoctor3 = new InviteStaffRequest(
+            FullName: "Dr. Third",
+            Email: "third@clinic.com",
+            Password: "Pass@123",
+            Role: Roles.Doctor,
+            Phone: "9876543212",
+            Qualifications: "MBBS",
+            RegNumber: "REG-3",
+            Specialization: "Derma",
+            ConsultationFee: 800m
+        );
+        var actDoctor3 = () => handler.Handle(new InviteStaffCommand(inviteDoctor3), CancellationToken.None);
+
+        await actDoctor3.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*Doctor seat limit reached (2/2 doctor(s) assigned)*");
+    }
+
+    [Fact]
+    public async Task ToggleStaffActive_Enforces_Doctor_Seat_Limit_When_Activating_Doctor()
+    {
+        // Arrange
+        using var context = CreateInMemoryDbContext();
+        var plan = SeedStarterPlan(context); // MaxDoctors = 1
+
+        var clinicId = Guid.NewGuid();
+        var adminId = "admin-user-1";
+        var inactiveDoctorId = "doc-inactive";
+
+        var subscription = new ClinicSubscription
+        {
+            Id = Guid.NewGuid(),
+            ClinicId = clinicId,
+            PlanId = plan.Id,
+            Plan = plan,
+            Status = SubscriptionStatuses.Active,
+            CurrentPeriodStart = DateTime.UtcNow,
+            CurrentPeriodEnd = DateTime.UtcNow.AddDays(30),
+            MaxDoctorsOverride = null // 1 doctor max
+        };
+        context.ClinicSubscriptions.Add(subscription);
+        await context.SaveChangesAsync();
+
+        var mockCurrentUser = new Mock<ICurrentUserService>();
+        mockCurrentUser.Setup(u => u.UserId).Returns(adminId);
+        mockCurrentUser.Setup(u => u.ClinicId).Returns(clinicId);
+        mockCurrentUser.Setup(u => u.IsInRole(Roles.ClinicAdmin)).Returns(true);
+
+        var mockIdentityService = new Mock<IIdentityService>();
+        // 1 active doctor already exists
+        mockIdentityService.Setup(i => i.GetClinicDoctorsAsync(clinicId))
+            .ReturnsAsync(new List<DoctorProfileDto>
+            {
+                new("doc-active", "Dr. Active", "MBBS", "REG-1", "GP", 500m)
+            });
+
+        // Staff list has 1 active doctor and 1 inactive doctor
+        mockIdentityService.Setup(i => i.GetClinicStaffAsync(clinicId))
+            .ReturnsAsync(new List<StaffMemberDto>
+            {
+                new("doc-active", "Dr. Active", "active@clinic.com", "9876543210", new List<string> { Roles.Doctor }, true, DateTime.UtcNow, "MBBS", "REG-1", "GP", 500m),
+                new(inactiveDoctorId, "Dr. Inactive", "inactive@clinic.com", "9876543219", new List<string> { Roles.Doctor }, false, DateTime.UtcNow, "MBBS", "REG-2", "ENT", 600m)
+            });
+
+        mockIdentityService.Setup(i => i.SetUserActiveStatusAsync(inactiveDoctorId, clinicId, true))
+            .ReturnsAsync((true, null));
+
+        var mockJwtGenerator = new Mock<IJwtTokenGenerator>();
+        var mockAuditService = new Mock<IAuditService>();
+
+        var handler = new AuthCommandHandler(
+            context,
+            mockIdentityService.Object,
+            mockJwtGenerator.Object,
+            mockCurrentUser.Object,
+            mockAuditService.Object
+        );
+
+        // Act 1: Activating inactive doctor when limit is 1/1 -> Throws
+        var activateCommand = new ToggleStaffActiveCommand(new ToggleStaffActiveRequest(inactiveDoctorId, true));
+        var act = () => handler.Handle(activateCommand, CancellationToken.None);
+
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*Cannot activate doctor: Doctor seat limit reached (1/1 doctor(s) assigned)*");
+
+        // Act 2: If subscription has MaxDoctorsOverride = 2, activating succeeds
+        subscription.MaxDoctorsOverride = 2;
+        await context.SaveChangesAsync();
+
+        var successResult = await handler.Handle(activateCommand, CancellationToken.None);
+        successResult.Should().BeTrue();
+        mockIdentityService.Verify(i => i.SetUserActiveStatusAsync(inactiveDoctorId, clinicId, true), Times.Once);
+    }
+
+    [Fact]
+    public async Task ClinicQuotaStatus_Exposes_Used_And_Remaining_Prescription_Metrics()
+    {
+        // Arrange
+        using var context = CreateInMemoryDbContext();
+        var plan = SeedStarterPlan(context); // 10 monthly visits
+
+        var clinicId = Guid.NewGuid();
+        var clinic = new Clinic
+        {
+            Id = clinicId,
+            Name = "Apollo Express",
+            Phone = "9988776655",
+            Address = "Connaught Place",
+            CreatedAt = IndiaTime.Now,
+            UpdatedAt = IndiaTime.Now
+        };
+        context.Clinics.Add(clinic);
+
+        var subscription = new ClinicSubscription
+        {
+            Id = Guid.NewGuid(),
+            ClinicId = clinicId,
+            PlanId = plan.Id,
+            IsUnlimitedVisits = false,
+            MonthlyVisitQuota = 100,
+            AdditionalTopUpVisits = 50,
+            Status = SubscriptionStatuses.Active,
+            CurrentPeriodStart = IndiaTime.Now.AddDays(-10),
+            CurrentPeriodEnd = IndiaTime.Now.AddDays(20),
+            GracePeriodDays = 5,
+            CreatedAt = IndiaTime.Now,
+            UpdatedAt = IndiaTime.Now
+        };
+        context.ClinicSubscriptions.Add(subscription);
+
+        var periodUsage = new ClinicPeriodUsage
+        {
+            Id = Guid.NewGuid(),
+            ClinicId = clinicId,
+            SubscriptionId = subscription.Id,
+            PeriodStart = subscription.CurrentPeriodStart,
+            PeriodEnd = subscription.CurrentPeriodEnd,
+            VisitsConducted = 42,
+            LastVisitRecordedAt = IndiaTime.Now,
+            CreatedAt = IndiaTime.Now,
+            UpdatedAt = IndiaTime.Now
+        };
+        context.ClinicPeriodUsages.Add(periodUsage);
+        await context.SaveChangesAsync();
+
+        var mockCurrentUser = new Mock<ICurrentUserService>();
+        mockCurrentUser.Setup(u => u.ClinicId).Returns(clinicId);
+        mockCurrentUser.Setup(u => u.IsInRole(Roles.Doctor)).Returns(true);
+
+        var mockIdentityService = new Mock<IIdentityService>();
+        var subHandlers = new SubscriptionHandlers(context, mockCurrentUser.Object, mockIdentityService.Object);
+
+        // Act
+        var status = await subHandlers.Handle(new GetClinicQuotaStatusQuery(), CancellationToken.None);
+
+        // Assert: 100 base + 50 top-up = 150 total. 42 conducted -> 108 remaining.
+        status.VisitsConducted.Should().Be(42);
+        status.TotalAllowed.Should().Be(150);
+        status.RemainingVisits.Should().Be(108);
+
+        status.UsedPrescriptions.Should().Be(42);
+        status.TotalAllowedPrescriptions.Should().Be(150);
+        status.RemainingPrescriptions.Should().Be(108);
+        status.IsUnlimited.Should().BeFalse();
+
+        // Unlimited plan check
+        subscription.IsUnlimitedVisits = true;
+        await context.SaveChangesAsync();
+
+        var unlimitedStatus = await subHandlers.Handle(new GetClinicQuotaStatusQuery(), CancellationToken.None);
+        unlimitedStatus.IsUnlimited.Should().BeTrue();
+        unlimitedStatus.UsedPrescriptions.Should().Be(42);
+        unlimitedStatus.RemainingPrescriptions.Should().BeNull();
+        unlimitedStatus.TotalAllowedPrescriptions.Should().BeNull();
     }
 }
 

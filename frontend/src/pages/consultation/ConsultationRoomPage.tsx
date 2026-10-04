@@ -11,8 +11,9 @@ import {
   LabTestMaster,
   LabTestPanel,
   AdviceTemplate,
+  ClinicQuotaStatus,
 } from '../../types';
-import { shiftIstDateInput } from '../../utils/dateTime';
+import { shiftIstDateInput, formatDateIST } from '../../utils/dateTime';
 import { PrescriptionPrintModal } from '../../components/PrescriptionPrintModal';
 import { VitalsModal } from '../../components/VitalsModal';
 import {
@@ -72,6 +73,7 @@ export const ConsultationRoomPage: React.FC = () => {
 
   // Diagnostic Lab Orders state (Phase 2D)
   const [hasLabModule, setHasLabModule] = useState(true);
+  const [quota, setQuota] = useState<ClinicQuotaStatus | null>(null);
   const [allLabTests, setAllLabTests] = useState<LabTestMaster[]>([]);
   const [labPanels, setLabPanels] = useState<LabTestPanel[]>([]);
   const [labSearchQuery, setLabSearchQuery] = useState('');
@@ -144,8 +146,9 @@ export const ConsultationRoomPage: React.FC = () => {
 
     clinicsApi
       .getCurrentSubscriptionQuota()
-      .then((quota) => {
-        labModuleEnabled = quota.hasLabModule;
+      .then((q) => {
+        setQuota(q);
+        labModuleEnabled = q.hasLabModule;
         setHasLabModule(labModuleEnabled);
       })
       .catch(() => {});
@@ -424,6 +427,32 @@ export const ConsultationRoomPage: React.FC = () => {
         </button>
 
         <div className="flex items-center space-x-3">
+          {quota && (
+            <div
+              className={`hidden sm:flex items-center space-x-2 px-3 py-2 rounded-xl border text-xs font-bold transition-all shadow-sm ${
+                quota.isQuotaExceeded
+                  ? 'bg-rose-50 border-rose-200 text-rose-700'
+                  : quota.isWithinBuffer
+                  ? 'bg-amber-50 border-amber-200 text-amber-800'
+                  : 'bg-emerald-50/80 border-emerald-200 text-emerald-800'
+              }`}
+              title={`Used: ${quota.visitsConducted} prescriptions. Quota cycle ends: ${formatDateIST(quota.periodEnd)}`}
+            >
+              <FileText className={`w-3.5 h-3.5 ${
+                quota.isQuotaExceeded ? 'text-rose-600' :
+                quota.isWithinBuffer ? 'text-amber-600' :
+                'text-emerald-600'
+              }`} />
+              <span className="font-semibold text-slate-500">Rx Quota:</span>
+              <span>
+                {quota.visitsConducted} used
+                {quota.isUnlimited
+                  ? ' (Unlimited)'
+                  : ` • ${quota.remainingVisits ?? 0} remaining`}
+              </span>
+            </div>
+          )}
+
           <button
             onClick={handleCompleteAndPrint}
             disabled={submitting}

@@ -177,6 +177,23 @@ public class AuthCommandHandler :
             throw new InvalidOperationException($"Invalid staff role '{role}'. Allowed roles: Doctor, Nurse, Receptionist.");
         }
 
+        // Enforce doctor seat limit when inviting a doctor
+        if (role == Roles.Doctor)
+        {
+            var sub = await _context.ClinicSubscriptions
+                .Include(s => s.Plan)
+                .FirstOrDefaultAsync(s => s.ClinicId == clinicId, cancellationToken);
+
+            var maxDoctors = sub?.EffectiveMaxDoctors ?? 1;
+            var currentDoctors = await _identityService.GetClinicDoctorsAsync(clinicId);
+
+            if (currentDoctors.Count >= maxDoctors)
+            {
+                throw new InvalidOperationException(
+                    $"Doctor seat limit reached ({currentDoctors.Count}/{maxDoctors} doctor(s) assigned). Upgrade your subscription plan or contact support to increase your doctor seat limit.");
+            }
+        }
+
         var (success, error, _) = await _identityService.CreateUserAsync(
             email: request.Request.Email.Trim(),
             password: request.Request.Password,
@@ -204,9 +221,39 @@ public class AuthCommandHandler :
             throw new UnauthorizedAccessException("Only clinic administrators can manage staff status");
         }
 
+        // Prevent self-deactivation: A user must not deactivate their own active account
+        if (string.Equals(request.Request.UserId, _currentUserService.UserId, StringComparison.OrdinalIgnoreCase) && !request.Request.IsActive)
+        {
+            throw new InvalidOperationException("You cannot deactivate your own account.");
+        }
+
+        var clinicId = _currentUserService.ClinicId.Value;
+
+        // If activating a doctor, verify that the doctor seat limit is not exceeded
+        if (request.Request.IsActive)
+        {
+            var staffList = await _identityService.GetClinicStaffAsync(clinicId);
+            var targetStaff = staffList.FirstOrDefault(s => string.Equals(s.Id, request.Request.UserId, StringComparison.OrdinalIgnoreCase));
+            if (targetStaff != null && targetStaff.Roles.Contains(Roles.Doctor) && !targetStaff.IsActive)
+            {
+                var sub = await _context.ClinicSubscriptions
+                    .Include(s => s.Plan)
+                    .FirstOrDefaultAsync(s => s.ClinicId == clinicId, cancellationToken);
+
+                var maxDoctors = sub?.EffectiveMaxDoctors ?? 1;
+                var currentDoctors = await _identityService.GetClinicDoctorsAsync(clinicId);
+
+                if (currentDoctors.Count >= maxDoctors)
+                {
+                    throw new InvalidOperationException(
+                        $"Cannot activate doctor: Doctor seat limit reached ({currentDoctors.Count}/{maxDoctors} doctor(s) assigned). Upgrade your subscription plan or contact support to increase your doctor seat limit.");
+                }
+            }
+        }
+
         var (success, error) = await _identityService.SetUserActiveStatusAsync(
             request.Request.UserId,
-            _currentUserService.ClinicId.Value,
+            clinicId,
             request.Request.IsActive
         );
 

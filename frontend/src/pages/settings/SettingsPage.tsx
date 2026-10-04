@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { clinicsApi, medicinesApi, authApi } from '../../api/client';
-import { ClinicProfile, DosageForm, Medicine, StaffMember, DoctorProfile } from '../../types';
+import { ClinicProfile, DosageForm, Medicine, StaffMember, DoctorProfile, ClinicQuotaStatus } from '../../types';
 import {
   Building2,
   Sliders,
@@ -26,7 +26,9 @@ import {
   BookOpen,
   Phone,
   Smartphone,
+  FileText,
 } from 'lucide-react';
+import { formatDateIST } from '../../utils/dateTime';
 import { AddCustomMedicineModal } from '../../components/AddCustomMedicineModal';
 import { CatalogScopeFilter, CatalogSourceBadge, CatalogScope } from '../../components/CatalogScopeFilter';
 import { VitalsSettingsPage } from './VitalsSettingsPage';
@@ -84,6 +86,7 @@ export const SettingsPage: React.FC = () => {
 
   // Staff management state
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
+  const [quotaStatus, setQuotaStatus] = useState<ClinicQuotaStatus | null>(null);
   const [loadingStaff, setLoadingStaff] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [staffName, setStaffName] = useState('');
@@ -146,14 +149,25 @@ export const SettingsPage: React.FC = () => {
   const loadStaffList = async () => {
     setLoadingStaff(true);
     try {
-      const data = await authApi.getClinicStaff();
-      setStaffList(data);
+      const [staffData, quotaData] = await Promise.all([
+        authApi.getClinicStaff(),
+        clinicsApi.getCurrentSubscriptionQuota().catch(() => null),
+      ]);
+      setStaffList(staffData);
+      if (quotaData) {
+        setQuotaStatus(quotaData);
+      }
     } catch (err) {
       console.error('Failed to load clinic staff', err);
     } finally {
       setLoadingStaff(false);
     }
   };
+
+  // Doctor seat limit calculations
+  const activeDoctorCount = staffList.filter((s) => s.roles.includes('Doctor') && s.isActive).length;
+  const maxDoctors = quotaStatus?.effectiveMaxDoctors ?? (quotaStatus?.planTier === 'MultiDoctor' ? 5 : quotaStatus?.planTier === 'Enterprise' ? 25 : 1);
+  const isDoctorSeatLimitReached = activeDoctorCount >= maxDoctors;
 
   const loadCustomMedicines = async (scope: CatalogScope = medCatalogScope) => {
     setLoadingMedicines(true);
@@ -259,6 +273,21 @@ export const SettingsPage: React.FC = () => {
   };
 
   const handleToggleStaffActive = async (staff: StaffMember) => {
+    const isSelf =
+      staff.id === user?.userId ||
+      (!!user?.email && staff.email.toLowerCase() === user.email.toLowerCase());
+    if (isSelf && staff.isActive) {
+      alert('You cannot deactivate your own account.');
+      return;
+    }
+
+    if (!staff.isActive && staff.roles.includes('Doctor') && isDoctorSeatLimitReached) {
+      alert(
+        `Cannot activate doctor: Doctor seat limit reached (${activeDoctorCount}/${maxDoctors} doctor(s) assigned). Upgrade your subscription plan or contact support to increase your doctor seat limit.`
+      );
+      return;
+    }
+
     try {
       await authApi.toggleStaffActive({
         userId: staff.id,
@@ -274,6 +303,14 @@ export const SettingsPage: React.FC = () => {
     e.preventDefault();
     setInvitingStaff(true);
     setStaffError(null);
+
+    if (staffRole === 'Doctor' && isDoctorSeatLimitReached) {
+      setStaffError(
+        `Doctor seat limit reached (${activeDoctorCount}/${maxDoctors} doctor(s) assigned). Upgrade your subscription plan or contact support to increase your doctor seat limit.`
+      );
+      setInvitingStaff(false);
+      return;
+    }
 
     try {
       await authApi.inviteStaff({
@@ -441,14 +478,144 @@ export const SettingsPage: React.FC = () => {
 
       {/* Tab 1: Clinic & Print Margins */}
       {activeTab === 'clinic' && (
-        <form onSubmit={handleSaveClinicSettings} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
-          <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-            <div>
-              <h2 className="text-base font-bold text-slate-900">Clinic Information & Print Portal Setup</h2>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Set trade name, contact information, timings, and dual-mode print alignment options.
-              </p>
+        <div className="space-y-6">
+          {quotaStatus && (
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                <div className="flex items-center space-x-3">
+                  <div
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold shadow-sm ${
+                      quotaStatus.isQuotaExceeded
+                        ? 'bg-rose-100 text-rose-700'
+                        : quotaStatus.isWithinBuffer
+                        ? 'bg-amber-100 text-amber-800'
+                        : 'bg-emerald-100 text-emerald-800'
+                    }`}
+                  >
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <h2 className="text-base font-bold text-slate-900">Subscription & Prescription Quota</h2>
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                        {quotaStatus.planName} ({quotaStatus.planTier})
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Real-time prescription usage meter, monthly visit entitlement, and cycle renewal status.
+                    </p>
+                  </div>
+                </div>
+                <span
+                  className={`self-start sm:self-auto text-xs font-bold px-2.5 py-1 rounded-full ${
+                    quotaStatus.isQuotaExceeded
+                      ? 'bg-rose-100 text-rose-700 border border-rose-200'
+                      : quotaStatus.isWithinBuffer
+                      ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                      : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                  }`}
+                >
+                  Status: {quotaStatus.status}
+                </span>
+              </div>
+
+              {/* Quota Metrics Grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
+                  <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">
+                    Used Prescriptions
+                  </span>
+                  <span className="text-xl font-black text-slate-900 mt-0.5 block font-mono">
+                    {quotaStatus.visitsConducted}
+                  </span>
+                  <span className="text-[11px] text-slate-500 font-medium">Recorded this period</span>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
+                  <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">
+                    Remaining Prescriptions
+                  </span>
+                  <span
+                    className={`text-xl font-black mt-0.5 block font-mono ${
+                      quotaStatus.isQuotaExceeded
+                        ? 'text-rose-600'
+                        : quotaStatus.isWithinBuffer
+                        ? 'text-amber-700'
+                        : 'text-emerald-700'
+                    }`}
+                  >
+                    {quotaStatus.isUnlimited ? 'Unlimited' : quotaStatus.remainingVisits ?? 0}
+                  </span>
+                  <span className="text-[11px] text-slate-500 font-medium">
+                    {quotaStatus.isUnlimited ? 'No monthly cap' : 'Before grace buffer'}
+                  </span>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
+                  <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">
+                    Total Allowed
+                  </span>
+                  <span className="text-xl font-black text-slate-800 mt-0.5 block font-mono">
+                    {quotaStatus.isUnlimited ? 'Unlimited' : quotaStatus.totalAllowed ?? '—'}
+                  </span>
+                  <span className="text-[11px] text-slate-500 font-medium">
+                    {quotaStatus.monthlyQuota ?? '—'} base
+                    {quotaStatus.additionalTopUpVisits > 0 ? ` + ${quotaStatus.additionalTopUpVisits} top-up` : ''}
+                  </span>
+                </div>
+
+                <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100">
+                  <span className="text-[10px] font-bold text-slate-400 block uppercase tracking-wider">
+                    Current Period Ends
+                  </span>
+                  <span className="text-sm font-bold text-slate-800 mt-1 block">
+                    {formatDateIST(quotaStatus.periodEnd)}
+                  </span>
+                  <span className="text-[11px] text-slate-500 font-medium">
+                    {quotaStatus.isGracePeriod ? 'Grace period active' : 'Next billing cycle renewal'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Progress bar if not unlimited */}
+              {!quotaStatus.isUnlimited && quotaStatus.totalAllowed && (
+                <div className="space-y-1.5 pt-1">
+                  <div className="flex justify-between text-xs font-bold text-slate-600">
+                    <span>Prescription Consumption</span>
+                    <span className="font-mono">
+                      {Math.round((quotaStatus.visitsConducted / quotaStatus.totalAllowed) * 100)}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${
+                        quotaStatus.isQuotaExceeded
+                          ? 'bg-rose-600'
+                          : quotaStatus.isWithinBuffer
+                          ? 'bg-amber-500'
+                          : 'bg-emerald-600'
+                      }`}
+                      style={{
+                        width: `${Math.min(
+                          100,
+                          Math.round((quotaStatus.visitsConducted / quotaStatus.totalAllowed) * 100)
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
+          )}
+
+          <form onSubmit={handleSaveClinicSettings} className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div>
+                <h2 className="text-base font-bold text-slate-900">Clinic Information & Print Portal Setup</h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Set trade name, contact information, timings, and dual-mode print alignment options.
+                </p>
+              </div>
             {clinicSuccess && (
               <span className="inline-flex items-center space-x-1.5 text-xs text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-200 font-bold">
                 <CheckCircle2 className="w-4 h-4" />
@@ -628,6 +795,7 @@ export const SettingsPage: React.FC = () => {
             </button>
           </div>
         </form>
+        </div>
       )}
 
       {/* Tab 2: Doctor Profile & Credentials */}
@@ -728,7 +896,23 @@ export const SettingsPage: React.FC = () => {
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
               <div>
-                <h2 className="text-base font-bold text-slate-900">Clinic Staff Members</h2>
+                <div className="flex items-center space-x-3">
+                  <h2 className="text-base font-bold text-slate-900">Clinic Staff Members</h2>
+                  <span
+                    className={`inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
+                      isDoctorSeatLimitReached
+                        ? 'bg-amber-50 text-amber-800 border-amber-200'
+                        : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                    }`}
+                  >
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${
+                        isDoctorSeatLimitReached ? 'bg-amber-500' : 'bg-emerald-500'
+                      }`}
+                    />
+                    <span>Doctor Seats: {activeDoctorCount} / {maxDoctors}</span>
+                  </span>
+                </div>
                 <p className="text-xs text-slate-500 mt-0.5">
                   Manage doctors, nurses, and receptionists for your clinic. Deactivated staff cannot sign in.
                 </p>
@@ -768,64 +952,85 @@ export const SettingsPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {staffList.map((member) => (
-                      <tr key={member.id} className="hover:bg-slate-50/70 transition-colors">
-                        <td className="py-3 px-3 font-bold text-slate-900">{member.fullName}</td>
-                        <td className="py-3 px-3 text-slate-600 font-mono">{member.email}</td>
-                        <td className="py-3 px-3">
-                          <div className="flex flex-wrap gap-1">
-                            {member.roles.map((r) => (
-                              <span
-                                key={r}
-                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                  r === 'Doctor'
-                                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                                    : r === 'ClinicAdmin'
-                                    ? 'bg-purple-50 text-purple-700 border border-purple-200'
-                                    : r === 'Nurse'
-                                    ? 'bg-teal-50 text-teal-700 border border-teal-200'
-                                    : 'bg-slate-100 text-slate-700'
+                    {staffList.map((member) => {
+                      const isSelf =
+                        member.id === user?.userId ||
+                        (!!user?.email && member.email.toLowerCase() === user.email.toLowerCase());
+
+                      return (
+                        <tr key={member.id} className="hover:bg-slate-50/70 transition-colors">
+                          <td className="py-3 px-3 font-bold text-slate-900">
+                            <div className="flex items-center space-x-2">
+                              <span>{member.fullName}</span>
+                              {isSelf && (
+                                <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
+                                  You
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3 px-3 text-slate-600 font-mono">{member.email}</td>
+                          <td className="py-3 px-3">
+                            <div className="flex flex-wrap gap-1">
+                              {member.roles.map((r) => (
+                                <span
+                                  key={r}
+                                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                    r === 'Doctor'
+                                      ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                      : r === 'ClinicAdmin'
+                                      ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                                      : r === 'Nurse'
+                                      ? 'bg-teal-50 text-teal-700 border border-teal-200'
+                                      : 'bg-slate-100 text-slate-700'
+                                  }`}
+                                >
+                                  {r}
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="py-3 px-3 text-slate-500 text-[11px]">
+                            {member.qualifications || member.speciality ? (
+                              <span>
+                                {member.qualifications} {member.speciality ? `(${member.speciality})` : ''}
+                              </span>
+                            ) : (
+                              '—'
+                            )}
+                          </td>
+                          <td className="py-3 px-3">
+                            {member.isActive ? (
+                              <span className="inline-flex items-center text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
+                                Active
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center text-[10px] bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded-full">
+                                Deactivated
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3 px-3 text-right">
+                            {isSelf ? (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium text-slate-400 italic">
+                                Active Session
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => handleToggleStaffActive(member)}
+                                className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                                  member.isActive
+                                    ? 'text-rose-600 hover:bg-rose-50 border border-rose-200'
+                                    : 'text-emerald-700 hover:bg-emerald-50 border border-emerald-200'
                                 }`}
                               >
-                                {r}
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-                        <td className="py-3 px-3 text-slate-500 text-[11px]">
-                          {member.qualifications || member.speciality ? (
-                            <span>
-                              {member.qualifications} {member.speciality ? `(${member.speciality})` : ''}
-                            </span>
-                          ) : (
-                            '—'
-                          )}
-                        </td>
-                        <td className="py-3 px-3">
-                          {member.isActive ? (
-                            <span className="inline-flex items-center text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
-                              Active
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center text-[10px] bg-rose-100 text-rose-800 font-bold px-2 py-0.5 rounded-full">
-                              Deactivated
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-3 px-3 text-right">
-                          <button
-                            onClick={() => handleToggleStaffActive(member)}
-                            className={`inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
-                              member.isActive
-                                ? 'text-rose-600 hover:bg-rose-50 border border-rose-200'
-                                : 'text-emerald-700 hover:bg-emerald-50 border border-emerald-200'
-                            }`}
-                          >
-                            <span>{member.isActive ? 'Deactivate' : 'Activate'}</span>
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+                                <span>{member.isActive ? 'Deactivate' : 'Activate'}</span>
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -913,6 +1118,18 @@ export const SettingsPage: React.FC = () => {
                     </div>
                   </div>
 
+                  {staffRole === 'Doctor' && isDoctorSeatLimitReached && (
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 flex items-start space-x-2">
+                      <AlertCircle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+                      <div>
+                        <p className="font-bold">Doctor seat limit reached ({activeDoctorCount}/{maxDoctors})</p>
+                        <p className="text-[11px] text-amber-700 mt-0.5">
+                          Your clinic has assigned all available doctor seats for your subscription plan. Upgrade your plan or contact support to increase your doctor seat limit.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
                   {staffRole === 'Doctor' && (
                     <div className="space-y-3 pt-2 border-t border-slate-100">
                       <span className="font-bold text-slate-800 block text-[11px] uppercase tracking-wider">
@@ -975,7 +1192,7 @@ export const SettingsPage: React.FC = () => {
                     </button>
                     <button
                       type="submit"
-                      disabled={invitingStaff}
+                      disabled={invitingStaff || (staffRole === 'Doctor' && isDoctorSeatLimitReached)}
                       className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-sm disabled:opacity-50"
                     >
                       {invitingStaff ? 'Inviting...' : 'Invite Staff'}

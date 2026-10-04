@@ -86,7 +86,12 @@ public record AdminClinicItemDto(
     int? TotalAllowedVisits,
     bool IsUnlimited,
     int GracePeriodDays
-);
+)
+{
+    public int UsedPrescriptions => VisitsConducted;
+    public int? TotalAllowedPrescriptions => TotalAllowedVisits;
+    public int? RemainingPrescriptions => IsUnlimited || !TotalAllowedVisits.HasValue ? null : Math.Max(0, TotalAllowedVisits.Value - VisitsConducted);
+}
 
 public record SubscriptionPaymentDto(
     Guid Id,
@@ -125,7 +130,12 @@ public record ClinicSubscriptionDetailDto(
     bool PlanHasLabModule,
     bool EffectiveHasLabModule,
     List<SubscriptionPaymentDto> PaymentHistory
-);
+)
+{
+    public int UsedPrescriptions => VisitsConducted;
+    public int? RemainingPrescriptions => RemainingVisits;
+    public int? TotalAllowedPrescriptions => TotalAllowedVisits;
+}
 
 public record UpdateClinicSubscriptionRequest(
     bool IsUnlimitedVisits,
@@ -169,5 +179,11 @@ public record ClinicQuotaStatusDto(
     DateTime PeriodEnd,
     bool CanIssueTokens,
     bool HasLabModule,
-    bool HasCustomVitals
-);
+    bool HasCustomVitals,
+    int EffectiveMaxDoctors
+)
+{
+    public int UsedPrescriptions => VisitsConducted;
+    public int? RemainingPrescriptions => RemainingVisits;
+    public int? TotalAllowedPrescriptions => TotalAllowed;
+}

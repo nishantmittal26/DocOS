@@ -35,6 +35,7 @@ import {
   Receipt,
   CreditCard,
   Calendar,
+  FileText,
 } from 'lucide-react';
 
 interface OpdQueuePageProps {
@@ -358,6 +359,102 @@ export const OpdQueuePage: React.FC<OpdQueuePageProps> = ({ onOpenNewPatient }) 
           </button>
         </div>
       </div>
+
+      {/* Prescription Quota Summary Card (Phase 2 Follow-up) */}
+      {quota && (
+        <div className="bg-white rounded-2xl p-4 sm:p-5 shadow-sm border border-slate-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-start sm:items-center space-x-3.5">
+            <div
+              className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm ${
+                quota.isQuotaExceeded
+                  ? 'bg-rose-100 text-rose-700 border border-rose-200'
+                  : quota.isWithinBuffer
+                  ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                  : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+              }`}
+            >
+              <FileText className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-black tracking-wider uppercase text-slate-500">
+                  Prescription Quota
+                </span>
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                  {quota.planName} Plan ({quota.planTier})
+                </span>
+                {quota.isWithinBuffer && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 animate-pulse">
+                    Grace Buffer Active
+                  </span>
+                )}
+                {quota.isQuotaExceeded && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800">
+                    Quota Exceeded
+                  </span>
+                )}
+              </div>
+              <div className="flex flex-wrap items-baseline gap-2 mt-1">
+                <span className="text-base font-black text-slate-900">
+                  {quota.visitsConducted} Prescriptions Used
+                </span>
+                <span className="text-slate-400 font-bold">•</span>
+                <span
+                  className={`text-sm font-black ${
+                    quota.isQuotaExceeded
+                      ? 'text-rose-600'
+                      : quota.isWithinBuffer
+                      ? 'text-amber-700'
+                      : 'text-emerald-700'
+                  }`}
+                >
+                  {quota.isUnlimited
+                    ? 'Unlimited Prescriptions Remaining'
+                    : `${quota.remainingVisits ?? 0} Prescriptions Remaining`}
+                </span>
+                {!quota.isUnlimited && quota.totalAllowed && (
+                  <span className="text-xs text-slate-500 font-medium">
+                    (Total: {quota.totalAllowed}
+                    {quota.additionalTopUpVisits > 0 ? ` incl. +${quota.additionalTopUpVisits} top-up` : ''})
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Meter progress bar & cycle info */}
+          <div className="w-full md:w-64 space-y-1.5 flex-shrink-0">
+            {!quota.isUnlimited && quota.totalAllowed && (
+              <>
+                <div className="flex justify-between items-center text-xs font-bold text-slate-600">
+                  <span>Consumption</span>
+                  <span className="font-mono">{Math.round((quota.visitsConducted / quota.totalAllowed) * 100)}%</span>
+                </div>
+                <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-300 ${
+                      quota.isQuotaExceeded
+                        ? 'bg-rose-600'
+                        : quota.isWithinBuffer
+                        ? 'bg-amber-500'
+                        : 'bg-emerald-600'
+                    }`}
+                    style={{
+                      width: `${Math.min(100, Math.round((quota.visitsConducted / quota.totalAllowed) * 100))}%`,
+                    }}
+                  />
+                </div>
+              </>
+            )}
+            <div className="flex justify-between items-center text-[11px] text-slate-500">
+              <span>Cycle Ends: {formatDateIST(quota.periodEnd)}</span>
+              {quota.isWithinBuffer && (
+                <span className="text-amber-800 font-bold">{quota.remainingBufferVisits} buffer visits left</span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Patient Search & Quick Check-in Bar */}
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">

@@ -13,6 +13,8 @@ Add items as you find them. No need for ADR unless behavior or schema changes.
 | B01 | **Rx print / PDF** | Printed PDF does **not** match the prescription **modal** layout: boxes stack one per line and waste space on paper. Align **modal preview**, **browser print**, and **PDF** to the same compact box/grid styling where possible. | `done` |
 | B02 | **Rx print / public link** | After a share **Rx URL** is generated, **Print prescription** produces a **blank** page (content missing in print/PDF path). | `done` |
 | B03 | **Admin / subscription** | **Manage Quota & Billing** showed a generic “not found” when the API failed (403/401/missing subscription) or the clinic link was invalid; auto-provision legacy clinics without `ClinicSubscriptions`. | `done` |
+| B04 | **Staff management / Auth** | **ClinicAdmin self-deactivation prevention:** A logged-in `ClinicAdmin` should not have a deactivate button/action for their own record under **Staff Management** (`/settings/staff`). Users must not be permitted to deactivate their own active session account. | `done` |
+| B05 | **Subscriptions / Quotas** | **Doctor seat limit enforcement (`EffectiveMaxDoctors`):** Enforce doctor seat limits across all plans when adding/registering new doctors (via Staff Management or onboarding). Validation must check current active doctor count against `ClinicSubscription.EffectiveMaxDoctors` (`MaxDoctorsOverride ?? Plan.MaxDoctors ?? 1`). If `MaxDoctorsOverride` is configured, validation must strictly enforce the overridden count. | `done` |
 
 ---
 
@@ -33,6 +35,7 @@ Add items as you find them. No need for ADR unless behavior or schema changes.
 | E11 | **Patients** | **Edit patient** flow (demographics and related fields per clinic scope). | `done` |
 | E12 | **Subscriptions / lab module** | Per-clinic **`ClinicSubscriptions.LabModuleOverride`** (`null` = plan default, `true`/`false` = force on/off). Platform Admin sets it on **Manage Quota & Billing**; API quota exposes effective `hasLabModule`. | `done` |
 | E13 | **Clinic settings / Rx header** | Add support for **Mobile number** (max 10 digits) and **Landline number** (max 12 digits) under **Clinic & Practice Settings → Clinic Information & Print Portal Setup** (`Clinic & Print Margins` tab). Validation requires at least one of Mobile or Landline to be filled. When displayed on prescription headers (print preview, browser print, public Rx), render a dedicated telephone icon for the Landline number alongside the Mobile number. | `done` |
+| E14 | **Subscriptions / Quotas** | **Show used and remaining prescriptions on UI for applicable roles:** Display prescription quota usage (used prescriptions vs remaining / total allowed, and unlimited/buffer states) for clinic roles (`ClinicAdmin`, `Doctor`, `Receptionist`, `Nurse`) across the **Navbar header widget**, **Today's OPD Queue**, **Consultation Room**, and **Settings → Clinic & Subscription**. | `done` |
 
 ---
 
