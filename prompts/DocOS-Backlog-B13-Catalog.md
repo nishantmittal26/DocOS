@@ -1,10 +1,49 @@
 # B13 — Catalog-based subscriptions & contract snapshots
 
-**Backlog:** [B13 in DocOS-Backlog.md](DocOS-Backlog.md)  
-**Status:** `idea` (not promoted — do not implement until promotion steps in backlog are done)  
-**Supersedes:** B11 (obsolete)
+**Home:** this file only. B13 is **not** a row in [DocOS-Backlog.md](DocOS-Backlog.md).  
+**Status:** parked later — a **single large workstream**. Do not mix it into the regular backlog.  
+**Supersedes:** changing a clinic’s plan by swapping `PlanId` only (former B11). Plan changes must copy catalog → contract per this spec.
 
-This document is the **implementation reference** for agents and developers: product model, schema, migration, code touchpoints, API/UI, and done-when criteria.
+**When you start implementing B13:** this file is the reference, not a license to code. Explain the design to the human in detail, ask questions until they agree and understand fully, then wait for an explicit go-ahead. **No code, migrations, or schema edits until that agreement.** See **§0**.
+
+This document is the **implementation reference** after that review: product model, schema, migration, code touchpoints, API/UI, and done-when criteria.
+
+---
+
+## 0. Agent gate (mandatory before any code)
+
+Applies to every agent and contributor when the human says they want to start B13 (or “implement catalog snapshots”, “change plan”, “contract entitlements”, etc.).
+
+### Do first
+
+1. **Explain in the human’s language**, using this spec and the live code. Cover at least:
+   - **Today:** runtime JOINs `SubscriptionPlanMaster`; editing a catalog row changes every clinic still on that `PlanId`.
+   - **Target:** catalog = menu; contract = snapshot on `ClinicSubscription` plus existing overrides; onboard / Change plan **copy** fields; quota, labs, custom vitals, seat caps, and clinic-facing plan labels read the **contract**.
+   - **Schema:** rename `PlanId` → `CatalogPlanId`; new `Subscribed*` columns and `PlanAssignedAt` (IST); backfill then NOT NULL.
+   - **Out of scope for v1** (unless they explicitly pull it in): proration, invoicing, “apply catalog edit to all subscribers”, `MaxStaffOverride`, `ClinicSubscriptionPlanHistory`.
+   - **Risks:** breaking API field names (`planId` vs `catalogPlanId`); dual source of truth if any handler still reads `Plan.*`; migration backfill of existing clinics.
+2. **Ask detailed questions** (do not skip; wait for answers). Suggested set—adapt if already answered:
+   - Confirm the catalog vs contract story in their words.
+   - Breaking rename `planId` → `catalogPlanId` in APIs, or keep a JSON alias during transition?
+   - Change plan: keep current period dates and remaining quota, or reset period / top-ups?
+   - Catalog admin: edit existing SKUs only, or also create new plans? Soft-deactivate (`IsActive`) only, or delete?
+   - Custom vitals: snapshot only (`SubscribedHasCustomVitals`), or a per-clinic override in v1?
+   - Ship `ClinicSubscriptionPlanHistory` in v1 or leave v1.1?
+   - Who may Change plan and edit catalog (PlatformAdmin only, or SalesAgent too)?
+   - Any clinic must **not** lose labs/seats/quota on backfill?
+3. **Restate the agreed v1 scope** (in/out, schema, API, UI screens) in a short confirmation.
+4. **Wait** until the human says they understand and **explicitly agree to start coding**.
+
+### Do not
+
+- Start coding, scaffolding, or generating EF migrations because this file exists or because a checklist is unchecked.
+- “Just do the migration first” or edit handlers “to save time” before agreement.
+- Add B13 back into [DocOS-Backlog.md](DocOS-Backlog.md).
+- Follow the normal small-backlog promote-and-implement path as a substitute for this conversation.
+
+### After agreement
+
+Then: ADR change log, [DocOS-Database-Schema.md](DocOS-Database-Schema.md), a roadmap status row, then implement from **this** file (updated if the review changed v1).
 
 ---
 
@@ -211,13 +250,13 @@ Clinic-facing quota endpoint (if separate from admin): ensure it uses updated ha
 3. Onboard and **Change plan** copy catalog → contract; `PlanAssignedAt` set in IST.
 4. Manage Quota & Billing shows contract entitlements and supports **Change plan** with confirmation diff.
 5. Platform Admin can edit catalog plans; inactive plans hidden from onboard picker.
-6. B13 row in [DocOS-Backlog.md](DocOS-Backlog.md) marked `done` or **Promoted →** with roadmap link.
+6. Roadmap status table includes a B13 (or equivalent) row; this spec’s done-when items are checked; ADR + schema doc updated.
 
 ---
 
-## 9. Promotion (before coding)
+## 9. Before coding
 
-Follow [How to promote an item](DocOS-Backlog.md#how-to-promote-an-item): ADR, database schema doc, mini-spec or Phase 2 section, roadmap row.
+Follow **§0**. Conversation and explicit human agreement come first; docs and code come after. Do not add B13 back into [DocOS-Backlog.md](DocOS-Backlog.md).
 
 ---
 
@@ -225,4 +264,6 @@ Follow [How to promote an item](DocOS-Backlog.md#how-to-promote-an-item): ADR, d
 
 | Date (IST) | Summary |
 | :--- | :--- |
+| 2026-10-06 | Agent gate: explain in detail and ask questions; no code until the human agrees and understands. |
+| 2026-10-06 | Removed from the main backlog list; this file is the only home. Parked for later review as one large workstream. |
 | 2026-10-05 | Initial B13 implementation reference (catalog vs contract, schema, code map). |

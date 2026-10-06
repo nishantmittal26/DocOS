@@ -10,6 +10,7 @@
 | [DocOS-Product-Roadmap.md](DocOS-Product-Roadmap.md) | Hub: status, stack, reading order |
 | [DocOS-(Phase 2).md](<DocOS-(Phase 2).md>) | Parts 2A–2D, in/out of scope, done-when checklists |
 | [DocOS-Backlog.md](DocOS-Backlog.md) | Post–2D deferred work; promotion rules |
+| [DocOS-Backlog-B13-Catalog.md](DocOS-Backlog-B13-Catalog.md) | Parked later: catalog vs contract (not a backlog row) |
 | [DocOS-Database-Schema.md](DocOS-Database-Schema.md) | Tables, columns, indexes, ERDs |
 | [DocOS-(Phase 1).md](DocOS-(Phase%201).md) | Locked MVP archive (do not rewrite for Phase 2) |
 
@@ -75,7 +76,7 @@ When adding a **new** date or datetime column: document it in [DocOS-Database-Sc
 1. **Status and what’s next** → [DocOS-Product-Roadmap.md](DocOS-Product-Roadmap.md).  
 2. **Building a part** → [DocOS-(Phase 2).md](<DocOS-(Phase 2).md>) for scope and done-when.  
 3. **Columns and indexes** → [DocOS-Database-Schema.md](DocOS-Database-Schema.md).  
-4. **Future / deferred work** → [DocOS-Backlog.md](DocOS-Backlog.md).  
+4. **Future / deferred work** → [DocOS-Backlog.md](DocOS-Backlog.md). Catalog vs contract subscriptions → [DocOS-Backlog-B13-Catalog.md](DocOS-Backlog-B13-Catalog.md) (parked; not a backlog pick).  
 5. **Why a rejected idea stays out** → this file, §1–2.  
 6. **What changed after Oct 2026** → this file, §5.  
 7. **Date/time rules for new columns** → this file, §3.
@@ -85,6 +86,11 @@ When adding a **new** date or datetime column: document it in [DocOS-Database-Sc
 ## 5. Change log
 
 Newest first. One block per decision or schema change.
+
+### 2026-10-06 — B13 parked in its own spec (not a backlog row)
+
+- **Decision:** Catalog vs contract subscriptions (**B13**) lives only in [DocOS-Backlog-B13-Catalog.md](DocOS-Backlog-B13-Catalog.md). It is removed from [DocOS-Backlog.md](DocOS-Backlog.md) so it is not mixed with smaller later ideas. When implementation starts, agents must explain the design in detail and ask questions; **no code until the human agrees and understands** (that file **§0**).
+- **Schema:** No change.
 
 ### 2026-10-06 — Fold completed follow-up enhancements into Phase 2 spec
 

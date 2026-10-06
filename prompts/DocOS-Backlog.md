@@ -2,7 +2,9 @@
 
 Work listed here is **out of scope** until it is **promoted** to a numbered delivery slice with done-when criteria. Phase 2 parts **2A–2D** are defined in [DocOS-(Phase 2).md](<DocOS-(Phase%202).md>). Status and stack truth live in [DocOS-Product-Roadmap.md](DocOS-Product-Roadmap.md).
 
-**Do not** add these tables, APIs, or UI while finishing 2A–2D unless the item has been promoted below.
+**Do not** add these tables, APIs, or UI unless the item has been promoted below.
+
+**Not in this list:** catalog vs contract subscriptions (**B13**) lives only in [DocOS-Backlog-B13-Catalog.md](DocOS-Backlog-B13-Catalog.md). Parked later. When that work starts, the agent must **explain and ask questions first**; no code until you agree (see that file **§0**).
 
 ---
 
@@ -30,9 +32,6 @@ Work listed here is **out of scope** until it is **promoted** to a numbered deli
 | B08 | **Pharmacist role** | Not in Phase 2 role set. | `idea` |
 | B09 | **PostgreSQL or Supabase as Phase 2 provider** | Phase 2 is SQL Server only; MVP PostgreSQL is a tagged snapshot. | `idea` |
 | B10 | **Audit row for every VIEW** | Routine queue views are not audited; see 2D `AuditLogs` scope. | `idea` |
-| B11 | **Platform Admin: change clinic `PlanId` only** | Was “change tier via FK”; insufficient without contract snapshots. | `obsolete` — use **B13** |
-| B12 | **Onboarding: lab module on plan cards** | Wizard step 2 lists visits, doctors, staff, and custom vitals; does not surface **`hasLabModule`** from `SubscriptionPlanMaster` (data already on plan DTO). Small UI polish deferred from E12. | `done` — [`OnboardDoctorPage.tsx`](../frontend/src/pages/admin/OnboardDoctorPage.tsx) step 2 |
-| B13 | **Catalog-based subscriptions + contract snapshots + admin UI** | **Catalog** (`SubscriptionPlanMaster`) vs **contract** (snapshot on `ClinicSubscription`). Full approach, schema, and code map: **[DocOS-Backlog-B13-Catalog.md](DocOS-Backlog-B13-Catalog.md)**. | `idea` |
 
 ### Detail (same content as former Phase 2 §7)
 
@@ -46,11 +45,6 @@ Work listed here is **out of scope** until it is **promoted** to a numbered deli
 - **Pharmacist.** New role and permissions model.  
 - **PostgreSQL provider.** Single provider decision for Phase 2+.  
 - **VIEW audit.** Explicitly excluded from 2D audit design.  
-- **Onboarding plan lab badge (B12).** Helps sales pick the right tier; no schema change.  
-
-### B13
-
-Authoritative spec: **[DocOS-Backlog-B13-Catalog.md](DocOS-Backlog-B13-Catalog.md)** (catalog vs contract, schema, migration, backend/frontend checklist, done-when). **B11** is obsolete — implement plan changes only via B13.
 
 ---
 

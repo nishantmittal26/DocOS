@@ -44,6 +44,7 @@ The [MVP archive](DocOS-(Phase%201).md) describes the original PostgreSQL MVP. T
 | **[DocOS-(Phase 2).md](<DocOS-(Phase%202).md>)** | Phase 2 spec (2A–2D complete); scope and done-when reference |
 | **[DocOS-Follow-ups.md](DocOS-Follow-ups.md)** | Living tracker for new bugs and polish (signed-off 2A–2D rules live in Phase 2) |
 | **[DocOS-Backlog.md](DocOS-Backlog.md)** | Deferred work after 2D; promotion rules for future parts |
+| **[DocOS-Backlog-B13-Catalog.md](DocOS-Backlog-B13-Catalog.md)** | Parked later: catalog vs contract subscriptions (not a backlog row). **Explain + questions first; no code until agreed.** |
 | **[DocOS-Database-Schema.md](DocOS-Database-Schema.md)** | Tables, columns, indexes, ERDs |
 | **[DocOS-Architecture-Decisions.md](DocOS-Architecture-Decisions.md)** | ADR: superseded drafts, rationale, **change log** |
 
@@ -54,7 +55,7 @@ The [MVP archive](DocOS-(Phase%201).md) describes the original PostgreSQL MVP. T
 1. **What should I build next?** → [Follow-ups](DocOS-Follow-ups.md) for any **new** bugs/polish, or [Backlog](DocOS-Backlog.md) for promoted features. Phase 2 parts 2A–2D are complete.  
 2. **Columns or indexes?** → [DocOS-Database-Schema.md](DocOS-Database-Schema.md).  
 3. **Why was X rejected?** → [DocOS-Architecture-Decisions.md](DocOS-Architecture-Decisions.md).  
-4. **Future idea (WhatsApp, ABDM, …)?** → [DocOS-Backlog.md](DocOS-Backlog.md)—do not implement until promoted.  
+4. **Future idea (WhatsApp, ABDM, …)?** → [DocOS-Backlog.md](DocOS-Backlog.md)—do not implement until promoted. Catalog vs contract subscriptions: [B13 spec](DocOS-Backlog-B13-Catalog.md) only (parked; not a backlog pick).  
 5. **What did the original MVP promise?** → [DocOS-(Phase 1).md](DocOS-(Phase%201).md) only.
 
 ---

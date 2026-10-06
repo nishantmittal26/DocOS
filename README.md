@@ -103,6 +103,7 @@ DocOS/
 │   ├── DocOS-(Phase 2).md           # Parts 2A–2D execution spec
 │   ├── DocOS-Follow-ups.md          # Bugs & small enhancements (post 2A–2D)
 │   ├── DocOS-Backlog.md             # Post–2D deferred work
+│   ├── DocOS-Backlog-B13-Catalog.md # Parked: catalog vs contract subscriptions
 │   ├── DocOS-Database-Schema.md
 │   └── DocOS-Architecture-Decisions.md
 ├── backend/
