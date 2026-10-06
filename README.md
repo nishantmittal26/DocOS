@@ -67,25 +67,41 @@ dotnet user-secrets set "Jwt:Secret" "<long-random-secret>"
 
 ---
 
-### 2. Run the .NET 10 Backend API
+### 2. 1-Click Launch & Stop (Windows)
 
+Launch the entire stack (.NET 10 API + React Frontend) with automated health-check sequencing:
+
+```cmd
+start.bat
+```
+- Automatically terminates stale port conflicts on `5107` and `5173`.
+- Launches the .NET 10 Backend API.
+- Polls `http://localhost:5107/` health endpoint and waits for backend initialization (including EF migrations and Drug Formulary seeding).
+- Only starts the Vite frontend once the backend is verified healthy.
+
+To cleanly terminate all running DocOS processes and free all ports at any time:
+
+```cmd
+stop.bat
+```
+
+---
+
+### 3. Run Manually (Terminal by Terminal)
+
+**Backend (.NET 10 Web API):**
 ```bash
 cd backend
 dotnet run --project src/DocOS.API
 ```
-
 - Swagger UI: `http://localhost:5107/swagger` (see `launchSettings.json`)
 - Upon first launch, the API automatically checks the database schema and seeds the **500+ Indian Generic Salt & Formulation Formulary**.
 
----
-
-### 3. Run the React Frontend
-
+**Frontend (React + Vite):**
 ```bash
 cd frontend
 npm run dev
 ```
-
 - Web UI: `http://localhost:5173`
 
 ---
