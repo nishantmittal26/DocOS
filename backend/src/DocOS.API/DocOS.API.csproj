@@ -17,6 +17,13 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>docos-api-local-secrets</UserSecretsId>
   </PropertyGroup>
+
+  <!-- Never publish local/secret override files into Docker/Render images -->
+  <ItemGroup>
+    <Content Update="appsettings.Local.json" CopyToPublishDirectory="Never" CopyToOutputDirectory="Never" />
+    <Content Update="appsettings.Local.json.example" CopyToPublishDirectory="Never" />
+  </ItemGroup>
 
 </Project>

@@ -1,0 +1,18 @@
+{
+  "ConnectionStrings": {
+    "DefaultConnection": "Host=db.<supabase-ref>.supabase.co;Port=5432;Database=postgres;Username=postgres;Password=<your-password>;SSL Mode=Require;Trust Server Certificate=true"
+  },
+  "Jwt": {
+    "Secret": "<generate-a-long-random-secret-at-least-32-chars>",
+    "Issuer": "DocOS.API",
+    "Audience": "DocOS.Client",
+    "ExpiryDays": 30
+  },
+  "Cors": {
+    "AllowedOrigins": [
+      "http://localhost:5173",
+      "http://127.0.0.1:5173",
+      "http://localhost:3000"
+    ]
+  }
+}

@@ -24,6 +24,14 @@ public static class DependencyInjection
             connectionString = configuration["ConnectionStrings:DefaultConnection"];
         }
 
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException(
+                "ConnectionStrings:DefaultConnection is not configured. " +
+                "Set it via environment variable ConnectionStrings__DefaultConnection, " +
+                "dotnet user-secrets, or a gitignored appsettings.Local.json (see appsettings.Local.json.example).");
+        }
+
         services.AddDbContext<ApplicationDbContext>(options =>
             options.UseNpgsql(connectionString, b =>
                 b.MigrationsAssembly(typeof(ApplicationDbContext).Assembly.FullName)));
@@ -43,10 +51,16 @@ public static class DependencyInjection
         .AddRoles<IdentityRole>()
         .AddEntityFrameworkStores<ApplicationDbContext>();
 
-        // JWT Authentication Configuration
-        var secretKey = string.IsNullOrWhiteSpace(configuration["Jwt:Secret"]) 
-            ? "DocOS_Super_Secret_Healthcare_Encryption_Key_2026_Doctor_App!_MustBeLongEnoughForHMAC256" 
-            : configuration["Jwt:Secret"]!;
+        // JWT Authentication Configuration — no in-code secret fallback
+        var secretKey = configuration["Jwt:Secret"];
+        if (string.IsNullOrWhiteSpace(secretKey))
+        {
+            throw new InvalidOperationException(
+                "Jwt:Secret is not configured. " +
+                "Set it via environment variable Jwt__Secret, " +
+                "dotnet user-secrets, or a gitignored appsettings.Local.json (see appsettings.Local.json.example).");
+        }
+
         var issuer = configuration["Jwt:Issuer"] ?? "DocOS.API";
         var audience = configuration["Jwt:Audience"] ?? "DocOS.Client";
 

@@ -18,7 +18,13 @@ public class JwtTokenGenerator : IJwtTokenGenerator
 
     public string GenerateToken(string userId, string email, string fullName, Guid clinicId, string role)
     {
-        var secretKey = _configuration["Jwt:Secret"] ?? "DocOS_Super_Secret_Healthcare_Encryption_Key_2026_Doctor_App!";
+        var secretKey = _configuration["Jwt:Secret"];
+        if (string.IsNullOrWhiteSpace(secretKey))
+        {
+            throw new InvalidOperationException(
+                "Jwt:Secret is not configured. Set Jwt__Secret (env), user-secrets, or appsettings.Local.json.");
+        }
+
         var issuer = _configuration["Jwt:Issuer"] ?? "DocOS.API";
         var audience = _configuration["Jwt:Audience"] ?? "DocOS.Client";
         var expiryDays = int.TryParse(_configuration["Jwt:ExpiryDays"], out var days) ? days : 30;
