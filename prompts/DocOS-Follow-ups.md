@@ -1,6 +1,6 @@
 # DocOS — Follow-ups (bugs & small enhancements)
 
-**Phase 2 parts 2A–2D** are signed off. Accepted product rules live in [DocOS-(Phase 2).md](<DocOS-(Phase%202).md>). This file is a living tracker for **new** bugs and polish only—not backlog features (those stay in [DocOS-Backlog.md](DocOS-Backlog.md)).
+**Phase 2 parts 2A–2D** are signed off. Accepted product rules live in [DocOS-(Phase 2).md](<DocOS-(Phase%202).md>). This file is a living tracker for **new** bugs and polish only—not backlog features (those stay in [DocOS-Phase3-Backlog.md](DocOS-Phase3-Backlog.md)).
 
 Add items as you find them. No need for ADR unless behavior or schema changes.
 

@@ -1,6 +1,6 @@
 # B13 — Catalog-based subscriptions & contract snapshots
 
-**Home:** this file only. B13 is **not** a row in [DocOS-Backlog.md](DocOS-Backlog.md).  
+**Home:** this file only. B13 is **not** a row in [DocOS-Phase3-Backlog.md](DocOS-Phase3-Backlog.md).  
 **Status:** parked later — a **single large workstream**. Do not mix it into the regular backlog.  
 **Supersedes:** changing a clinic’s plan by swapping `PlanId` only (former B11). Plan changes must copy catalog → contract per this spec.
 
@@ -38,7 +38,7 @@ Applies to every agent and contributor when the human says they want to start B1
 
 - Start coding, scaffolding, or generating EF migrations because this file exists or because a checklist is unchecked.
 - “Just do the migration first” or edit handlers “to save time” before agreement.
-- Add B13 back into [DocOS-Backlog.md](DocOS-Backlog.md).
+- Add B13 back into [DocOS-Phase3-Backlog.md](DocOS-Phase3-Backlog.md).
 - Follow the normal small-backlog promote-and-implement path as a substitute for this conversation.
 
 ### After agreement
@@ -256,7 +256,7 @@ Clinic-facing quota endpoint (if separate from admin): ensure it uses updated ha
 
 ## 9. Before coding
 
-Follow **§0**. Conversation and explicit human agreement come first; docs and code come after. Do not add B13 back into [DocOS-Backlog.md](DocOS-Backlog.md).
+Follow **§0**. Conversation and explicit human agreement come first; docs and code come after. Do not add B13 back into [DocOS-Phase3-Backlog.md](DocOS-Phase3-Backlog.md).
 
 ---
 

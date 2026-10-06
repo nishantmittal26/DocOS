@@ -13,7 +13,7 @@
 - **Tenancy Guard:** Always enforce `ClinicId` on clinic-scoped endpoints and queries.
 
 ## 3. Product documentation
-- **Start here:** [`prompts/DocOS-Product-Roadmap.md`](prompts/DocOS-Product-Roadmap.md) for delivery status, stack truth, and links to specs. Phase 2 (2A–2D) is signed off; track bugs/polish in [`prompts/DocOS-Follow-ups.md`](prompts/DocOS-Follow-ups.md). New features from [`prompts/DocOS-Backlog.md`](prompts/DocOS-Backlog.md)—promote before implementing.
+- **Start here:** [`prompts/DocOS-Product-Roadmap.md`](prompts/DocOS-Product-Roadmap.md) for delivery status, stack truth, and links to specs. Phase 2 (2A–2D) is signed off; track bugs/polish in [`prompts/DocOS-Follow-ups.md`](prompts/DocOS-Follow-ups.md). New features from [`prompts/DocOS-Phase3-Backlog.md`](prompts/DocOS-Phase3-Backlog.md)—promote before implementing.
 - **MVP archive:** [`prompts/DocOS-(Phase 1).md`](prompts/DocOS-(Phase%201).md) is locked; do not rewrite it for Phase 2.
 
 ## 4. Architecture & schema documentation

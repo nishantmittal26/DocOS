@@ -102,7 +102,7 @@ DocOS/
 │   ├── DocOS-(Phase 1).md           # MVP archive (PostgreSQL era, locked)
 │   ├── DocOS-(Phase 2).md           # Parts 2A–2D execution spec
 │   ├── DocOS-Follow-ups.md          # Bugs & small enhancements (post 2A–2D)
-│   ├── DocOS-Backlog.md             # Post–2D deferred work
+│   ├── DocOS-Phase3-Backlog.md      # Post–2D deferred work / Phase 3 ideas
 │   ├── DocOS-Backlog-B13-Catalog.md # Parked: catalog vs contract subscriptions
 │   ├── DocOS-Database-Schema.md
 │   └── DocOS-Architecture-Decisions.md

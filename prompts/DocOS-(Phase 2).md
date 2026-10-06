@@ -1,6 +1,6 @@
 # DocOS — Phase 2 Master Specification
 
-> **Phase 2 spec (2A–2D signed off 3 Oct 2026; follow-up product behavior folded 6 Oct 2026).** Status: **[DocOS-Product-Roadmap.md](DocOS-Product-Roadmap.md)**. New bugs/polish: **[DocOS-Follow-ups.md](DocOS-Follow-ups.md)**. New features: **[DocOS-Backlog.md](DocOS-Backlog.md)**. MVP archive: **[DocOS-(Phase 1).md](DocOS-(Phase%201).md)**.
+> **Phase 2 spec (2A–2D signed off 3 Oct 2026; follow-up product behavior folded 6 Oct 2026).** Status: **[DocOS-Product-Roadmap.md](DocOS-Product-Roadmap.md)**. New bugs/polish: **[DocOS-Follow-ups.md](DocOS-Follow-ups.md)**. New features: **[DocOS-Phase3-Backlog.md](DocOS-Phase3-Backlog.md)**. MVP archive: **[DocOS-(Phase 1).md](DocOS-(Phase%201).md)**.
 
 Phase 2 turns the single-doctor MVP into a sellable multi-doctor SaaS. It is built as four sequential parts. Each part ships on its own and leaves the previous part working.
 
@@ -10,7 +10,7 @@ Phase 2 turns the single-doctor MVP into a sellable multi-doctor SaaS. It is bui
 | **2B** | Sales onboarding, plans, quotas, SaaS billing history |
 | **2C** | Dynamic vitals |
 | **2D** | Labs, advice snippets, medicine favorites, public prescription link, OPD fee collection, audit, printed-prescription revisions |
-| **Backlog** | Post–2D items in [DocOS-Backlog.md](DocOS-Backlog.md)—promote before implementing |
+| **Backlog** | Post–2D items in [DocOS-Phase3-Backlog.md](DocOS-Phase3-Backlog.md)—promote before implementing |
 
 Column-level detail is in [DocOS-Database-Schema.md](DocOS-Database-Schema.md). Rationale and superseded drafts are in [DocOS-Architecture-Decisions.md](DocOS-Architecture-Decisions.md).
 
@@ -77,7 +77,7 @@ Domain entities use `BaseEntity`: `Id` (`uniqueidentifier`), `CreatedAt`, `Updat
 
 ### Rules for implementers
 
-1. Implement the earliest part whose done-when list is still open. Do not pull a later part’s tables forward. Deferred work stays in [DocOS-Backlog.md](DocOS-Backlog.md) until promoted.
+1. Implement the earliest part whose done-when list is still open. Do not pull a later part’s tables forward. Deferred work stays in [DocOS-Phase3-Backlog.md](DocOS-Phase3-Backlog.md) until promoted.
 2. Preserve Phase 1 behavior that this spec keeps: patient registration and `PatientUid` sequencing, queue statuses, allergy banner, brand-plus-salt formulary search, dosage shorthand, and the dual-mode letterhead print engine (blank A4 and pre-printed pad). In multi-doctor clinics, ensure patient registration and check-in enforce doctor assignment, and patient search supports filtering by doctor.
 3. Put entities in `DocOS.Domain`, handlers and DTOs in `DocOS.Application`, EF mappings and SQL Server in `DocOS.Infrastructure`, and controllers that only dispatch MediatR in `DocOS.API`.
 4. Authorize with `[Authorize(Roles = "...")]` against `ClaimTypes.Role`. Clinic-scoped handlers also require a non-null `ClinicId` and filter every query by that id.
@@ -119,7 +119,7 @@ Domain entities use `BaseEntity`: `Id` (`uniqueidentifier`), `CreatedAt`, `Updat
 - Subscription tables, quota enforcement, the onboarding wizard, and `OnboardedByUserId`.
 - `VitalMaster`, `VisitVitals`, and any rewrite of the vitals modal.
 - Labs, advice templates, favorites, OPD fee collection, `PdfShareToken`, audit logs, and prescription revisions.
-- `HprId` and every [backlog](DocOS-Backlog.md) item unless promoted.
+- `HprId` and every [backlog](DocOS-Phase3-Backlog.md) item unless promoted.
 
 ### Main tables
 
@@ -294,7 +294,7 @@ Login (no Onboard New Clinic tab), `/admin/onboard-doctor` (horizontal timeline;
 
 ### Out of scope for 2D
 
-- Every item in [DocOS-Backlog.md](DocOS-Backlog.md) unless promoted.
+- Every item in [DocOS-Phase3-Backlog.md](DocOS-Phase3-Backlog.md) unless promoted.
 - `ComplaintMaster`, dosage master tables, and a pharmacist role.
 
 ### Main tables
@@ -325,6 +325,6 @@ Login (no Onboard New Clinic tab), `/admin/onboard-doctor` (horizontal timeline;
 - [DocOS-Database-Schema.md](DocOS-Database-Schema.md) — tables, columns, indexes, and an ERD per part.
 - [DocOS-Architecture-Decisions.md](DocOS-Architecture-Decisions.md) — ADR: superseded drafts, rationale, change log.
 - [DocOS-Follow-ups.md](DocOS-Follow-ups.md) — living tracker for **new** bugs and polish after signed-off 2A–2D product rules.
-- [DocOS-Backlog.md](DocOS-Backlog.md) — post–2D deferred work and promotion rules.
+- [DocOS-Phase3-Backlog.md](DocOS-Phase3-Backlog.md) — post–2D deferred work and promotion rules.
 - [DocOS-Backlog-B13-Catalog.md](DocOS-Backlog-B13-Catalog.md) — parked later: catalog vs contract subscriptions (not a backlog item).
 - [DocOS-(Phase 1).md](DocOS-(Phase%201).md) — locked MVP archive. Do not revise for Phase 2.
