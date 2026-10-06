@@ -86,6 +86,11 @@ When adding a **new** date or datetime column: document it in [DocOS-Database-Sc
 
 Newest first. One block per decision or schema change.
 
+### 2026-10-06 — Fold completed follow-up enhancements into Phase 2 spec
+
+- **Docs:** Completed follow-up **enhancements** E01–E15 were folded into [DocOS-(Phase 2).md](<DocOS-(Phase%202).md>) as accepted 2A/2B/2D product behavior (locked IST rule, login/onboarding, navigation, catalogs, visits, patients, quota UI, Rx timeline). **Bugs were not copied** into the Phase 2 spec. [DocOS-Follow-ups.md](DocOS-Follow-ups.md) was reset to an empty living tracker for new bugs/polish.
+- **Schema doc:** [DocOS-Database-Schema.md](DocOS-Database-Schema.md) aligned with the live snapshot (`AddClinicLandlineAndNullablePhone`). Column-level: **E07** `VisitDate`/`VisitDay`, **E12** `LabModuleOverride`, **E13** `Landline`/nullable `Phone`, **E15** dual use of `PreviousPrescriptionId`. No new tables for E01–E06, E08–E11, E14. Entitlement `Effective*` values remain computed, not columns (B13).
+
 ### 2026-10-05 — E15 `PreviousPrescriptionId` cross-visit timeline (canonical rows)
 
 - **Decision:** Keep the existing `Prescriptions.PreviousPrescriptionId` column with **two non-overlapping meanings**: Phase **2D** same-visit **revision** rows (after print) still set it to the superseded printed row; each visit’s **first** canonical (`IsCurrent`) prescription sets it to the patient’s **latest prior completed visit** current Rx (same `ClinicId`, by `VisitDate` / `PrescribedAt`). Patient timeline UI lists completed visits’ current Rx (query + optional FK walk); it does **not** follow revision-only rows.

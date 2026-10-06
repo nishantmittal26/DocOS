@@ -1,6 +1,6 @@
 # DocOS — Database Schema
 
-Authoritative column-level schema for the DocOS SQL Server database: Phase 1 clinical core (patients, visits, prescriptions, medicines) plus Phase 2 parts **2A–2D** (identity, subscriptions, dynamic vitals, labs, advice, payments, audit). Behavioral rules are in [DocOS-(Phase 2).md](<DocOS-(Phase 2).md>). Migrations live in `DocOS.Infrastructure/Migrations`; the model snapshot reflects the **current** shape after `AddPhase2D_Features`.
+Authoritative column-level schema for the DocOS SQL Server database: Phase 1 clinical core (patients, visits, prescriptions, medicines) plus Phase 2 parts **2A–2D** (identity, subscriptions, dynamic vitals, labs, advice, payments, audit) and post-2D columns from folded enhancements **E07, E12, E13** (E15 reuses an existing FK). Behavioral rules are in [DocOS-(Phase 2).md](<DocOS-(Phase 2).md>). Migrations live in `DocOS.Infrastructure/Migrations`; the model snapshot reflects the **current** shape after `AddClinicLandlineAndNullablePhone` (includes `AddPhase2D_Features`, `AddClinicSubscription_LabModuleOverride`, and `VisitDate_Datetime2`).
 
 Phase 1’s PostgreSQL database is the historical MVP. Production Phase 2+ uses a **new** SQL Server database (not an in-place PostgreSQL migration).
 
@@ -41,11 +41,12 @@ There is no SQL Server row-level security. Clinic isolation is the application g
 
 | Area | State |
 | :--- | :--- |
-| `Visits` | Legacy nine vital columns **removed** (migration `AddPhase2C_DynamicVitals`). Readings are in `VisitVitals`. |
-| `Prescriptions` | One **current** row per visit (`IsCurrent = 1`, filtered unique on `VisitId`). Revisions use `PreviousPrescriptionId` (same visit); first canonical row may link to prior visit’s Rx (E15). Share link: `PdfShareToken`, `ExpiresAt`, `IsPrinted`. |
+| `Visits` | Legacy nine vital columns **removed** (migration `AddPhase2C_DynamicVitals`). Readings are in `VisitVitals`. `VisitDate` is `datetime2` (IST); stored computed `VisitDay` (`date`) drives the token unique index (**E07**). |
+| `Prescriptions` | One **current** row per visit (`IsCurrent = 1`, filtered unique on `VisitId`). `PreviousPrescriptionId`: same-visit revisions **and** first canonical row → prior visit current Rx (**E15**, no extra column). Share link: `PdfShareToken`, `ExpiresAt`, `IsPrinted`. |
 | Vitals | `VitalMaster`, `ClinicVitalPreference`, `VisitVitals` active. |
-| Subscriptions | `SubscriptionPlanMaster`, `ClinicSubscription`, `ClinicPeriodUsage`, `SubscriptionPaymentHistory` active. |
-| 2D | Labs, panels, advice, favorites, `VisitPayment`, `AuditLogs` active. |
+| Subscriptions | `SubscriptionPlanMaster` (table `SubscriptionPlans`), `ClinicSubscription` (includes `LabModuleOverride` **E12**), `ClinicPeriodUsage`, `SubscriptionPaymentHistory` active. |
+| Clinics | `Landline` plus nullable `Phone` (**E13**). `PatientIdPrefix` set at onboarding (default: first four letters of clinic name); column default/legacy `DOC` (**E08**, no extra column). |
+| 2D | Labs, panels, advice, favorites, `VisitPayment`, `AuditLogs` active. Global catalog rows remain `ClinicId` null (**E04–E06** are UI include-global filters, not new tables). |
 
 EF Core table names follow pluralization where configured (for example `PrescriptionAdvices` for entity `PrescriptionAdvice`).
 
@@ -60,7 +61,12 @@ EF Core table names follow pluralization where configured (for example `Prescrip
 | `SubscriptionPlanMaster`, `ClinicSubscription`, `ClinicPeriodUsage`, `SubscriptionPaymentHistory` | 2B |
 | `VitalMaster`, `ClinicVitalPreference`, `VisitVitals`; drop visit vital columns | 2C |
 | Labs, panels, advice, favorites, `VisitPayment`, share token, revisions, `AuditLogs` | 2D |
-| `Clinics.Landline`, `Clinics.Phone` nullable | E13 |
+| `ClinicSubscription.LabModuleOverride` | E12 (`AddClinicSubscription_LabModuleOverride`) |
+| `Visits.VisitDate` `date` → `datetime2`; add stored computed `VisitDay`; token unique index on `VisitDay` | E07 (`VisitDate_Datetime2`) |
+| `Clinics.Landline`; `Clinics.Phone` nullable | E13 (`AddClinicLandlineAndNullablePhone`) |
+| No new table/column: IST write policy, login/nav/patients UI, include-global grids, quota widgets, `PatientIdPrefix` default, `PreviousPrescriptionId` dual meaning | E01–E06, E08–E11, E14, E15 |
+
+**Computed in domain, not columns:** `ClinicSubscription.EffectiveMaxDoctors` (`MaxDoctorsOverride ?? Plan.MaxDoctors ?? 1`) and `EffectiveHasLabModule` (`LabModuleOverride ?? Plan.HasLabModule`). Seat and lab enforcement use these helpers; do not add `Effective*` columns.
 
 ---
 
@@ -133,7 +139,8 @@ erDiagram
         uniqueidentifier PatientId FK
         nvarchar DoctorId FK
         int TokenNumber
-        date VisitDate
+        datetime2 VisitDate
+        date VisitDay
         int Status
     }
     Prescriptions {
@@ -213,8 +220,8 @@ Dropped in 2A: `Role` (`nvarchar`).
 | :--- | :--- | :---: | :--- |
 | `Id` | `uniqueidentifier` | No | PK |
 | `Name` | `nvarchar(200)` | No | Trade name |
-| `Phone` | `nvarchar(20)` | Yes | Mobile number (max 10 digits). At least one of `Phone` or `Landline` required |
-| `Landline` | `nvarchar(20)` | Yes | Landline number (max 12 digits). Added in E13 |
+| `Phone` | `nvarchar(20)` | Yes | Clinic **mobile** (app validates max 10 digits). At least one of `Phone` or `Landline` required (**E13**) |
+| `Landline` | `nvarchar(20)` | Yes | Clinic landline (app validates max 12 digits). Migration `AddClinicLandlineAndNullablePhone` |
 | `Email` | `nvarchar(256)` | Yes | |
 | `Address` | `nvarchar(500)` | Yes | |
 | `LogoUrl` | `nvarchar(500)` | Yes | Blank-paper letterhead |
@@ -263,19 +270,19 @@ Vital columns from section 2 remain on this table until 2C. Clinical columns sta
 | `PatientId` | `uniqueidentifier` | No | FK `Patients(Id)` |
 | `DoctorId` | `nvarchar(450)` | Yes | FK `AspNetUsers(Id)`. Set at check-in. Required before `InConsultation` |
 | `TokenNumber` | `int` | No | Sequence for that doctor that day |
-| `VisitDate` | `datetime2` | No | IST wall-clock. **Check-in / token:** date at `00:00:00`. **Start consultation:** updated to actual IST time. Queue “today” and token uniqueness use computed `VisitDay` (`CONVERT(date, VisitDate)`) |
-| `VisitDay` | `date` | No | Persisted computed column from `VisitDate`; used in unique token index per IST calendar day |
+| `VisitDate` | `datetime2` | No | IST wall-clock (**E07**). **Check-in / token:** calendar date at `00:00:00`. **Start consultation:** updated to actual IST time. Queue “today” uses `IndiaTime.DayRange` |
+| `VisitDay` | `date` | No | Stored computed: `CONVERT(date, [VisitDate])`. Not written by app code. Unique token index per IST calendar day |
 | `Status` | `int` | No | `VisitStatus`. Default `Waiting` |
 | `ChiefComplaints` | `nvarchar(max)` | Yes | Free text |
 | `Diagnosis` | `nvarchar(500)` | Yes | |
 | `ClinicalNotes` | `nvarchar(max)` | Yes | |
-| `FollowUpDate` | `datetime2` | Yes | |
+| `FollowUpDate` | `datetime2` | Yes | IST wall-clock (E01) |
 | `CreatedAt` | `datetime2` | No | Check-in timestamp |
 | `UpdatedAt` | `datetime2` | Yes | |
 
 Vitals are **not** columns on `Visits` after 2C; see `VisitVitals` in section 5.4.
 
-Unique index `(ClinicId, DoctorId, VisitDay, TokenNumber)` filtered to `DoctorId IS NOT NULL`. Queue lookup index `(ClinicId, VisitDate, DoctorId, Status)`.
+Unique index `IX_Visits_ClinicId_DoctorId_VisitDay_TokenNumber` on `(ClinicId, DoctorId, VisitDay, TokenNumber)` filtered to `DoctorId IS NOT NULL`. Queue lookup index `(ClinicId, VisitDate, DoctorId, Status)`.
 
 ### 3.6 `Prescriptions`
 
@@ -286,7 +293,7 @@ Unique index `(ClinicId, DoctorId, VisitDay, TokenNumber)` filtered to `DoctorId
 | `PatientId` | `uniqueidentifier` | No | FK `Patients(Id)` |
 | `ClinicId` | `uniqueidentifier` | No | FK `Clinics(Id)` |
 | `DoctorId` | `nvarchar(450)` | No | FK `AspNetUsers(Id)`. Required once the consult is saved. Same user as `Visits.DoctorId` |
-| `PrescribedAt` | `datetime2` | No | |
+| `PrescribedAt` | `datetime2` | No | IST wall-clock (E01) |
 | `GeneralAdvice` | `nvarchar(max)` | Yes | Stays through Phase 2 |
 | `CreatedAt` | `datetime2` | No | |
 | `UpdatedAt` | `datetime2` | Yes | |
@@ -322,7 +329,7 @@ Unique index `(ClinicId, DoctorId, VisitDay, TokenNumber)` filtered to `DoctorId
 | `CreatedAt` | `datetime2` | No | |
 | `UpdatedAt` | `datetime2` | Yes | |
 
-Search returns rows where `ClinicId` is null or `ClinicId` equals the caller’s clinic. Indexes: `(ClinicId, BrandName)`, `BrandName`, `SaltComposition`, `ClinicId`.
+Search returns rows where `ClinicId` is null or `ClinicId` equals the caller’s clinic. Clinic medicines settings may **include global** rows (`ClinicId` null) as **view-only** (**E04**); that is a query/UI filter, not a column. Indexes: `(ClinicId, BrandName)`, `BrandName`, `SaltComposition`, `ClinicId`.
 
 ---
 
@@ -383,7 +390,7 @@ One row per clinic. Lifecycle status lives here.
 | `MonthlyVisitQuota` | `int` | Yes | Null when this clinic is unlimited |
 | `AdditionalTopUpVisits` | `int` | No | Default 0. Current period only |
 | `MaxDoctorsOverride` | `int` | Yes | Null means use the plan’s `MaxDoctors` |
-| `LabModuleOverride` | `bit` | Yes | Null = inherit `SubscriptionPlanMaster.HasLabModule`; `0`/`1` = per-clinic force off/on |
+| `LabModuleOverride` | `bit` | Yes | **E12.** Null = inherit `SubscriptionPlanMaster.HasLabModule`; `0`/`1` = per-clinic force off/on |
 | `Status` | `nvarchar(30)` | No | `Trial`, `Active`, `GracePeriod`, `QuotaExceeded`, `Suspended` |
 | `CurrentPeriodStart` | `datetime2` | No | |
 | `CurrentPeriodEnd` | `datetime2` | No | |
@@ -392,7 +399,7 @@ One row per clinic. Lifecycle status lives here.
 | `CreatedAt` | `datetime2` | No | |
 | `UpdatedAt` | `datetime2` | Yes | |
 
-`TotalAllowed` is unlimited when `IsUnlimitedVisits` is true, otherwise `MonthlyVisitQuota + AdditionalTopUpVisits`. The extra 20 completed visits are a buffer beyond `TotalAllowed`, not a stored column. Lab access uses `LabModuleOverride ?? plan.HasLabModule` (see ADR change log).
+`TotalAllowed` is unlimited when `IsUnlimitedVisits` is true, otherwise `MonthlyVisitQuota + AdditionalTopUpVisits`. The extra 20 completed visits are a buffer beyond `TotalAllowed`, not a stored column. Quota used/remaining on clinic UI (**E14**) reads these columns plus `ClinicPeriodUsage`; no extra usage columns. Lab access uses `LabModuleOverride ?? plan.HasLabModule` (**E12**). Doctor seats: `MaxDoctorsOverride ?? plan.MaxDoctors ?? 1` (not a column).
 
 ### 4.5 `ClinicPeriodUsage`
 
@@ -565,7 +572,7 @@ erDiagram
 | `CreatedAt` | `datetime2` | No | |
 | `UpdatedAt` | `datetime2` | Yes | |
 
-Filtered unique indexes: unique on `TestCode` where `ClinicId IS NULL`; unique on `(ClinicId, TestCode)` where `ClinicId IS NOT NULL`.
+Filtered unique indexes: unique on `TestCode` where `ClinicId IS NULL`; unique on `(ClinicId, TestCode)` where `ClinicId IS NOT NULL`. Clinic lab-test settings may include global rows as view-only (**E05**); no extra column.
 
 ### 6.3 `LabTestPanel` and `LabTestPanelItem`
 
@@ -624,7 +631,7 @@ A panel order expands into one row per test. The panel id is not stored on the o
 | `CreatedAt` | `datetime2` | No | |
 | `UpdatedAt` | `datetime2` | Yes | |
 
-Index `(ClinicId, Category)` for settings browse (not unique).
+Index `(ClinicId, Category)` for settings browse (not unique). Clinic advice settings may include global rows as view-only (**E06**); no extra column.
 
 **`PrescriptionAdvice`** (SQL table `PrescriptionAdvices`)
 
@@ -673,7 +680,7 @@ The prescription line still stores `Dosage` and `Timing`.
 
 Replace the 2A unique index on `VisitId` with a filtered unique index on `VisitId` where `IsCurrent = 1`. Filtered unique index on `PdfShareToken` where `PdfShareToken IS NOT NULL`.
 
-Once `IsPrinted` is true, or a `PRINT` audit exists for that row, an edit inserts a new current row and leaves the printed row unchanged.
+Once `IsPrinted` is true, or a `PRINT` audit exists for that row, an edit inserts a new current row and leaves the printed row unchanged. Completed visits are view/print only (no extra FK). Do **not** add `PriorVisitPrescriptionId`; E15 uses this column on the first canonical row only.
 
 ### 6.9 `VisitPayment`
 
@@ -733,3 +740,5 @@ One line each, so a later edit does not bring them back into Phase 2.
 - A `VIEW` audit action for routine queue reads.
 - WhatsApp or SMS delivery tables.
 - A tamper-proof or hash-chained audit ledger.
+- `PriorVisitPrescriptionId` (or a second previous-Rx FK). Cross-visit timeline uses `PreviousPrescriptionId` on the first canonical row only (E15).
+- `EffectiveMaxDoctors`, `EffectiveHasLabModule`, or other entitlement snapshot columns on `ClinicSubscription` (those wait for backlog **B13**). Catalog still joined at read time via `PlanId`.
