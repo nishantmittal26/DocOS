@@ -1,4 +1,4 @@
-# DocOS — Backlog (post–Phase 2D)
+# DocOS — Phase 3 Backlog (post–Phase 2D)
 
 Work listed here is **out of scope** until it is **promoted** to a numbered delivery slice with done-when criteria. Phase 2 parts **2A–2D** are defined in [DocOS-(Phase 2).md](<DocOS-(Phase%202).md>). Status and stack truth live in [DocOS-Product-Roadmap.md](DocOS-Product-Roadmap.md).
 
