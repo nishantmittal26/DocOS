@@ -15,3 +15,8 @@ Thumbs.db
 
 # Log files
 *.log
+
+# Backend local secrets (defense in depth; also listed in backend/.gitignore)
+**/appsettings.Local.json
+**/appsettings.Production.json
+**/appsettings.*.local.json

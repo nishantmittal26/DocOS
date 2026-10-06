@@ -23,10 +23,12 @@ Library/
 *.userprefs
 *.DotSettings.user
 
-# Local configuration overrides & secrets
-# appsettings.*.local.json
-# appsettings.Local.json
-# appsettings.Production.json
+# Local configuration overrides & secrets (never commit)
+appsettings.*.local.json
+appsettings.Local.json
+appsettings.Production.json
+**/appsettings.Local.json
+**/appsettings.Production.json
 
 # Test results & code coverage
 TestResults/
