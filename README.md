@@ -2,7 +2,7 @@
 
 DocOS is a lightweight, high-performance SaaS platform engineered specifically for Indian outpatient department (OPD) clinics and doctors transitioning from paper prescriptions to digital medical records.
 
-Built with **.NET 10 (Clean Architecture)**, **PostgreSQL (Supabase)**, and **React + Vite + Tailwind CSS**.
+Built with **.NET 10 (Clean Architecture)**, **PostgreSQL (Supabase)**, and **React + Vite + Tailwind CSS**. 
 
 ---
 
