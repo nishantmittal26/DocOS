@@ -8,6 +8,7 @@ import {
   DosageForm,
   DosageTiming,
   PrescriptionDetail,
+  PatientPrescriptionTimelineItem,
   LabTestMaster,
   LabTestPanel,
   AdviceTemplate,
@@ -89,6 +90,9 @@ export const ConsultationRoomPage: React.FC = () => {
   // Modals / submission
   const [submitting, setSubmitting] = useState(false);
   const [completedPrescription, setCompletedPrescription] = useState<PrescriptionDetail | null>(null);
+  const [priorRxTimeline, setPriorRxTimeline] = useState<PatientPrescriptionTimelineItem[]>([]);
+  const [timelineRxPreview, setTimelineRxPreview] = useState<PrescriptionDetail | null>(null);
+  const [loadingTimelineRx, setLoadingTimelineRx] = useState(false);
   const [isVitalsModalOpen, setIsVitalsModalOpen] = useState(false);
 
   const loadVisit = async () => {
@@ -103,6 +107,13 @@ export const ConsultationRoomPage: React.FC = () => {
         if (current.clinicalNotes) setClinicalNotes(current.clinicalNotes);
 
         // If prescription exists, load it (including revisions)
+        try {
+          const timeline = await visitsApi.getPatientPrescriptionTimeline(current.patientId, current.id);
+          setPriorRxTimeline(timeline);
+        } catch {
+          setPriorRxTimeline([]);
+        }
+
         if (current.hasPrescription) {
           const rx = await visitsApi.getPrescription(current.id);
           if (rx) {
@@ -349,6 +360,19 @@ export const ConsultationRoomPage: React.FC = () => {
     setSelectedAdviceSnippets((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const handleViewPriorPrescription = async (timelineVisitId: string) => {
+    setLoadingTimelineRx(true);
+    try {
+      const rx = await visitsApi.getPrescription(timelineVisitId);
+      setTimelineRxPreview(rx);
+    } catch (err) {
+      console.error('Failed to load prior prescription', err);
+      alert('Could not load prior prescription.');
+    } finally {
+      setLoadingTimelineRx(false);
+    }
+  };
+
   const handleCompleteAndPrint = async () => {
     if (!visitId) return;
     if (rxItems.length === 0 && selectedLabOrders.length === 0 && !diagnosis.trim()) {
@@ -463,6 +487,44 @@ export const ConsultationRoomPage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {priorRxTimeline.length > 0 && (
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+          <div className="flex items-center gap-2 mb-3">
+            <Activity className="w-4 h-4 text-slate-500" />
+            <h2 className="text-sm font-bold text-slate-800">Prior OPD prescriptions</h2>
+            <span className="text-xs text-slate-400 font-medium">read-only</span>
+          </div>
+          <ul className="space-y-2">
+            {priorRxTimeline.map((entry) => (
+              <li
+                key={entry.prescriptionId}
+                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 p-3 rounded-xl border border-slate-100 bg-slate-50/80"
+              >
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-slate-800">
+                    {formatDateIST(entry.visitDate)}
+                    {entry.doctorName ? ` · Dr. ${entry.doctorName}` : ''}
+                  </div>
+                  <div className="text-xs text-slate-600 mt-0.5 truncate">
+                    {entry.diagnosis?.trim() || entry.chiefComplaints?.trim() || 'No diagnosis recorded'}
+                    {entry.medicineCount > 0 ? ` · ${entry.medicineCount} medicine(s)` : ''}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  disabled={loadingTimelineRx}
+                  onClick={() => handleViewPriorPrescription(entry.visitId)}
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-50 shrink-0"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  View / Print
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Patient Banner */}
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
@@ -1253,6 +1315,12 @@ export const ConsultationRoomPage: React.FC = () => {
           setCompletedPrescription(null);
           navigate('/');
         }}
+      />
+
+      <PrescriptionPrintModal
+        isOpen={!!timelineRxPreview}
+        prescription={timelineRxPreview}
+        onClose={() => setTimelineRxPreview(null)}
       />
 
       {/* Vitals Recording Modal */}

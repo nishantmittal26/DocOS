@@ -26,6 +26,8 @@ public record CompleteConsultationCommand(CompleteConsultationRequest Request) :
 
 public record GetPrescriptionQuery(Guid VisitId) : IRequest<PrescriptionDetailDto?>;
 
+public record GetPatientPrescriptionTimelineQuery(Guid PatientId, Guid? ExcludeVisitId = null) : IRequest<List<PatientPrescriptionTimelineItemDto>>;
+
 public record GetVisitHistoryQuery(
     DateTime? FromDate = null,
     DateTime? ToDate = null,
@@ -55,6 +57,7 @@ public class VisitHandlers :
     IRequestHandler<GetTodayQueueQuery, List<VisitQueueDto>>,
     IRequestHandler<CompleteConsultationCommand, PrescriptionDetailDto>,
     IRequestHandler<GetPrescriptionQuery, PrescriptionDetailDto?>,
+    IRequestHandler<GetPatientPrescriptionTimelineQuery, List<PatientPrescriptionTimelineItemDto>>,
     IRequestHandler<GetVisitHistoryQuery, List<VisitQueueDto>>,
     IRequestHandler<RemoveFromQueueCommand, bool>,
     IRequestHandler<DeleteVisitCommand, bool>,
@@ -494,7 +497,13 @@ public class VisitHandlers :
         }
         else
         {
-            // First prescription for this visit
+            var priorVisitPrescriptionId = await ResolvePriorVisitPrescriptionIdAsync(
+                clinicId,
+                visit.PatientId,
+                visit.Id,
+                cancellationToken);
+
+            // First prescription for this visit (E15: link to prior visit's current Rx when revisiting)
             targetPrescription = new Prescription
             {
                 VisitId = visit.Id,
@@ -503,6 +512,7 @@ public class VisitHandlers :
                 DoctorId = doctorId,
                 PrescribedAt = IndiaTime.Now,
                 GeneralAdvice = req.GeneralAdvice,
+                PreviousPrescriptionId = priorVisitPrescriptionId,
                 IsCurrent = true,
                 IsPrinted = false
             };
@@ -576,6 +586,54 @@ public class VisitHandlers :
         var doctorProfile = await _identityService.GetDoctorProfileAsync(doctorId);
 
         return await BuildPrescriptionDetailDtoAsync(targetPrescription.Id, cancellationToken);
+    }
+
+    public async Task<List<PatientPrescriptionTimelineItemDto>> Handle(
+        GetPatientPrescriptionTimelineQuery request,
+        CancellationToken cancellationToken)
+    {
+        var clinicId = _currentUser.ClinicId
+            ?? throw new UnauthorizedAccessException("Active clinic context is required to access clinic clinical records");
+
+        var patientExists = await _context.Patients
+            .AnyAsync(p => p.Id == request.PatientId && p.ClinicId == clinicId, cancellationToken);
+        if (!patientExists)
+        {
+            throw new InvalidOperationException("Patient not found");
+        }
+
+        var prescriptions = await _context.Prescriptions
+            .AsNoTracking()
+            .Include(p => p.Visit)
+            .Include(p => p.Items)
+            .Where(p =>
+                p.ClinicId == clinicId
+                && p.PatientId == request.PatientId
+                && p.IsCurrent
+                && p.Visit.Status == VisitStatus.Completed)
+            .Where(p => request.ExcludeVisitId == null || p.VisitId != request.ExcludeVisitId.Value)
+            .OrderByDescending(p => p.Visit.VisitDate)
+            .ThenByDescending(p => p.PrescribedAt)
+            .ToListAsync(cancellationToken);
+
+        var doctorIds = prescriptions
+            .Select(p => p.DoctorId)
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Distinct()
+            .ToList();
+        var doctorNames = await _identityService.GetDoctorNamesAsync(doctorIds) ?? new Dictionary<string, string>();
+
+        return prescriptions.Select(p => new PatientPrescriptionTimelineItemDto(
+            p.VisitId,
+            p.Id,
+            p.Visit.VisitDate,
+            p.PrescribedAt,
+            doctorNames.TryGetValue(p.DoctorId, out var dName) ? dName : null,
+            p.Visit.Diagnosis,
+            p.Visit.ChiefComplaints,
+            p.Items.Count,
+            p.PreviousPrescriptionId
+        )).ToList();
     }
 
     public async Task<PrescriptionDetailDto?> Handle(GetPrescriptionQuery request, CancellationToken cancellationToken)
@@ -910,5 +968,27 @@ public class VisitHandlers :
         await _context.SaveChangesAsync(cancellationToken);
 
         return true;
+    }
+
+    private async Task<Guid?> ResolvePriorVisitPrescriptionIdAsync(
+        Guid clinicId,
+        Guid patientId,
+        Guid currentVisitId,
+        CancellationToken cancellationToken)
+    {
+        var priorId = await _context.Prescriptions
+            .AsNoTracking()
+            .Where(p =>
+                p.ClinicId == clinicId
+                && p.PatientId == patientId
+                && p.IsCurrent
+                && p.VisitId != currentVisitId
+                && p.Visit.Status == VisitStatus.Completed)
+            .OrderByDescending(p => p.Visit.VisitDate)
+            .ThenByDescending(p => p.PrescribedAt)
+            .Select(p => (Guid?)p.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return priorId;
     }
 }

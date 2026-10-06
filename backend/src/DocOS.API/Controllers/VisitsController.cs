@@ -101,6 +101,25 @@ public class VisitsController : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("patients/{patientId:guid}/prescription-timeline")]
+    public async Task<ActionResult<List<PatientPrescriptionTimelineItemDto>>> GetPatientPrescriptionTimeline(
+        Guid patientId,
+        [FromQuery] Guid? excludeVisitId = null,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var result = await _mediator.Send(
+                new GetPatientPrescriptionTimelineQuery(patientId, excludeVisitId),
+                cancellationToken);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
     [HttpPost("prescriptions/{prescriptionId:guid}/share-token")]
     public async Task<ActionResult<GenerateShareTokenResponse>> GenerateShareToken(
         Guid prescriptionId,

@@ -146,3 +146,15 @@ public record GenerateShareTokenResponse(
     DateTime ExpiresAt,
     string ShareUrl
 );
+
+public record PatientPrescriptionTimelineItemDto(
+    Guid VisitId,
+    Guid PrescriptionId,
+    DateTime VisitDate,
+    DateTime PrescribedAt,
+    string? DoctorName,
+    string? Diagnosis,
+    string? ChiefComplaints,
+    int MedicineCount,
+    Guid? PreviousPrescriptionId
+);

@@ -32,7 +32,7 @@ Work listed here is **out of scope** until it is **promoted** to a numbered deli
 | B10 | **Audit row for every VIEW** | Routine queue views are not audited; see 2D `AuditLogs` scope. | `idea` |
 | B11 | **Platform Admin: change clinic `PlanId` only** | Was “change tier via FK”; insufficient without contract snapshots. | `obsolete` — use **B13** |
 | B12 | **Onboarding: lab module on plan cards** | Wizard step 2 lists visits, doctors, staff, and custom vitals; does not surface **`hasLabModule`** from `SubscriptionPlanMaster` (data already on plan DTO). Small UI polish deferred from E12. | `done` — [`OnboardDoctorPage.tsx`](../frontend/src/pages/admin/OnboardDoctorPage.tsx) step 2 |
-| B13 | **Catalog-based subscriptions + contract snapshots + admin UI** | **Catalog** (`SubscriptionPlanMaster`) is editable product SKU; **contract** (`ClinicSubscription` entitlement snapshot) is what each clinic runs on. Today runtime JOINs catalog → changing master changes old clinics. Need copy-on-assign, entitlement reads from contract only, admin **change plan** + **catalog CRUD**. | `idea` |
+| B13 | **Catalog-based subscriptions + contract snapshots + admin UI** | **Catalog** (`SubscriptionPlanMaster`) vs **contract** (snapshot on `ClinicSubscription`). Full approach, schema, and code map: **[DocOS-Backlog-B13-Catalog.md](DocOS-Backlog-B13-Catalog.md)**. | `idea` |
 
 ### Detail (same content as former Phase 2 §7)
 
@@ -48,37 +48,9 @@ Work listed here is **out of scope** until it is **promoted** to a numbered deli
 - **VIEW audit.** Explicitly excluded from 2D audit design.  
 - **Onboarding plan lab badge (B12).** Helps sales pick the right tier; no schema change.  
 
-### B13 — Catalog vs contract (authoritative approach)
+### B13
 
-**Problem (today).** `ClinicSubscription.PlanId` FK + helpers that read `Plan.*` (labs, custom vitals, seats, unlimited visits, quota fallback, display name/price/tier). Editing **catalog** rows retroactively changes existing clinics.
-
-**Model.**
-
-| Layer | Store | Purpose | Changes affect existing clinics? |
-| :--- | :--- | :--- | :---: |
-| **Catalog** | `SubscriptionPlanMaster` | SKUs for onboarding picker, pricing sheet, Platform Admin plan editor | **No** (unless admin runs **Change plan** on a clinic) |
-| **Contract** | `ClinicSubscription` + snapshot columns | Entitlements and billing display for **this** clinic | Only via onboard, **Change plan**, or explicit contract/override edits |
-
-**Rules.**
-
-1. **Copy-on-assign:** On onboard (and on admin **Change plan**), copy catalog fields into the clinic **contract** snapshot; set `CatalogPlanId` (FK to catalog; reporting / “which SKU”) and `PlanAssignedAt` (IST).  
-2. **Runtime:** Quota, labs, custom vitals, seat caps, and clinic-facing plan labels read **contract** (and existing per-clinic overrides), not live catalog JOINs.  
-3. **Overrides:** Keep `MonthlyVisitQuota`, `IsUnlimitedVisits`, `MaxDoctorsOverride`, `LabModuleOverride` for support; resolve against snapshot baselines (e.g. lab = `LabModuleOverride ?? SubscribedHasLabModule`).  
-4. **Catalog CRUD:** Edit master for **new** clinics; deactivate plan (`IsActive`) hides from picker only.  
-5. **Migration:** Add snapshot columns; backfill from current `ClinicSubscription` ⨝ `SubscriptionPlanMaster`; freeze behavior at migration time; then enforce non-null snapshots.
-
-**Proposed contract snapshot columns (on `ClinicSubscription`).**  
-`SubscribedPlanName`, `SubscribedTier`, `SubscribedBillingCycle`, `SubscribedPriceINR`, `SubscribedIsUnlimitedVisits`, `SubscribedDefaultMonthlyVisits`, `SubscribedMaxDoctors`, `SubscribedMaxStaff`, `SubscribedHasCustomVitals`, `SubscribedHasLabModule`, `CatalogPlanId`, `PlanAssignedAt`. (Exact naming in schema doc when promoted.)
-
-**Admin UI (in scope).**
-
-- **Manage Quota & Billing:** show contract entitlements; **Change plan** (pick catalog SKU → diff → copy to contract); existing quota/lab overrides.  
-- **Subscription plans (catalog):** Platform Admin list/edit `SubscriptionPlanMaster` with copy that catalog edits do not change existing clinics.  
-- **Onboarding:** copy selected catalog plan into contract on create (not only `PlanId`).
-
-**Optional v1.1.** `ClinicSubscriptionPlanHistory` (audit rows on plan change). **Out of scope v1:** proration, payment gateway, “push catalog change to all subscribers.”
-
-**B11.** Obsolete; changing `PlanId` without contract snapshot does not meet the product rule. Implement under **B13** only.
+Authoritative spec: **[DocOS-Backlog-B13-Catalog.md](DocOS-Backlog-B13-Catalog.md)** (catalog vs contract, schema, migration, backend/frontend checklist, done-when). **B11** is obsolete — implement plan changes only via B13.
 
 ---
 

@@ -8,6 +8,7 @@ import {
   Patient,
   PatientSearchResult,
   PrescriptionDetail,
+  PatientPrescriptionTimelineItem,
   StaffMember,
   VisitQueueItem,
   Vitals,
@@ -300,6 +301,13 @@ export const visitsApi = {
   },
   getPrescription: async (visitId: string) => {
     const res = await api.get<PrescriptionDetail>(`/visits/${visitId}/prescription`);
+    return res.data;
+  },
+  getPatientPrescriptionTimeline: async (patientId: string, excludeVisitId?: string) => {
+    const res = await api.get<PatientPrescriptionTimelineItem[]>(
+      `/visits/patients/${patientId}/prescription-timeline`,
+      { params: excludeVisitId ? { excludeVisitId } : undefined }
+    );
     return res.data;
   },
   generateShareToken: async (prescriptionId: string, expiryDays: number = 7) => {

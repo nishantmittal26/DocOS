@@ -42,7 +42,7 @@ There is no SQL Server row-level security. Clinic isolation is the application g
 | Area | State |
 | :--- | :--- |
 | `Visits` | Legacy nine vital columns **removed** (migration `AddPhase2C_DynamicVitals`). Readings are in `VisitVitals`. |
-| `Prescriptions` | One **current** row per visit (`IsCurrent = 1`, filtered unique on `VisitId`). Revisions use `PreviousPrescriptionId`. Share link: `PdfShareToken`, `ExpiresAt`, `IsPrinted`. |
+| `Prescriptions` | One **current** row per visit (`IsCurrent = 1`, filtered unique on `VisitId`). Revisions use `PreviousPrescriptionId` (same visit); first canonical row may link to prior visit’s Rx (E15). Share link: `PdfShareToken`, `ExpiresAt`, `IsPrinted`. |
 | Vitals | `VitalMaster`, `ClinicVitalPreference`, `VisitVitals` active. |
 | Subscriptions | `SubscriptionPlanMaster`, `ClinicSubscription`, `ClinicPeriodUsage`, `SubscriptionPaymentHistory` active. |
 | 2D | Labs, panels, advice, favorites, `VisitPayment`, `AuditLogs` active. |
@@ -668,7 +668,7 @@ The prescription line still stores `Dosage` and `Timing`.
 | `PdfShareToken` | `nvarchar(128)` | Yes | Unique where not null. At least 128 bits of entropy |
 | `ExpiresAt` | `datetime2` | Yes | Required when `PdfShareToken` is set |
 | `IsPrinted` | `bit` | No | Default 0 |
-| `PreviousPrescriptionId` | `uniqueidentifier` | Yes | FK `Prescriptions(Id)`. Set on the new row |
+| `PreviousPrescriptionId` | `uniqueidentifier` | Yes | FK `Prescriptions(Id)`. **Dual use (no migration):** (1) **Phase 2D** — on a **same-visit revision** row (`IsCurrent = 1` after print), points at the printed row being superseded; (2) **E15** — on the visit’s **first** canonical row only, points at the **prior completed visit’s** current (`IsCurrent`) Rx for cross-visit timeline. Revision rows do not participate in the patient timeline chain. |
 | `IsCurrent` | `bit` | No | Default 1. The visit’s live script |
 
 Replace the 2A unique index on `VisitId` with a filtered unique index on `VisitId` where `IsCurrent = 1`. Filtered unique index on `PdfShareToken` where `PdfShareToken IS NOT NULL`.

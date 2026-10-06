@@ -467,4 +467,116 @@ public class Phase2DTests
         logs.Should().Contain(l => l.Action == "PRINT" && l.EntityName == "Prescription" && l.EntityId == "rx-123");
         logs.Should().Contain(l => l.Action == "LOGIN" && l.EntityName == "ApplicationUser" && l.EntityId == "user-1");
     }
+
+    [Fact]
+    public async Task Second_Visit_First_Prescription_Links_To_Prior_Visit_Current_Rx()
+    {
+        using var context = CreateInMemoryDbContext();
+        var clinicId = Guid.NewGuid();
+        var clinic = new Clinic { Id = clinicId, Name = "Timeline Clinic", Phone = "9988776655" };
+        context.Clinics.Add(clinic);
+
+        var plan = new SubscriptionPlanMaster
+        {
+            Id = Guid.NewGuid(),
+            PlanCode = "TEST",
+            PlanName = "Test",
+            Tier = "Test",
+            BillingCycle = "Monthly",
+            DefaultMonthlyVisits = 100
+        };
+        context.SubscriptionPlans.Add(plan);
+        var sub = new ClinicSubscription { ClinicId = clinicId, PlanId = plan.Id, Status = SubscriptionStatuses.Active };
+        context.ClinicSubscriptions.Add(sub);
+        var usage = new ClinicPeriodUsage
+        {
+            ClinicId = clinicId,
+            SubscriptionId = sub.Id,
+            PeriodStart = DateTime.UtcNow.Date,
+            PeriodEnd = DateTime.UtcNow.Date.AddDays(30),
+            VisitsConducted = 0
+        };
+        context.ClinicPeriodUsages.Add(usage);
+
+        var patient = new Patient
+        {
+            Id = Guid.NewGuid(),
+            ClinicId = clinicId,
+            FullName = "Repeat Patient",
+            PatientUid = "DOC100",
+            MobileNumber = "9998887776"
+        };
+        context.Patients.Add(patient);
+
+        var visit1 = new Visit
+        {
+            Id = Guid.NewGuid(),
+            ClinicId = clinicId,
+            PatientId = patient.Id,
+            TokenNumber = 1,
+            Status = VisitStatus.InConsultation,
+            DoctorId = "doc-1",
+            VisitDate = IndiaTime.Today.AddDays(-7)
+        };
+        var visit2 = new Visit
+        {
+            Id = Guid.NewGuid(),
+            ClinicId = clinicId,
+            PatientId = patient.Id,
+            TokenNumber = 2,
+            Status = VisitStatus.InConsultation,
+            DoctorId = "doc-1",
+            VisitDate = IndiaTime.Today
+        };
+        context.Visits.AddRange(visit1, visit2);
+        context.SaveChanges();
+
+        var mockUser = new Mock<ICurrentUserService>();
+        mockUser.Setup(u => u.ClinicId).Returns(clinicId);
+        mockUser.Setup(u => u.UserId).Returns("doc-1");
+        mockUser.Setup(u => u.IsInRole(Roles.Doctor)).Returns(true);
+
+        var mockIdentity = new Mock<IIdentityService>();
+        var visitHandler = new VisitHandlers(context, mockUser.Object, mockIdentity.Object);
+
+        var firstRx = await visitHandler.Handle(new CompleteConsultationCommand(new CompleteConsultationRequest(
+            visit1.Id,
+            "doc-1",
+            "Fever",
+            "Viral",
+            null,
+            null,
+            "Rest",
+            new List<PrescriptionItemDto>
+            {
+                new("Paracetamol", "Paracetamol", DosageForm.Tablet, "1-0-1", DosageTiming.AfterFood, 3, null)
+            }
+        )), CancellationToken.None);
+
+        firstRx.PreviousPrescriptionId.Should().BeNull();
+
+        var secondRx = await visitHandler.Handle(new CompleteConsultationCommand(new CompleteConsultationRequest(
+            visit2.Id,
+            "doc-1",
+            "Cough",
+            "URTI",
+            null,
+            null,
+            "Steam",
+            new List<PrescriptionItemDto>
+            {
+                new("Cough Syrup", "Dextromethorphan", DosageForm.Syrup, "10ml", DosageTiming.Bedtime, 5, null)
+            }
+        )), CancellationToken.None);
+
+        secondRx.PreviousPrescriptionId.Should().Be(firstRx.Id);
+
+        var timeline = await visitHandler.Handle(
+            new GetPatientPrescriptionTimelineQuery(patient.Id, visit2.Id),
+            CancellationToken.None);
+
+        timeline.Should().HaveCount(1);
+        timeline[0].PrescriptionId.Should().Be(firstRx.Id);
+        timeline[0].Diagnosis.Should().Be("Viral");
+    }
 }

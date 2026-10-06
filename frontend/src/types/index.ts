@@ -206,6 +206,18 @@ export interface PrescriptionItem {
   instructions?: string;
 }
 
+export interface PatientPrescriptionTimelineItem {
+  visitId: string;
+  prescriptionId: string;
+  visitDate: string;
+  prescribedAt: string;
+  doctorName?: string;
+  diagnosis?: string;
+  chiefComplaints?: string;
+  medicineCount: number;
+  previousPrescriptionId?: string;
+}
+
 export interface VisitQueueItem {
   id: string;
   patientId: string;

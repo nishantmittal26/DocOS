@@ -86,6 +86,13 @@ When adding a **new** date or datetime column: document it in [DocOS-Database-Sc
 
 Newest first. One block per decision or schema change.
 
+### 2026-10-05 — E15 `PreviousPrescriptionId` cross-visit timeline (canonical rows)
+
+- **Decision:** Keep the existing `Prescriptions.PreviousPrescriptionId` column with **two non-overlapping meanings**: Phase **2D** same-visit **revision** rows (after print) still set it to the superseded printed row; each visit’s **first** canonical (`IsCurrent`) prescription sets it to the patient’s **latest prior completed visit** current Rx (same `ClinicId`, by `VisitDate` / `PrescribedAt`). Patient timeline UI lists completed visits’ current Rx (query + optional FK walk); it does **not** follow revision-only rows.
+- **API:** `GET /api/visits/patients/{patientId}/prescription-timeline?excludeVisitId=` (clinic-scoped). Consultation Room shows read-only prior visits with view/print.
+- **Out of scope (B06):** No in-place edit of completed visits, no `GetVisitById` resume flow, no print-modal navigation change for re-entry.
+- **Rationale:** Revisit history without a second FK; revision immutability unchanged until B06 product decision.
+
 ### 2026-10-03 — E13 Clinic Mobile & Landline contact numbers on `Clinics`
 
 - **Schema:** Added nullable `Clinics.Landline` (`nvarchar(20)`) and altered `Clinics.Phone` to nullable (`nvarchar(20)`).
