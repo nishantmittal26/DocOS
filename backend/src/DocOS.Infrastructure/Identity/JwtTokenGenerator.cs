@@ -21,7 +21,8 @@ public class JwtTokenGenerator : IJwtTokenGenerator
         var secretKey = _configuration["Jwt:Secret"];
         if (string.IsNullOrWhiteSpace(secretKey))
         {
-            throw new InvalidOperationException("JWT Secret is not configured in application settings. Hardened auth prevents running without secret.");
+            throw new InvalidOperationException(
+                "Jwt:Secret is not configured. Set Jwt__Secret (env), user-secrets, or appsettings.Local.json.");
         }
 
         var issuer = _configuration["Jwt:Issuer"] ?? "DocOS.API";

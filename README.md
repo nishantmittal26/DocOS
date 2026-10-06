@@ -41,16 +41,32 @@ Built with **.NET 10 (Clean Architecture)**, **SQL Server**, and **React + Vite 
 
 ## Quick Start
 
-### 1. Database Configuration (Supabase or Local PostgreSQL)
-Open `backend/src/DocOS.API/appsettings.json` and set your PostgreSQL connection string:
+### 1. Secrets & Database Configuration (do not commit)
 
-```json
-"ConnectionStrings": {
-  "DefaultConnection": "Host=db.<supabase-ref>.supabase.co;Port=5432;Database=postgres;Username=postgres;Password=<your-password>;SSL Mode=Require;Trust Server Certificate=true"
-}
+Committed `appsettings*.json` files contain **no** connection strings or JWT secrets.
+
+**Local Development** — copy the example and fill in real values (gitignored):
+
+```bash
+cd backend/src/DocOS.API
+copy appsettings.Local.json.example appsettings.Local.json
+# edit appsettings.Local.json with your SQL Server connection string + Jwt:Secret
 ```
 
-*(If using local PostgreSQL on your Mac, it defaults to `Host=localhost;Port=5432;Database=docos_db;Username=postgres;Password=postgres`)*.
+Or use user-secrets:
+
+```bash
+cd backend/src/DocOS.API
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" "Server=localhost;Database=DocOS_Dev;Trusted_Connection=True;MultipleActiveResultSets=true;TrustServerCertificate=True"
+dotnet user-secrets set "Jwt:Secret" "<long-random-secret>"
+```
+
+**Render / Production** — set environment variables in the host dashboard (never in git):
+
+- `ConnectionStrings__DefaultConnection`
+- `Jwt__Secret`
+
+`appsettings.json` is the shared base. `appsettings.Production.json` overlays Production-only non-secrets (CORS, logging). Secrets still come from env vars.
 
 ---
 
@@ -61,7 +77,7 @@ cd backend
 dotnet run --project src/DocOS.API
 ```
 
-- Swagger UI: `http://localhost:5000/swagger`
+- Swagger UI: `http://localhost:5107/swagger` (see `launchSettings.json`)
 - Upon first launch, the API automatically checks the database schema and seeds the **500+ Indian Generic Salt & Formulation Formulary**.
 
 ---

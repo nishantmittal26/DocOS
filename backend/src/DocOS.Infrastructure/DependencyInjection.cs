@@ -26,7 +26,10 @@ public static class DependencyInjection
 
         if (string.IsNullOrWhiteSpace(connectionString))
         {
-            throw new InvalidOperationException("Database connection string 'DefaultConnection' is not configured.");
+            throw new InvalidOperationException(
+                "ConnectionStrings:DefaultConnection is not configured. " +
+                "Set it via environment variable ConnectionStrings__DefaultConnection, " +
+                "dotnet user-secrets, or a gitignored appsettings.Local.json (see appsettings.Local.json.example).");
         }
 
         services.AddSingleton<IstTimestampSaveChangesInterceptor>();
@@ -55,7 +58,10 @@ public static class DependencyInjection
         var secretKey = configuration["Jwt:Secret"];
         if (string.IsNullOrWhiteSpace(secretKey))
         {
-            throw new InvalidOperationException("JWT Secret is not configured in application settings. Please provide a valid secret in configuration.");
+            throw new InvalidOperationException(
+                "Jwt:Secret is not configured. " +
+                "Set it via environment variable Jwt__Secret, " +
+                "dotnet user-secrets, or a gitignored appsettings.Local.json (see appsettings.Local.json.example).");
         }
 
         var issuer = configuration["Jwt:Issuer"] ?? "DocOS.API";

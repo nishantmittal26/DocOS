@@ -12,25 +12,28 @@ using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Load appsettings.Local.json to override settings locally for local development
-var localCandidates = new[]
+// Local secrets override — Development only (never rely on this file in Production/Render)
+if (builder.Environment.IsDevelopment())
 {
-    Path.Combine(builder.Environment.ContentRootPath, "appsettings.Local.json"),
-    Path.Combine(AppContext.BaseDirectory, "appsettings.Local.json"),
-    Path.Combine(Directory.GetCurrentDirectory(), "src", "DocOS.API", "appsettings.Local.json"),
-    Path.Combine(Directory.GetCurrentDirectory(), "appsettings.Local.json")
-};
-
-string? loadedLocalPath = null;
-foreach (var candidate in localCandidates)
-{
-    if (File.Exists(candidate))
+    var localCandidates = new[]
     {
-        builder.Configuration.AddJsonFile(candidate, optional: true, reloadOnChange: true);
-        loadedLocalPath = candidate;
-        break;
+        Path.Combine(builder.Environment.ContentRootPath, "appsettings.Local.json"),
+        Path.Combine(AppContext.BaseDirectory, "appsettings.Local.json"),
+        Path.Combine(Directory.GetCurrentDirectory(), "src", "DocOS.API", "appsettings.Local.json"),
+        Path.Combine(Directory.GetCurrentDirectory(), "appsettings.Local.json")
+    };
+
+    foreach (var candidate in localCandidates)
+    {
+        if (File.Exists(candidate))
+        {
+            builder.Configuration.AddJsonFile(candidate, optional: true, reloadOnChange: true);
+            break;
+        }
     }
 }
+
+// Environment variables always win (Render: ConnectionStrings__DefaultConnection, Jwt__Secret)
 builder.Configuration.AddEnvironmentVariables();
 
 // Add services to the container
@@ -172,7 +175,7 @@ try
 catch (Exception ex)
 {
     var logger = app.Services.GetRequiredService<ILogger<Program>>();
-    logger.LogWarning(ex, "Note: Database initialization deferred (SQL Server might not be reachable yet). Configure your SQL Server connection string in appsettings.Local.json.");
+    logger.LogWarning(ex, "Note: Database initialization deferred (SQL Server might not be reachable yet). Configure ConnectionStrings__DefaultConnection (env) or appsettings.Local.json for local Development.");
 }
 
 app.Run();
