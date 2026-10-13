@@ -45,7 +45,11 @@ public record OnboardClinicRequest(
     string? SalesNotes,
 
     /// <summary>Optional; default = first 4 letters of clinic name (see PatientIdPrefixRules).</summary>
-    string? PatientIdPrefix = null
+    string? PatientIdPrefix = null,
+
+    // Step 2 B11: Custom Pricing & Instant Discounts
+    decimal? DiscountAmountINR = null,
+    decimal? CustomPriceINR = null
 );
 
 public record OnboardClinicResponse(
@@ -62,7 +66,10 @@ public record OnboardClinicResponse(
     DateTime PeriodEnd,
     int? MonthlyVisitQuota,
     bool IsUnlimited,
-    string PatientIdPrefix
+    string PatientIdPrefix,
+    decimal? PriceOverrideINR = null,
+    decimal? DiscountAmountINR = null,
+    decimal EffectivePriceINR = 0m
 );
 
 public record AdminClinicItemDto(
@@ -129,7 +136,10 @@ public record ClinicSubscriptionDetailDto(
     bool? LabModuleOverride,
     bool PlanHasLabModule,
     bool EffectiveHasLabModule,
-    List<SubscriptionPaymentDto> PaymentHistory
+    List<SubscriptionPaymentDto> PaymentHistory,
+    decimal? PriceOverrideINR = null,
+    decimal? DiscountAmountINR = null,
+    decimal EffectivePriceINR = 0m
 )
 {
     public int UsedPrescriptions => VisitsConducted;
@@ -144,7 +154,9 @@ public record UpdateClinicSubscriptionRequest(
     string Status,
     int GracePeriodDays,
     string? Notes,
-    bool? LabModuleOverride
+    bool? LabModuleOverride,
+    decimal? PriceOverrideINR = null,
+    decimal? DiscountAmountINR = null
 );
 
 public record AddTopUpVisitsRequest(

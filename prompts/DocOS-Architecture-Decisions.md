@@ -87,6 +87,13 @@ When adding a **new** date or datetime column: document it in [DocOS-Database-Sc
 
 Newest first. One block per decision or schema change.
 
+### 2026-10-13 — B11 Custom plan price & instant discount on onboarding
+
+- **Decision:** Allow Platform Admin and Sales to offer custom pricing and instant discounts (₹ INR off catalog plan fee) when onboarding a clinic or configuring subscription settings.
+- **Model:** Added nullable `PriceOverrideINR` (`decimal(10,2)`) and `DiscountAmountINR` (`decimal(10,2)`) to `ClinicSubscription`. Added domain helper `EffectivePriceINR => PriceOverrideINR ?? Plan?.PriceINR ?? 0m`.
+- **Behavior:** `OnboardClinicRequest` and `UpdateClinicSubscriptionRequest` accept `DiscountAmountINR` and `CustomPriceINR`. When discount is entered, `PriceOverrideINR = max(0, plan.PriceINR - DiscountAmountINR)`. When custom price is entered, `DiscountAmountINR = max(0, plan.PriceINR - CustomPriceINR)`. Admin payment recording defaults to `EffectivePriceINR`. Handover slip and subscription management UI display the discount and contracted fee.
+- **Migration:** `20261013090755_AddClinicSubscription_PriceAndDiscountOverrides`. Adds nullable `PriceOverrideINR` and `DiscountAmountINR` (`decimal(10,2)`) to `dbo.ClinicSubscriptions`.
+
 ### 2026-10-06 — B13 parked in its own spec (not a backlog row)
 
 - **Decision:** Catalog vs contract subscriptions (**B13**) lives only in [DocOS-Backlog-B13-Catalog.md](DocOS-Backlog-B13-Catalog.md). It is removed from [DocOS-Phase3-Backlog.md](DocOS-Phase3-Backlog.md) so it is not mixed with smaller later ideas. When implementation starts, agents must explain the design in detail and ask questions; **no code until the human agrees and understands** (that file **§0**).

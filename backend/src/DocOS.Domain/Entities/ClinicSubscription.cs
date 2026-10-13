@@ -16,6 +16,10 @@ public class ClinicSubscription : BaseEntity
     public int? MaxDoctorsOverride { get; set; }
     /// <summary>When set, overrides <see cref="SubscriptionPlanMaster.HasLabModule"/> for this clinic only.</summary>
     public bool? LabModuleOverride { get; set; }
+    /// <summary>When set, overrides <see cref="SubscriptionPlanMaster.PriceINR"/> for this clinic.</summary>
+    public decimal? PriceOverrideINR { get; set; }
+    /// <summary>Instant discount amount in INR applied against catalog price at onboarding.</summary>
+    public decimal? DiscountAmountINR { get; set; }
     public string Status { get; set; } = SubscriptionStatuses.Active;
     public DateTime CurrentPeriodStart { get; set; }
     public DateTime CurrentPeriodEnd { get; set; }
@@ -30,4 +34,5 @@ public class ClinicSubscription : BaseEntity
     public int? TotalAllowedVisits => HasUnlimitedVisits ? null : ((MonthlyVisitQuota ?? Plan?.DefaultMonthlyVisits ?? 0) + AdditionalTopUpVisits);
     public int EffectiveMaxDoctors => MaxDoctorsOverride ?? Plan?.MaxDoctors ?? 1;
     public bool EffectiveHasLabModule => LabModuleOverride ?? Plan?.HasLabModule ?? false;
+    public decimal EffectivePriceINR => PriceOverrideINR ?? Plan?.PriceINR ?? 0m;
 }

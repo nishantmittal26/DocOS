@@ -103,6 +103,31 @@ public class SubscriptionHandlers :
         var isUnlimited = req.IsUnlimitedOverride || plan.IsUnlimitedVisits;
         var monthlyQuota = isUnlimited ? null : (req.MonthlyVisitQuotaOverride ?? plan.DefaultMonthlyVisits);
 
+        // B11: Custom Pricing & Instant Discounts
+        decimal? priceOverride = null;
+        decimal? discountAmount = null;
+
+        if (req.CustomPriceINR.HasValue)
+        {
+            if (req.CustomPriceINR.Value < 0)
+            {
+                throw new InvalidOperationException("Custom plan price cannot be negative.");
+            }
+
+            priceOverride = req.CustomPriceINR.Value;
+            discountAmount = req.DiscountAmountINR ?? Math.Max(0m, plan.PriceINR - priceOverride.Value);
+        }
+        else if (req.DiscountAmountINR.HasValue && req.DiscountAmountINR.Value > 0)
+        {
+            if (req.DiscountAmountINR.Value < 0)
+            {
+                throw new InvalidOperationException("Discount amount cannot be negative.");
+            }
+
+            discountAmount = req.DiscountAmountINR.Value;
+            priceOverride = Math.Max(0m, plan.PriceINR - discountAmount.Value);
+        }
+
         var subscription = new ClinicSubscription
         {
             ClinicId = clinic.Id,
@@ -111,6 +136,8 @@ public class SubscriptionHandlers :
             MonthlyVisitQuota = monthlyQuota,
             AdditionalTopUpVisits = 0,
             MaxDoctorsOverride = null,
+            PriceOverrideINR = priceOverride,
+            DiscountAmountINR = discountAmount,
             Status = req.IsTrial ? SubscriptionStatuses.Trial : SubscriptionStatuses.Active,
             CurrentPeriodStart = periodStart,
             CurrentPeriodEnd = periodEnd,
@@ -148,7 +175,10 @@ public class SubscriptionHandlers :
             PeriodEnd: periodEnd,
             MonthlyVisitQuota: monthlyQuota,
             IsUnlimited: isUnlimited,
-            PatientIdPrefix: clinic.PatientIdPrefix
+            PatientIdPrefix: clinic.PatientIdPrefix,
+            PriceOverrideINR: subscription.PriceOverrideINR,
+            DiscountAmountINR: subscription.DiscountAmountINR,
+            EffectivePriceINR: subscription.EffectivePriceINR
         );
     }
 
@@ -326,7 +356,10 @@ public class SubscriptionHandlers :
             LabModuleOverride: sub.LabModuleOverride,
             PlanHasLabModule: sub.Plan.HasLabModule,
             EffectiveHasLabModule: sub.EffectiveHasLabModule,
-            PaymentHistory: payments
+            PaymentHistory: payments,
+            PriceOverrideINR: sub.PriceOverrideINR,
+            DiscountAmountINR: sub.DiscountAmountINR,
+            EffectivePriceINR: sub.EffectivePriceINR
         );
     }
 
@@ -350,6 +383,32 @@ public class SubscriptionHandlers :
         sub.GracePeriodDays = req.GracePeriodDays;
         sub.Notes = req.Notes;
         sub.LabModuleOverride = req.LabModuleOverride;
+
+        if (req.PriceOverrideINR.HasValue && req.PriceOverrideINR.Value < 0)
+        {
+            throw new InvalidOperationException("Price override cannot be negative.");
+        }
+        if (req.DiscountAmountINR.HasValue && req.DiscountAmountINR.Value < 0)
+        {
+            throw new InvalidOperationException("Discount amount cannot be negative.");
+        }
+
+        if (req.PriceOverrideINR.HasValue && !req.DiscountAmountINR.HasValue && sub.Plan != null)
+        {
+            sub.PriceOverrideINR = req.PriceOverrideINR;
+            sub.DiscountAmountINR = Math.Max(0m, sub.Plan.PriceINR - req.PriceOverrideINR.Value);
+        }
+        else if (req.DiscountAmountINR.HasValue && !req.PriceOverrideINR.HasValue && sub.Plan != null)
+        {
+            sub.DiscountAmountINR = req.DiscountAmountINR;
+            sub.PriceOverrideINR = Math.Max(0m, sub.Plan.PriceINR - req.DiscountAmountINR.Value);
+        }
+        else
+        {
+            sub.PriceOverrideINR = req.PriceOverrideINR;
+            sub.DiscountAmountINR = req.DiscountAmountINR;
+        }
+
         sub.UpdatedAt = IndiaTime.Now;
 
         await _context.SaveChangesAsync(cancellationToken);

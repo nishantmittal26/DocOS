@@ -30,6 +30,7 @@ The [MVP archive](DocOS-(Phase%201).md) describes the original PostgreSQL MVP. T
 | **2B** Onboarding & entitlements | ✅ | ✅ | Done-when accepted 3 Oct 2026. |
 | **2C** Dynamic vitals | ✅ | ✅ | Done-when accepted 3 Oct 2026. |
 | **2D** Labs, advice, link, OPD, audit | ✅ | ✅ | Done-when accepted 3 Oct 2026. |
+| **B11** Custom plan price & onboarding discount | ✅ | ✅ | Promoted & implemented 13 Oct 2026. Migration `20261013090755_AddClinicSubscription_PriceAndDiscountOverrides` applied. |
 | **Follow-ups** | — | — | New bugs & polish after 2A–2D: [DocOS-Follow-ups.md](DocOS-Follow-ups.md) |
 | **Backlog** | — | — | New features after 2D; [promote](DocOS-Phase3-Backlog.md#how-to-promote-an-item) before building. |
 

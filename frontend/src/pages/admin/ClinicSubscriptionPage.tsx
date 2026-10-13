@@ -30,6 +30,7 @@ import {
   RefreshCw,
   Hash,
   FlaskConical,
+  Tag,
 } from 'lucide-react';
 import { formatDateIST, formatDateTimeIST, getIstDateInputValue } from '../../utils/dateTime';
 
@@ -72,6 +73,8 @@ export const ClinicSubscriptionPage: React.FC = () => {
   const [gracePeriodDays, setGracePeriodDays] = useState<number>(5);
   const [notes, setNotes] = useState<string>('');
   const [labModuleSetting, setLabModuleSetting] = useState<LabModuleSetting>('inherit');
+  const [priceOverride, setPriceOverride] = useState<number | ''>('');
+  const [discountAmount, setDiscountAmount] = useState<number | ''>('');
 
   // Top-up custom state
   const [customTopUp, setCustomTopUp] = useState<number>(100);
@@ -107,7 +110,9 @@ export const ClinicSubscriptionPage: React.FC = () => {
       setGracePeriodDays(data.gracePeriodDays);
       setNotes(data.notes || '');
       setLabModuleSetting(labSettingFromOverride(data.labModuleOverride));
-      setPaymentAmount(data.priceINR || 1499);
+      setPriceOverride(data.priceOverrideINR ?? '');
+      setDiscountAmount(data.discountAmountINR ?? '');
+      setPaymentAmount(data.effectivePriceINR ?? data.priceINR ?? 1499);
       // Auto-generate invoice suggestion
       const year = new Date().getFullYear();
       const randNum = Math.floor(1000 + Math.random() * 9000);
@@ -147,6 +152,8 @@ export const ClinicSubscriptionPage: React.FC = () => {
         gracePeriodDays,
         notes: notes.trim() || undefined,
         labModuleOverride: labOverrideFromSetting(labModuleSetting),
+        priceOverrideINR: typeof priceOverride === 'number' ? priceOverride : null,
+        discountAmountINR: typeof discountAmount === 'number' ? discountAmount : null,
       };
 
       await adminApi.updateClinicSubscription(clinicId, payload);
@@ -283,7 +290,19 @@ export const ClinicSubscriptionPage: React.FC = () => {
             <p className="text-xs text-slate-500 mt-0.5">
               Tier: <strong className="text-slate-700">{detail.planTier}</strong> • Billing Cycle:{' '}
               <strong className="text-slate-700">{detail.billingCycle}</strong> • Plan Price:{' '}
-              <strong className="text-slate-700">₹{detail.priceINR.toLocaleString('en-IN')}</strong>
+              {detail.effectivePriceINR !== undefined && detail.priceOverrideINR !== null && detail.priceOverrideINR !== undefined ? (
+                <span>
+                  <strong className="text-emerald-700 font-bold">₹{detail.effectivePriceINR.toLocaleString('en-IN')}</strong>
+                  <span className="text-slate-400 line-through ml-1.5 text-[11px]">₹{detail.priceINR.toLocaleString('en-IN')}</span>
+                  {detail.discountAmountINR ? (
+                    <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                      -₹{detail.discountAmountINR.toLocaleString('en-IN')} Off
+                    </span>
+                  ) : null}
+                </span>
+              ) : (
+                <strong className="text-slate-700">₹{detail.priceINR.toLocaleString('en-IN')}</strong>
+              )}
             </p>
           </div>
         </div>
@@ -646,6 +665,69 @@ export const ClinicSubscriptionPage: React.FC = () => {
                 <p className="text-[10px] text-slate-400 mt-1">
                   Default is 5 days of token issuance past current period end.
                 </p>
+              </div>
+
+              {/* B11: Custom Pricing & Instant Discount Override */}
+              <div className="sm:col-span-2 p-3.5 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Tag className="w-4 h-4 text-emerald-600" />
+                    <span className="text-xs font-bold text-slate-800">Contract Plan Price & Discount Overrides</span>
+                  </div>
+                  {detail && (
+                    <span className="text-[11px] text-slate-500">
+                      Standard Catalog Price: <strong>₹{detail.priceINR.toLocaleString('en-IN')}</strong>
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                      Instant Discount (₹ INR Off)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={discountAmount}
+                      onChange={(e) => {
+                        const val = e.target.value === '' ? '' : Math.max(0, Number(e.target.value));
+                        setDiscountAmount(val);
+                        if (detail) {
+                          setPriceOverride(val === '' ? '' : Math.max(0, detail.priceINR - val));
+                        }
+                      }}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500/20"
+                      placeholder="e.g. 500"
+                    />
+                    <p className="text-[10px] text-slate-400 mt-0.5">
+                      Leave blank to use catalog pricing.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                      Effective Contracted Price (₹ INR)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={priceOverride}
+                      onChange={(e) => {
+                        const val = e.target.value === '' ? '' : Math.max(0, Number(e.target.value));
+                        setPriceOverride(val);
+                        if (detail) {
+                          setDiscountAmount(val === '' ? '' : Math.max(0, detail.priceINR - val));
+                        }
+                      }}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500/20"
+                      placeholder={`Catalog: ₹${detail?.priceINR ?? 1499}`}
+                    />
+                    <p className="text-[10px] text-slate-400 mt-0.5">
+                      Explicit subscription fee for this clinic.
+                    </p>
+                  </div>
+                </div>
               </div>
 
               {/* Notes */}

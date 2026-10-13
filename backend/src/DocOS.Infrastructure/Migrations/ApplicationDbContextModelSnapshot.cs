@@ -260,6 +260,10 @@ namespace DocOS.Infrastructure.Migrations
                     b.Property<DateTime>("CurrentPeriodStart")
                         .HasColumnType("datetime2");
 
+                    b.Property<decimal?>("DiscountAmountINR")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
+
                     b.Property<int>("GracePeriodDays")
                         .HasColumnType("int");
 
@@ -281,6 +285,10 @@ namespace DocOS.Infrastructure.Migrations
 
                     b.Property<Guid>("PlanId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal?>("PriceOverrideINR")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
 
                     b.Property<string>("Status")
                         .IsRequired()

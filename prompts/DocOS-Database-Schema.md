@@ -44,7 +44,7 @@ There is no SQL Server row-level security. Clinic isolation is the application g
 | `Visits` | Legacy nine vital columns **removed** (migration `AddPhase2C_DynamicVitals`). Readings are in `VisitVitals`. `VisitDate` is `datetime2` (IST); stored computed `VisitDay` (`date`) drives the token unique index (**E07**). |
 | `Prescriptions` | One **current** row per visit (`IsCurrent = 1`, filtered unique on `VisitId`). `PreviousPrescriptionId`: same-visit revisions **and** first canonical row → prior visit current Rx (**E15**, no extra column). Share link: `PdfShareToken`, `ExpiresAt`, `IsPrinted`. |
 | Vitals | `VitalMaster`, `ClinicVitalPreference`, `VisitVitals` active. |
-| Subscriptions | `SubscriptionPlanMaster` (table `SubscriptionPlans`), `ClinicSubscription` (includes `LabModuleOverride` **E12**), `ClinicPeriodUsage`, `SubscriptionPaymentHistory` active. |
+| Subscriptions | `SubscriptionPlanMaster` (table `SubscriptionPlans`), `ClinicSubscription` (includes `LabModuleOverride` **E12**, `PriceOverrideINR` & `DiscountAmountINR` **B11**), `ClinicPeriodUsage`, `SubscriptionPaymentHistory` active. |
 | Clinics | `Landline` plus nullable `Phone` (**E13**). `PatientIdPrefix` set at onboarding (default: first four letters of clinic name); column default/legacy `DOC` (**E08**, no extra column). |
 | 2D | Labs, panels, advice, favorites, `VisitPayment`, `AuditLogs` active. Global catalog rows remain `ClinicId` null (**E04–E06** are UI include-global filters, not new tables). |
 
@@ -391,6 +391,8 @@ One row per clinic. Lifecycle status lives here.
 | `AdditionalTopUpVisits` | `int` | No | Default 0. Current period only |
 | `MaxDoctorsOverride` | `int` | Yes | Null means use the plan’s `MaxDoctors` |
 | `LabModuleOverride` | `bit` | Yes | **E12.** Null = inherit `SubscriptionPlanMaster.HasLabModule`; `0`/`1` = per-clinic force off/on |
+| `PriceOverrideINR` | `decimal(10,2)` | Yes | **B11.** When set, overrides catalog `SubscriptionPlanMaster.PriceINR` for this clinic |
+| `DiscountAmountINR` | `decimal(10,2)` | Yes | **B11.** Instant discount amount in INR applied against catalog price at onboarding |
 | `Status` | `nvarchar(30)` | No | `Trial`, `Active`, `GracePeriod`, `QuotaExceeded`, `Suspended` |
 | `CurrentPeriodStart` | `datetime2` | No | |
 | `CurrentPeriodEnd` | `datetime2` | No | |
@@ -399,7 +401,7 @@ One row per clinic. Lifecycle status lives here.
 | `CreatedAt` | `datetime2` | No | |
 | `UpdatedAt` | `datetime2` | Yes | |
 
-`TotalAllowed` is unlimited when `IsUnlimitedVisits` is true, otherwise `MonthlyVisitQuota + AdditionalTopUpVisits`. The extra 20 completed visits are a buffer beyond `TotalAllowed`, not a stored column. Quota used/remaining on clinic UI (**E14**) reads these columns plus `ClinicPeriodUsage`; no extra usage columns. Lab access uses `LabModuleOverride ?? plan.HasLabModule` (**E12**). Doctor seats: `MaxDoctorsOverride ?? plan.MaxDoctors ?? 1` (not a column).
+`TotalAllowed` is unlimited when `IsUnlimitedVisits` is true, otherwise `MonthlyVisitQuota + AdditionalTopUpVisits`. The extra 20 completed visits are a buffer beyond `TotalAllowed`, not a stored column. Quota used/remaining on clinic UI (**E14**) reads these columns plus `ClinicPeriodUsage`; no extra usage columns. Lab access uses `LabModuleOverride ?? plan.HasLabModule` (**E12**). Doctor seats: `MaxDoctorsOverride ?? plan.MaxDoctors ?? 1` (not a column). Effective subscription price uses `PriceOverrideINR ?? plan.PriceINR ?? 0m` (**B11**).
 
 ### 4.5 `ClinicPeriodUsage`
 

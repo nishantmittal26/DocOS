@@ -915,5 +915,157 @@ public class Phase2BTests
         unlimitedStatus.RemainingPrescriptions.Should().BeNull();
         unlimitedStatus.TotalAllowedPrescriptions.Should().BeNull();
     }
+
+    [Fact]
+    public async Task OnboardClinic_With_InstantDiscount_Sets_PriceOverride_And_DiscountAmount()
+    {
+        // Arrange
+        using var context = CreateInMemoryDbContext();
+        var plan = new SubscriptionPlanMaster
+        {
+            Id = Guid.NewGuid(),
+            PlanCode = "PRO_MONTHLY",
+            PlanName = "Pro Plan",
+            Tier = "MultiDoctor",
+            BillingCycle = BillingCycles.Monthly,
+            PriceINR = 2499m,
+            IsUnlimitedVisits = false,
+            DefaultMonthlyVisits = 500,
+            MaxDoctors = 3,
+            MaxStaff = 10,
+            HasCustomVitals = true,
+            HasLabModule = true,
+            IsActive = true
+        };
+        context.SubscriptionPlans.Add(plan);
+        await context.SaveChangesAsync();
+
+        var agentId = "agent-discount-1";
+        var mockCurrentUser = new Mock<ICurrentUserService>();
+        mockCurrentUser.Setup(u => u.UserId).Returns(agentId);
+        mockCurrentUser.Setup(u => u.IsInRole(Roles.SalesAgent)).Returns(true);
+        mockCurrentUser.Setup(u => u.IsInRole(Roles.PlatformAdmin)).Returns(true);
+
+        var mockIdentityService = new Mock<IIdentityService>();
+        mockIdentityService.Setup(s => s.CreateUserAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Guid>(),
+            It.IsAny<string[]>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<decimal?>()
+        )).ReturnsAsync((true, null, "doc-user-discount"));
+
+        var handler = new SubscriptionHandlers(context, mockCurrentUser.Object, mockIdentityService.Object);
+
+        var req = new OnboardClinicRequest(
+            ClinicName: "Discount Health Clinic",
+            Phone: "9876500000",
+            Email: "dr.discount@health.com",
+            Address: "100 High Street",
+            DoctorName: "Dr. Verma",
+            RegNumber: "MCI-99887",
+            Qualifications: "MBBS",
+            Specialization: "General Physician",
+            ConsultationFee: 500m,
+            ClinicTimings: "10am - 6pm",
+            DoctorPassword: "Password@123",
+            PlanId: plan.Id,
+            IsTrial: false,
+            MonthlyVisitQuotaOverride: null,
+            IsUnlimitedOverride: false,
+            LetterheadMarginTopMm: 60,
+            PrintBottomMarginMm: 15,
+            HideLetterheadOnPrint: false,
+            SalesNotes: "Discount approved by sales manager",
+            DiscountAmountINR: 500m
+        );
+
+        // Act
+        var res = await handler.Handle(new OnboardClinicCommand(req), CancellationToken.None);
+
+        // Assert response
+        res.DiscountAmountINR.Should().Be(500m);
+        res.PriceOverrideINR.Should().Be(1999m);
+        res.EffectivePriceINR.Should().Be(1999m);
+
+        // Assert database entity
+        var savedSub = await context.ClinicSubscriptions.Include(s => s.Plan).FirstOrDefaultAsync(s => s.ClinicId == res.ClinicId);
+        savedSub.Should().NotBeNull();
+        savedSub!.DiscountAmountINR.Should().Be(500m);
+        savedSub.PriceOverrideINR.Should().Be(1999m);
+        savedSub.EffectivePriceINR.Should().Be(1999m);
+
+        // Assert detail DTO
+        var detail = await handler.Handle(new GetClinicSubscriptionDetailQuery(res.ClinicId), CancellationToken.None);
+        detail.PriceINR.Should().Be(2499m);
+        detail.DiscountAmountINR.Should().Be(500m);
+        detail.PriceOverrideINR.Should().Be(1999m);
+        detail.EffectivePriceINR.Should().Be(1999m);
+    }
+
+    [Fact]
+    public async Task OnboardClinic_With_CustomPrice_Calculates_DiscountAmount()
+    {
+        // Arrange
+        using var context = CreateInMemoryDbContext();
+        var plan = new SubscriptionPlanMaster
+        {
+            Id = Guid.NewGuid(),
+            PlanCode = "STARTER_CUSTOM",
+            PlanName = "Starter Plan",
+            Tier = "Starter",
+            BillingCycle = BillingCycles.Monthly,
+            PriceINR = 1000m,
+            IsUnlimitedVisits = false,
+            DefaultMonthlyVisits = 200,
+            MaxDoctors = 1,
+            MaxStaff = 2,
+            HasCustomVitals = false,
+            HasLabModule = false,
+            IsActive = true
+        };
+        context.SubscriptionPlans.Add(plan);
+        await context.SaveChangesAsync();
+
+        var mockCurrentUser = new Mock<ICurrentUserService>();
+        mockCurrentUser.Setup(u => u.UserId).Returns("agent-custom");
+        mockCurrentUser.Setup(u => u.IsInRole(Roles.SalesAgent)).Returns(true);
+
+        var mockIdentityService = new Mock<IIdentityService>();
+        mockIdentityService.Setup(s => s.CreateUserAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<Guid>(),
+            It.IsAny<string[]>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<string?>(), It.IsAny<decimal?>()
+        )).ReturnsAsync((true, null, "doc-user-custom"));
+
+        var handler = new SubscriptionHandlers(context, mockCurrentUser.Object, mockIdentityService.Object);
+
+        var req = new OnboardClinicRequest(
+            ClinicName: "Custom Price Clinic",
+            Phone: "9876511111",
+            Email: "dr.custom@health.com",
+            Address: "200 Market Street",
+            DoctorName: "Dr. Joshi",
+            RegNumber: "MCI-77665",
+            Qualifications: "MBBS",
+            Specialization: "Family Medicine",
+            ConsultationFee: 400m,
+            ClinicTimings: "9am - 5pm",
+            DoctorPassword: "Password@123",
+            PlanId: plan.Id,
+            IsTrial: false,
+            MonthlyVisitQuotaOverride: null,
+            IsUnlimitedOverride: false,
+            LetterheadMarginTopMm: 60,
+            PrintBottomMarginMm: 15,
+            HideLetterheadOnPrint: false,
+            SalesNotes: "Negotiated custom rate",
+            CustomPriceINR: 750m
+        );
+
+        // Act
+        var res = await handler.Handle(new OnboardClinicCommand(req), CancellationToken.None);
+
+        // Assert response
+        res.PriceOverrideINR.Should().Be(750m);
+        res.DiscountAmountINR.Should().Be(250m);
+        res.EffectivePriceINR.Should().Be(750m);
+    }
 }
 

@@ -234,6 +234,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
             entity.HasKey(s => s.Id);
             entity.Property(s => s.Status).HasMaxLength(30).IsRequired();
             entity.Property(s => s.Notes).HasMaxLength(500);
+            entity.Property(s => s.PriceOverrideINR).HasPrecision(10, 2);
+            entity.Property(s => s.DiscountAmountINR).HasPrecision(10, 2);
 
             entity.HasIndex(s => s.ClinicId).IsUnique();
 

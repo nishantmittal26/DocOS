@@ -518,6 +518,8 @@ export interface OnboardClinicRequest {
   hideLetterheadOnPrint: boolean;
   salesNotes?: string;
   patientIdPrefix?: string;
+  discountAmountINR?: number;
+  customPriceINR?: number;
 }
 
 export interface OnboardClinicResponse {
@@ -535,6 +537,9 @@ export interface OnboardClinicResponse {
   monthlyVisitQuota?: number;
   isUnlimited: boolean;
   patientIdPrefix: string;
+  priceOverrideINR?: number;
+  discountAmountINR?: number;
+  effectivePriceINR?: number;
 }
 
 export interface AdminClinicItem {
@@ -600,6 +605,9 @@ export interface ClinicSubscriptionDetail {
   planHasLabModule: boolean;
   effectiveHasLabModule: boolean;
   paymentHistory: SubscriptionPayment[];
+  priceOverrideINR?: number;
+  discountAmountINR?: number;
+  effectivePriceINR?: number;
   usedPrescriptions?: number;
   remainingPrescriptions?: number;
   totalAllowedPrescriptions?: number;
@@ -616,6 +624,8 @@ export interface UpdateClinicSubscriptionRequest {
   gracePeriodDays: number;
   notes?: string;
   labModuleOverride?: boolean | null;
+  priceOverrideINR?: number | null;
+  discountAmountINR?: number | null;
 }
 
 export interface ClinicQuotaStatus {

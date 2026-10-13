@@ -92,7 +92,7 @@ SubscriptionPlanMaster  --copy-on-assign-->  ClinicSubscription (contract)
 
 1. **Copy-on-assign:** On **onboard** and admin **Change plan**, copy catalog fields into contract snapshot; set `CatalogPlanId` + `PlanAssignedAt` (IST).
 2. **Runtime:** Enforce quota, labs, custom vitals, seat caps, and clinic-facing plan labels from **contract** (+ overrides). Do not use `Plan.HasLabModule` etc. for enforcement.
-3. **Overrides:** Keep `IsUnlimitedVisits`, `MonthlyVisitQuota`, `AdditionalTopUpVisits`, `MaxDoctorsOverride`, `LabModuleOverride` for support; baseline from snapshot.
+3. **Overrides:** Keep `IsUnlimitedVisits`, `MonthlyVisitQuota`, `AdditionalTopUpVisits`, `MaxDoctorsOverride`, `LabModuleOverride`, `PriceOverrideINR`, `DiscountAmountINR` (B11) for support and commercial flexibility; baseline from snapshot.
 4. **Catalog CRUD:** `IsActive = false` hides plan from new picks; existing contracts unchanged.
 5. **Migration:** Backfill snapshots from `ClinicSubscription` ⨝ `SubscriptionPlanMaster`; freeze behavior at migration time.
 
@@ -107,6 +107,7 @@ SubscriptionPlanMaster  --copy-on-assign-->  ClinicSubscription (contract)
 | Max staff | `SubscribedMaxStaff` (add `MaxStaffOverride` only if product asks) |
 | Lab module | `LabModuleOverride ?? SubscribedHasLabModule` |
 | Custom vitals | `SubscribedHasCustomVitals` (v1; optional override later) |
+| Effective plan price | `PriceOverrideINR ?? SubscribedPriceINR` (B11 clinic price override wins over catalog baseline snapshot) |
 | Display plan name / tier | `SubscribedPlanName`, `SubscribedTier` |
 
 Implement these on `ClinicSubscription` (domain helpers or small `SubscriptionEntitlements` static class in Domain/Application).
@@ -147,7 +148,7 @@ Implement these on `ClinicSubscription` (domain helpers or small `SubscriptionEn
 
 #### Unchanged columns (still used)
 
-`ClinicId`, `IsUnlimitedVisits`, `MonthlyVisitQuota`, `AdditionalTopUpVisits`, `MaxDoctorsOverride`, `LabModuleOverride`, `Status`, `CurrentPeriodStart`, `CurrentPeriodEnd`, `GracePeriodDays`, `Notes`, `CreatedAt`, `UpdatedAt`.
+`ClinicId`, `IsUnlimitedVisits`, `MonthlyVisitQuota`, `AdditionalTopUpVisits`, `MaxDoctorsOverride`, `LabModuleOverride`, `PriceOverrideINR`, `DiscountAmountINR` (B11), `Status`, `CurrentPeriodStart`, `CurrentPeriodEnd`, `GracePeriodDays`, `Notes`, `CreatedAt`, `UpdatedAt`.
 
 #### Tables not changed in v1
 
@@ -242,7 +243,7 @@ Clinic-facing quota endpoint (if separate from admin): ensure it uses updated ha
 - “Apply catalog change to all subscribers on this plan”
 - `MaxStaffOverride` (unless requested)
 - `ClinicSubscriptionPlanHistory` (optional v1.1)
-- Custom price override / instant onboarding discount (see **B11** in [DocOS-Phase3-Backlog.md](DocOS-Phase3-Backlog.md); decide in §0 whether to pull into B13)
+- Note on onboarding discounts: custom price overrides and instant discounts are **already implemented via B11**. In B13, `SubscribedPriceINR` functions as the catalog snapshot baseline, while B11's `PriceOverrideINR` / `DiscountAmountINR` columns remain active per-clinic contract overrides.
 
 ---
 
@@ -267,6 +268,7 @@ Follow **§0**. Conversation and explicit human agreement come first; docs and c
 
 | Date (IST) | Summary |
 | :--- | :--- |
+| 2026-10-13 | Updated with B11 impact: ClinicSubscription now includes PriceOverrideINR and DiscountAmountINR; B13 entitlement resolution formula for price defines EffectivePriceINR = PriceOverrideINR ?? SubscribedPriceINR. |
 | 2026-10-12 | Added reference to check B11 (custom price / onboarding instant discount) in DocOS-Phase3-Backlog.md before implementing B13. |
 | 2026-10-06 | Agent gate: explain in detail and ask questions; no code until the human agrees and understands. |
 | 2026-10-06 | Removed from the main backlog list; this file is the only home. Parked for later review as one large workstream. |
