@@ -2,7 +2,8 @@
 
 **Home:** this file only. B13 is **not** a row in [DocOS-Phase3-Backlog.md](DocOS-Phase3-Backlog.md).  
 **Status:** parked later — a **single large workstream**. Do not mix it into the regular backlog.  
-**Supersedes:** changing a clinic’s plan by swapping `PlanId` only (former B11). Plan changes must copy catalog → contract per this spec.
+**Supersedes:** changing a clinic’s plan by swapping `PlanId` only (former plan-swap idea). Plan changes must copy catalog → contract per this spec.  
+**Related backlog check:** Check **B11** in [DocOS-Phase3-Backlog.md](DocOS-Phase3-Backlog.md) (*Custom plan price & instant discount on clinic onboarding*) before implementing B13. B11 might be connected to B13 because B13 introduces `SubscribedPriceINR` on the contract snapshot. Clarify during §0 whether onboarding price overrides / instant discounts should be incorporated into B13 v1 contract snapshot schema or remain separate.
 
 **When you start implementing B13:** this file is the reference, not a license to code. Explain the design to the human in detail, ask questions until they agree and understand fully, then wait for an explicit go-ahead. **No code, migrations, or schema edits until that agreement.** See **§0**.
 
@@ -28,6 +29,7 @@ Applies to every agent and contributor when the human says they want to start B1
    - Change plan: keep current period dates and remaining quota, or reset period / top-ups?
    - Catalog admin: edit existing SKUs only, or also create new plans? Soft-deactivate (`IsActive`) only, or delete?
    - Custom vitals: snapshot only (`SubscribedHasCustomVitals`), or a per-clinic override in v1?
+   - **Check B11 in [DocOS-Phase3-Backlog.md](DocOS-Phase3-Backlog.md):** Does onboarding custom price / instant discount (e.g. ₹X off actual plan value) need to be included in this contract snapshot schema, or remain deferred?
    - Ship `ClinicSubscriptionPlanHistory` in v1 or leave v1.1?
    - Who may Change plan and edit catalog (PlatformAdmin only, or SalesAgent too)?
    - Any clinic must **not** lose labs/seats/quota on backfill?
@@ -240,6 +242,7 @@ Clinic-facing quota endpoint (if separate from admin): ensure it uses updated ha
 - “Apply catalog change to all subscribers on this plan”
 - `MaxStaffOverride` (unless requested)
 - `ClinicSubscriptionPlanHistory` (optional v1.1)
+- Custom price override / instant onboarding discount (see **B11** in [DocOS-Phase3-Backlog.md](DocOS-Phase3-Backlog.md); decide in §0 whether to pull into B13)
 
 ---
 
@@ -264,6 +267,7 @@ Follow **§0**. Conversation and explicit human agreement come first; docs and c
 
 | Date (IST) | Summary |
 | :--- | :--- |
+| 2026-10-12 | Added reference to check B11 (custom price / onboarding instant discount) in DocOS-Phase3-Backlog.md before implementing B13. |
 | 2026-10-06 | Agent gate: explain in detail and ask questions; no code until the human agrees and understands. |
 | 2026-10-06 | Removed from the main backlog list; this file is the only home. Parked for later review as one large workstream. |
 | 2026-10-05 | Initial B13 implementation reference (catalog vs contract, schema, code map). |

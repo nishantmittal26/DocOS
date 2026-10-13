@@ -32,6 +32,7 @@ Work listed here is **out of scope** until it is **promoted** to a numbered deli
 | B08 | **Pharmacist role** | Not in Phase 2 role set. | `idea` |
 | B09 | **PostgreSQL or Supabase as Phase 2 provider** | Phase 2 is SQL Server only; MVP PostgreSQL is a tagged snapshot. | `idea` |
 | B10 | **Audit row for every VIEW** | Routine queue views are not audited; see 2D `AuditLogs` scope. | `idea` |
+| B11 | **Custom plan price & instant discount on clinic onboarding** | Sales/admin custom pricing or discount of X INR off catalog plan value during onboarding. Current onboarding uses standard catalog price (`PriceINR`); requires custom pricing contract schema and invoicing/commercial discount rules. | `idea` |
 
 ### Detail (same content as former Phase 2 §7)
 
@@ -45,6 +46,7 @@ Work listed here is **out of scope** until it is **promoted** to a numbered deli
 - **Pharmacist.** New role and permissions model.  
 - **PostgreSQL provider.** Single provider decision for Phase 2+.  
 - **VIEW audit.** Explicitly excluded from 2D audit design.  
+- **Custom plan price & instant onboarding discount (B11).** Allowing Sales / Platform Admin to override the catalog subscription price or apply an instant one-time/recurring discount (e.g., ₹X off) during clinic onboarding. Current onboarding and catalog snapshotting assign standard catalog `PriceINR`. Requires defining contract pricing fields (`EffectivePriceINR` / `DiscountAmountINR`), discount validation/authority, and payment alignment before promotion.  
 
 ---
 
