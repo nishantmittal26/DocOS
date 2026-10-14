@@ -325,6 +325,5 @@ Login (no Onboard New Clinic tab), `/admin/onboard-doctor` (horizontal timeline;
 - [DocOS-Database-Schema.md](DocOS-Database-Schema.md) — tables, columns, indexes, and an ERD per part.
 - [DocOS-Architecture-Decisions.md](DocOS-Architecture-Decisions.md) — ADR: superseded drafts, rationale, change log.
 - [DocOS-Follow-ups.md](DocOS-Follow-ups.md) — living tracker for **new** bugs and polish after signed-off 2A–2D product rules.
-- [DocOS-Phase3-Backlog.md](DocOS-Phase3-Backlog.md) — post–2D deferred work and promotion rules.
-- [DocOS-Backlog-B13-Catalog.md](DocOS-Backlog-B13-Catalog.md) — parked later: catalog vs contract subscriptions (not a backlog item).
+- [DocOS-Phase3-Backlog.md](DocOS-Phase3-Backlog.md) — post–2D deferred work, promotion rules, and promoted specs (B11, B13).
 - [DocOS-(Phase 1).md](DocOS-(Phase%201).md) — locked MVP archive. Do not revise for Phase 2.

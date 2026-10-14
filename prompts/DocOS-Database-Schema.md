@@ -754,4 +754,4 @@ One line each, so a later edit does not bring them back into Phase 2.
 - WhatsApp or SMS delivery tables.
 - A tamper-proof or hash-chained audit ledger.
 - `PriorVisitPrescriptionId` (or a second previous-Rx FK). Cross-visit timeline uses `PreviousPrescriptionId` on the first canonical row only (E15).
-- `EffectiveMaxDoctors`, `EffectiveHasLabModule`, or other entitlement snapshot columns on `ClinicSubscription` (those wait for parked [B13](DocOS-Backlog-B13-Catalog.md)). Catalog still joined at read time via `PlanId`.
+- `ClinicSubscriptionPlanHistory` (deferred to Phase 3 v1.1).

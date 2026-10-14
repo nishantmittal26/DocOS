@@ -9,8 +9,7 @@
 | :--- | :--- |
 | [DocOS-Product-Roadmap.md](DocOS-Product-Roadmap.md) | Hub: status, stack, reading order |
 | [DocOS-(Phase 2).md](<DocOS-(Phase 2).md>) | Parts 2A–2D, in/out of scope, done-when checklists |
-| [DocOS-Phase3-Backlog.md](DocOS-Phase3-Backlog.md) | Post–2D deferred work; promotion rules |
-| [DocOS-Backlog-B13-Catalog.md](DocOS-Backlog-B13-Catalog.md) | Parked later: catalog vs contract (not a backlog row) |
+| [DocOS-Phase3-Backlog.md](DocOS-Phase3-Backlog.md) | Post–2D deferred work; promotion rules and promoted specs (B11, B13) |
 | [DocOS-Database-Schema.md](DocOS-Database-Schema.md) | Tables, columns, indexes, ERDs |
 | [DocOS-(Phase 1).md](DocOS-(Phase%201).md) | Locked MVP archive (do not rewrite for Phase 2) |
 
@@ -76,7 +75,7 @@ When adding a **new** date or datetime column: document it in [DocOS-Database-Sc
 1. **Status and what’s next** → [DocOS-Product-Roadmap.md](DocOS-Product-Roadmap.md).  
 2. **Building a part** → [DocOS-(Phase 2).md](<DocOS-(Phase 2).md>) for scope and done-when.  
 3. **Columns and indexes** → [DocOS-Database-Schema.md](DocOS-Database-Schema.md).  
-4. **Future / deferred work** → [DocOS-Phase3-Backlog.md](DocOS-Phase3-Backlog.md). Catalog vs contract subscriptions → [DocOS-Backlog-B13-Catalog.md](DocOS-Backlog-B13-Catalog.md) (parked; not a backlog pick).  
+4. **Future / deferred work** → [DocOS-Phase3-Backlog.md](DocOS-Phase3-Backlog.md).  
 5. **Why a rejected idea stays out** → this file, §1–2.  
 6. **What changed after Oct 2026** → this file, §5.  
 7. **Date/time rules for new columns** → this file, §3.
@@ -94,9 +93,9 @@ Newest first. One block per decision or schema change.
 - **Behavior:** `OnboardClinicRequest` and `UpdateClinicSubscriptionRequest` accept `DiscountAmountINR` and `CustomPriceINR`. When discount is entered, `PriceOverrideINR = max(0, plan.PriceINR - DiscountAmountINR)`. When custom price is entered, `DiscountAmountINR = max(0, plan.PriceINR - CustomPriceINR)`. Admin payment recording defaults to `EffectivePriceINR`. Handover slip and subscription management UI display the discount and contracted fee.
 - **Migration:** `20261013090755_AddClinicSubscription_PriceAndDiscountOverrides`. Adds nullable `PriceOverrideINR` and `DiscountAmountINR` (`decimal(10,2)`) to `dbo.ClinicSubscriptions`.
 
-### 2026-10-06 — B13 parked in its own spec (not a backlog row)
+### 2026-10-06 — B13 parked in standalone spec (superseded 13 Oct 2026)
 
-- **Decision:** Catalog vs contract subscriptions (**B13**) lives only in [DocOS-Backlog-B13-Catalog.md](DocOS-Backlog-B13-Catalog.md). It is removed from [DocOS-Phase3-Backlog.md](DocOS-Phase3-Backlog.md) so it is not mixed with smaller later ideas. When implementation starts, agents must explain the design in detail and ask questions; **no code until the human agrees and understands** (that file **§0**).
+- **Decision:** Catalog vs contract subscriptions (**B13**) was temporarily isolated in a dedicated spec. On 13–14 Oct 2026, B13 was promoted, implemented, and consolidated directly into [DocOS-Phase3-Backlog.md](DocOS-Phase3-Backlog.md) §Promoted work.
 - **Schema:** No change.
 
 ### 2026-10-13 — B13 Catalog-based subscriptions & contract snapshots

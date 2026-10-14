@@ -31,7 +31,7 @@ The [MVP archive](DocOS-(Phase%201).md) describes the original PostgreSQL MVP. T
 | **2C** Dynamic vitals | ✅ | ✅ | Done-when accepted 3 Oct 2026. |
 | **2D** Labs, advice, link, OPD, audit | ✅ | ✅ | Done-when accepted 3 Oct 2026. |
 | **B11** Custom plan price & onboarding discount | ✅ | ✅ | Promoted & implemented 13 Oct 2026. Migration `20261013090755_AddClinicSubscription_PriceAndDiscountOverrides` applied. |
-| **B13** Catalog-based subscriptions & contract snapshots | ✅ | ✅ | Implemented 13 Oct 2026. Code & UI complete; pending user verification for DB migration. |
+| **B13** Catalog-based subscriptions & contract snapshots | ✅ | ✅ | Implemented 13 Oct 2026. Migration `20261014073204_AddB13_ClinicSubscription_ContractSnapshot` applied. |
 | **Follow-ups** | — | — | New bugs & polish after 2A–2D: [DocOS-Follow-ups.md](DocOS-Follow-ups.md) |
 | **Backlog** | — | — | New features after 2D; [promote](DocOS-Phase3-Backlog.md#how-to-promote-an-item) before building. |
 
@@ -45,8 +45,8 @@ The [MVP archive](DocOS-(Phase%201).md) describes the original PostgreSQL MVP. T
 | **[DocOS-(Phase 1).md](DocOS-(Phase%201).md)** | Locked MVP archive (PostgreSQL era)—do not rewrite for Phase 2 |
 | **[DocOS-(Phase 2).md](<DocOS-(Phase%202).md>)** | Phase 2 spec (2A–2D complete); scope and done-when reference |
 | **[DocOS-Follow-ups.md](DocOS-Follow-ups.md)** | Living tracker for new bugs and polish (signed-off 2A–2D rules live in Phase 2) |
-| **[DocOS-Phase3-Backlog.md](DocOS-Phase3-Backlog.md)** | Deferred work after 2D; promotion rules for future parts |
-| **[DocOS-Backlog-B13-Catalog.md](DocOS-Backlog-B13-Catalog.md)** | Parked later: catalog vs contract subscriptions (not a backlog row). **Explain + questions first; no code until agreed.** |
+| **[DocOS-Phase3-Backlog.md](DocOS-Phase3-Backlog.md)** | Deferred product work after 2D; promotion rules and promoted specs (B11, B13) |
+| **[DocOS-Technical(Infra)-Backlog.md](DocOS-Technical(Infra)-Backlog.md)** | Technical infrastructure, DNS routing, packaging & hosting backlog (B03, B04) |
 | **[DocOS-Database-Schema.md](DocOS-Database-Schema.md)** | Tables, columns, indexes, ERDs |
 | **[DocOS-Architecture-Decisions.md](DocOS-Architecture-Decisions.md)** | ADR: superseded drafts, rationale, **change log** |
 
@@ -57,7 +57,7 @@ The [MVP archive](DocOS-(Phase%201).md) describes the original PostgreSQL MVP. T
 1. **What should I build next?** → [Follow-ups](DocOS-Follow-ups.md) for any **new** bugs/polish, or [Backlog](DocOS-Phase3-Backlog.md) for promoted features. Phase 2 parts 2A–2D are complete.  
 2. **Columns or indexes?** → [DocOS-Database-Schema.md](DocOS-Database-Schema.md).  
 3. **Why was X rejected?** → [DocOS-Architecture-Decisions.md](DocOS-Architecture-Decisions.md).  
-4. **Future idea (WhatsApp, ABDM, …)?** → [DocOS-Phase3-Backlog.md](DocOS-Phase3-Backlog.md)—do not implement until promoted. Catalog vs contract subscriptions: [B13 spec](DocOS-Backlog-B13-Catalog.md) only (parked; not a backlog pick).  
+4. **Future idea (WhatsApp, ABDM, …)?** → [DocOS-Phase3-Backlog.md](DocOS-Phase3-Backlog.md)—do not implement until promoted.  
 5. **What did the original MVP promise?** → [DocOS-(Phase 1).md](DocOS-(Phase%201).md) only.
 
 ---
