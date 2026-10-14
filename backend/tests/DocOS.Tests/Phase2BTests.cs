@@ -4,6 +4,7 @@ using DocOS.Application.Common.Interfaces;
 using DocOS.Application.Patients;
 using DocOS.Application.Subscriptions;
 using DocOS.Application.Visits;
+using DocOS.Application.Vitals;
 using DocOS.Domain.Common;
 using DocOS.Domain.Entities;
 using DocOS.Domain.Enums;
@@ -48,6 +49,23 @@ public class Phase2BTests
         return plan;
     }
 
+    private ClinicSubscription CreateTestSubscription(Guid clinicId, SubscriptionPlanMaster plan, Action<ClinicSubscription>? configure = null)
+    {
+        var subscription = new ClinicSubscription
+        {
+            Id = Guid.NewGuid(),
+            ClinicId = clinicId,
+            Status = SubscriptionStatuses.Active,
+            CurrentPeriodStart = DateTime.UtcNow,
+            CurrentPeriodEnd = DateTime.UtcNow.AddDays(30),
+            MonthlyVisitQuota = plan.DefaultMonthlyVisits,
+            AdditionalTopUpVisits = 0
+        };
+        subscription.ApplyCatalogPlan(plan, IndiaTime.Now);
+        configure?.Invoke(subscription);
+        return subscription;
+    }
+
     [Fact]
     public async Task SalesAgent_Can_Onboard_Clinic_And_Sees_Only_Own_Clinics()
     {
@@ -88,7 +106,7 @@ public class Phase2BTests
             ConsultationFee: 800m,
             ClinicTimings: "10am - 7pm",
             DoctorPassword: "Password@123",
-            PlanId: plan.Id,
+            CatalogPlanId: plan.Id,
             IsTrial: false,
             MonthlyVisitQuotaOverride: null,
             IsUnlimitedOverride: false,
@@ -144,17 +162,7 @@ public class Phase2BTests
         var clinic = new Clinic { Id = clinicId, Name = "Alpha Clinic", Phone = "9999999999" };
         context.Clinics.Add(clinic);
 
-        var subscription = new ClinicSubscription
-        {
-            Id = Guid.NewGuid(),
-            ClinicId = clinicId,
-            PlanId = plan.Id,
-            Status = SubscriptionStatuses.Active,
-            CurrentPeriodStart = DateTime.UtcNow,
-            CurrentPeriodEnd = DateTime.UtcNow.AddDays(30),
-            MonthlyVisitQuota = 10,
-            AdditionalTopUpVisits = 0
-        };
+        var subscription = CreateTestSubscription(clinicId, plan);
         context.ClinicSubscriptions.Add(subscription);
 
         var periodUsage = new ClinicPeriodUsage
@@ -243,17 +251,7 @@ public class Phase2BTests
         var clinicId = Guid.NewGuid();
         context.Clinics.Add(new Clinic { Id = clinicId, Name = "Beta Clinic", Phone = "9999999999" });
 
-        var subscription = new ClinicSubscription
-        {
-            Id = Guid.NewGuid(),
-            ClinicId = clinicId,
-            PlanId = plan.Id,
-            Status = SubscriptionStatuses.Active,
-            CurrentPeriodStart = DateTime.UtcNow,
-            CurrentPeriodEnd = DateTime.UtcNow.AddDays(30),
-            MonthlyVisitQuota = 10,
-            AdditionalTopUpVisits = 0
-        };
+        var subscription = CreateTestSubscription(clinicId, plan);
         context.ClinicSubscriptions.Add(subscription);
 
         // Period usage already at 25 visits (in buffer: 10 + 15)
@@ -320,17 +318,11 @@ public class Phase2BTests
         var clinicId = Guid.NewGuid();
         context.Clinics.Add(new Clinic { Id = clinicId, Name = "Gamma Clinic", Phone = "9999999999" });
 
-        var subscription = new ClinicSubscription
+        var subscription = CreateTestSubscription(clinicId, plan, s =>
         {
-            Id = Guid.NewGuid(),
-            ClinicId = clinicId,
-            PlanId = plan.Id,
-            Status = SubscriptionStatuses.QuotaExceeded,
-            CurrentPeriodStart = DateTime.UtcNow,
-            CurrentPeriodEnd = DateTime.UtcNow.AddDays(10),
-            MonthlyVisitQuota = 10,
-            AdditionalTopUpVisits = 0
-        };
+            s.Status = SubscriptionStatuses.QuotaExceeded;
+            s.CurrentPeriodEnd = DateTime.UtcNow.AddDays(10);
+        });
         context.ClinicSubscriptions.Add(subscription);
         await context.SaveChangesAsync();
 
@@ -362,18 +354,13 @@ public class Phase2BTests
         var clinicId = Guid.NewGuid();
         context.Clinics.Add(new Clinic { Id = clinicId, Name = "Delta Clinic", Phone = "9999999999" });
 
-        var subscription = new ClinicSubscription
+        var subscription = CreateTestSubscription(clinicId, plan, s =>
         {
-            Id = Guid.NewGuid(),
-            ClinicId = clinicId,
-            PlanId = plan.Id,
-            Status = SubscriptionStatuses.Suspended,
-            CurrentPeriodStart = DateTime.UtcNow.AddDays(-40),
-            CurrentPeriodEnd = DateTime.UtcNow.AddDays(-10), // Ended 10 days ago (past 5 day grace)
-            GracePeriodDays = 5,
-            MonthlyVisitQuota = 10,
-            AdditionalTopUpVisits = 0
-        };
+            s.Status = SubscriptionStatuses.Suspended;
+            s.CurrentPeriodStart = DateTime.UtcNow.AddDays(-40);
+            s.CurrentPeriodEnd = DateTime.UtcNow.AddDays(-10);
+            s.GracePeriodDays = 5;
+        });
         context.ClinicSubscriptions.Add(subscription);
 
         var patient = new Patient { Id = Guid.NewGuid(), ClinicId = clinicId, FullName = "Suspended Patient", MobileNumber = "9999999999", PatientUid = "DOC-001" };
@@ -417,11 +404,11 @@ public class Phase2BTests
         var detail = await handlers.Handle(new GetClinicSubscriptionDetailQuery(clinicId), CancellationToken.None);
 
         detail.ClinicName.Should().Be("Legacy Clinic Without Subscription");
-        detail.PlanId.Should().Be(plan.Id);
+        detail.CatalogPlanId.Should().Be(plan.Id);
 
         var saved = await context.ClinicSubscriptions.FirstOrDefaultAsync(s => s.ClinicId == clinicId);
         saved.Should().NotBeNull();
-        saved!.PlanId.Should().Be(plan.Id);
+        saved!.CatalogPlanId.Should().Be(plan.Id);
     }
 
     [Fact]
@@ -434,17 +421,7 @@ public class Phase2BTests
         var clinicId = Guid.NewGuid();
         context.Clinics.Add(new Clinic { Id = clinicId, Name = "Epsilon Clinic", Phone = "9999999999" });
 
-        var subscription = new ClinicSubscription
-        {
-            Id = Guid.NewGuid(),
-            ClinicId = clinicId,
-            PlanId = plan.Id,
-            Status = SubscriptionStatuses.Active,
-            CurrentPeriodStart = DateTime.UtcNow,
-            CurrentPeriodEnd = DateTime.UtcNow.AddDays(30),
-            MonthlyVisitQuota = 10,
-            AdditionalTopUpVisits = 0
-        };
+        var subscription = CreateTestSubscription(clinicId, plan);
         context.ClinicSubscriptions.Add(subscription);
         await context.SaveChangesAsync();
 
@@ -596,17 +573,7 @@ public class Phase2BTests
         var clinicId = Guid.NewGuid();
         var adminId = "admin-user-1";
 
-        var subscription = new ClinicSubscription
-        {
-            Id = Guid.NewGuid(),
-            ClinicId = clinicId,
-            PlanId = plan.Id,
-            Plan = plan,
-            Status = SubscriptionStatuses.Active,
-            CurrentPeriodStart = DateTime.UtcNow,
-            CurrentPeriodEnd = DateTime.UtcNow.AddDays(30),
-            MaxDoctorsOverride = null
-        };
+        var subscription = CreateTestSubscription(clinicId, plan);
         context.ClinicSubscriptions.Add(subscription);
         await context.SaveChangesAsync();
 
@@ -678,17 +645,7 @@ public class Phase2BTests
         var clinicId = Guid.NewGuid();
         var adminId = "admin-user-1";
 
-        var subscription = new ClinicSubscription
-        {
-            Id = Guid.NewGuid(),
-            ClinicId = clinicId,
-            PlanId = plan.Id,
-            Plan = plan,
-            Status = SubscriptionStatuses.Active,
-            CurrentPeriodStart = DateTime.UtcNow,
-            CurrentPeriodEnd = DateTime.UtcNow.AddDays(30),
-            MaxDoctorsOverride = 2 // Custom override allows 2 doctors on Starter plan
-        };
+        var subscription = CreateTestSubscription(clinicId, plan, s => s.MaxDoctorsOverride = 2);
         context.ClinicSubscriptions.Add(subscription);
         await context.SaveChangesAsync();
 
@@ -769,17 +726,7 @@ public class Phase2BTests
         var adminId = "admin-user-1";
         var inactiveDoctorId = "doc-inactive";
 
-        var subscription = new ClinicSubscription
-        {
-            Id = Guid.NewGuid(),
-            ClinicId = clinicId,
-            PlanId = plan.Id,
-            Plan = plan,
-            Status = SubscriptionStatuses.Active,
-            CurrentPeriodStart = DateTime.UtcNow,
-            CurrentPeriodEnd = DateTime.UtcNow.AddDays(30),
-            MaxDoctorsOverride = null // 1 doctor max
-        };
+        var subscription = CreateTestSubscription(clinicId, plan);
         context.ClinicSubscriptions.Add(subscription);
         await context.SaveChangesAsync();
 
@@ -853,21 +800,13 @@ public class Phase2BTests
         };
         context.Clinics.Add(clinic);
 
-        var subscription = new ClinicSubscription
+        var subscription = CreateTestSubscription(clinicId, plan, s =>
         {
-            Id = Guid.NewGuid(),
-            ClinicId = clinicId,
-            PlanId = plan.Id,
-            IsUnlimitedVisits = false,
-            MonthlyVisitQuota = 100,
-            AdditionalTopUpVisits = 50,
-            Status = SubscriptionStatuses.Active,
-            CurrentPeriodStart = IndiaTime.Now.AddDays(-10),
-            CurrentPeriodEnd = IndiaTime.Now.AddDays(20),
-            GracePeriodDays = 5,
-            CreatedAt = IndiaTime.Now,
-            UpdatedAt = IndiaTime.Now
-        };
+            s.MonthlyVisitQuota = 100;
+            s.AdditionalTopUpVisits = 50;
+            s.CurrentPeriodStart = IndiaTime.Now.AddDays(-10);
+            s.CurrentPeriodEnd = IndiaTime.Now.AddDays(20);
+        });
         context.ClinicSubscriptions.Add(subscription);
 
         var periodUsage = new ClinicPeriodUsage
@@ -966,7 +905,7 @@ public class Phase2BTests
             ConsultationFee: 500m,
             ClinicTimings: "10am - 6pm",
             DoctorPassword: "Password@123",
-            PlanId: plan.Id,
+            CatalogPlanId: plan.Id,
             IsTrial: false,
             MonthlyVisitQuotaOverride: null,
             IsUnlimitedOverride: false,
@@ -986,7 +925,7 @@ public class Phase2BTests
         res.EffectivePriceINR.Should().Be(1999m);
 
         // Assert database entity
-        var savedSub = await context.ClinicSubscriptions.Include(s => s.Plan).FirstOrDefaultAsync(s => s.ClinicId == res.ClinicId);
+        var savedSub = await context.ClinicSubscriptions.Include(s => s.CatalogPlan).FirstOrDefaultAsync(s => s.ClinicId == res.ClinicId);
         savedSub.Should().NotBeNull();
         savedSub!.DiscountAmountINR.Should().Be(500m);
         savedSub.PriceOverrideINR.Should().Be(1999m);
@@ -1048,7 +987,7 @@ public class Phase2BTests
             ConsultationFee: 400m,
             ClinicTimings: "9am - 5pm",
             DoctorPassword: "Password@123",
-            PlanId: plan.Id,
+            CatalogPlanId: plan.Id,
             IsTrial: false,
             MonthlyVisitQuotaOverride: null,
             IsUnlimitedOverride: false,
@@ -1066,6 +1005,201 @@ public class Phase2BTests
         res.PriceOverrideINR.Should().Be(750m);
         res.DiscountAmountINR.Should().Be(250m);
         res.EffectivePriceINR.Should().Be(750m);
+    }
+
+    [Fact]
+    public async Task B13_Editing_Catalog_Plan_Does_Not_Change_Existing_Clinic_Contract_Entitlements()
+    {
+        // Arrange
+        using var context = CreateInMemoryDbContext();
+        var plan = new SubscriptionPlanMaster
+        {
+            Id = Guid.NewGuid(),
+            PlanCode = "PRO_ORIGINAL",
+            PlanName = "Pro Original Plan",
+            Tier = SubscriptionTiers.MultiDoctor,
+            DefaultMonthlyVisits = 500,
+            MaxDoctors = 5,
+            MaxStaff = 10,
+            PriceINR = 2499m,
+            BillingCycle = BillingCycles.Monthly,
+            HasCustomVitals = true,
+            HasLabModule = true,
+            IsActive = true
+        };
+        context.SubscriptionPlans.Add(plan);
+
+        var clinicId = Guid.NewGuid();
+        context.Clinics.Add(new Clinic { Id = clinicId, Name = "Immutable Contract Clinic", Phone = "9988776655" });
+
+        var subscription = new ClinicSubscription
+        {
+            Id = Guid.NewGuid(),
+            ClinicId = clinicId,
+            Status = SubscriptionStatuses.Active,
+            CurrentPeriodStart = IndiaTime.Now,
+            CurrentPeriodEnd = IndiaTime.Now.AddDays(30),
+            MonthlyVisitQuota = 500,
+            AdditionalTopUpVisits = 0
+        };
+        subscription.ApplyCatalogPlan(plan, IndiaTime.Now);
+        context.ClinicSubscriptions.Add(subscription);
+        await context.SaveChangesAsync();
+
+        var mockCurrentUser = new Mock<ICurrentUserService>();
+        mockCurrentUser.Setup(u => u.ClinicId).Returns(clinicId);
+        mockCurrentUser.Setup(u => u.UserId).Returns("doctor-1");
+        mockCurrentUser.Setup(u => u.IsInRole(Roles.Doctor)).Returns(true);
+
+        var mockIdentityService = new Mock<IIdentityService>();
+        var handler = new SubscriptionHandlers(context, mockCurrentUser.Object, mockIdentityService.Object);
+
+        // Verify initial entitlements on contract
+        var initialQuota = await handler.Handle(new GetClinicQuotaStatusQuery(), CancellationToken.None);
+        initialQuota.HasLabModule.Should().BeTrue();
+        initialQuota.HasCustomVitals.Should().BeTrue();
+        initialQuota.PlanName.Should().Be("Pro Original Plan");
+        initialQuota.EffectiveMaxDoctors.Should().Be(5);
+
+        // Act: Catalog admin modifies the master catalog plan (drops labs, custom vitals, decreases max doctors, raises price)
+        plan.PlanName = "Pro Deprecated";
+        plan.HasLabModule = false;
+        plan.HasCustomVitals = false;
+        plan.MaxDoctors = 2;
+        plan.PriceINR = 3999m;
+        await context.SaveChangesAsync();
+
+        // Assert: Existing clinic's contract snapshot is UNCHANGED!
+        var quotaAfterCatalogEdit = await handler.Handle(new GetClinicQuotaStatusQuery(), CancellationToken.None);
+        quotaAfterCatalogEdit.PlanName.Should().Be("Pro Original Plan");
+        quotaAfterCatalogEdit.HasLabModule.Should().BeTrue();
+        quotaAfterCatalogEdit.HasCustomVitals.Should().BeTrue();
+        quotaAfterCatalogEdit.EffectiveMaxDoctors.Should().Be(5);
+
+        // Vitals entitlement check also preserves entitlement from contract snapshot
+        var vitalHandler = new VitalHandlers(context, mockCurrentUser.Object);
+        var customVitalReq = new CreateCustomVitalRequest("RANDOM_BG", "Random Blood Sugar", "mg/dL", "Decimal", NormalRangeMin: 70, NormalRangeMax: 140);
+        var createdVital = await vitalHandler.Handle(new CreateCustomVitalCommand(customVitalReq), CancellationToken.None);
+        createdVital.Should().NotBeNull();
+        createdVital.Code.Should().Be("RANDOM_BG");
+    }
+
+    [Fact]
+    public async Task B13_ChangeClinicCatalogPlan_Copies_New_Snapshot_And_Sets_PlanAssignedAt_IST()
+    {
+        // Arrange
+        using var context = CreateInMemoryDbContext();
+        var starterPlan = SeedStarterPlan(context); // Price = 999, Visits = 10, MaxDoctors = 1
+
+        var enterprisePlan = new SubscriptionPlanMaster
+        {
+            Id = Guid.NewGuid(),
+            PlanCode = "ENTERPRISE_TEST",
+            PlanName = "DocOS Hospital Enterprise",
+            Tier = SubscriptionTiers.Enterprise,
+            IsUnlimitedVisits = true,
+            DefaultMonthlyVisits = null,
+            MaxDoctors = 25,
+            MaxStaff = 50,
+            PriceINR = 29999m,
+            BillingCycle = BillingCycles.Annual,
+            HasCustomVitals = true,
+            HasLabModule = true,
+            IsActive = true
+        };
+        context.SubscriptionPlans.Add(enterprisePlan);
+
+        var clinicId = Guid.NewGuid();
+        context.Clinics.Add(new Clinic { Id = clinicId, Name = "Upgrade Target Clinic", Phone = "9988776655" });
+
+        var subscription = CreateTestSubscription(clinicId, starterPlan);
+        subscription.PriceOverrideINR = 899m; // Existing custom override
+        subscription.DiscountAmountINR = 100m;
+        context.ClinicSubscriptions.Add(subscription);
+        await context.SaveChangesAsync();
+
+        var mockCurrentUser = new Mock<ICurrentUserService>();
+        mockCurrentUser.Setup(u => u.IsInRole(Roles.PlatformAdmin)).Returns(true);
+
+        var mockIdentityService = new Mock<IIdentityService>();
+        var handler = new SubscriptionHandlers(context, mockCurrentUser.Object, mockIdentityService.Object);
+
+        // Act: Platform admin runs Change plan to Enterprise
+        var changeReq = new ChangeClinicPlanRequest(enterprisePlan.Id, "Upgraded to Enterprise annual package");
+        var detail = await handler.Handle(new ChangeClinicCatalogPlanCommand(clinicId, changeReq), CancellationToken.None);
+
+        // Assert: Contract snapshot reflects new plan
+        detail.CatalogPlanId.Should().Be(enterprisePlan.Id);
+        detail.PlanName.Should().Be("DocOS Hospital Enterprise");
+        detail.PlanTier.Should().Be(SubscriptionTiers.Enterprise);
+        detail.SubscribedHasLabModule.Should().BeTrue();
+        detail.EffectiveHasLabModule.Should().BeTrue();
+        detail.SubscribedHasCustomVitals.Should().BeTrue();
+        detail.EffectiveMaxDoctors.Should().Be(25);
+        detail.PriceINR.Should().Be(29999m); // SubscribedPriceINR baseline
+        detail.EffectivePriceINR.Should().Be(899m); // PriceOverrideINR preserved
+        detail.Notes.Should().Contain("Upgraded to Enterprise annual package");
+        detail.PlanAssignedAt.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task B13_PlatformAdmin_Can_Perform_Catalog_Plan_CRUD()
+    {
+        // Arrange
+        using var context = CreateInMemoryDbContext();
+        var mockCurrentUser = new Mock<ICurrentUserService>();
+        mockCurrentUser.Setup(u => u.IsInRole(Roles.PlatformAdmin)).Returns(true);
+
+        var mockIdentityService = new Mock<IIdentityService>();
+        var handler = new SubscriptionHandlers(context, mockCurrentUser.Object, mockIdentityService.Object);
+
+        // 1. Create a new plan
+        var createReq = new CreateSubscriptionPlanRequest(
+            PlanCode: "CUSTOM_TIER",
+            PlanName: "Custom Specialized Clinic",
+            Tier: "Specialty",
+            IsUnlimitedVisits: false,
+            DefaultMonthlyVisits: 750,
+            MaxDoctors: 3,
+            MaxStaff: 6,
+            PriceINR: 1899m,
+            BillingCycle: BillingCycles.Monthly,
+            HasCustomVitals: true,
+            HasLabModule: true,
+            IsActive: true
+        );
+
+        var created = await handler.Handle(new CreateSubscriptionPlanCommand(createReq), CancellationToken.None);
+        created.PlanCode.Should().Be("CUSTOM_TIER");
+        created.PriceINR.Should().Be(1899m);
+
+        // 2. Query admin plans list (includes inactive and active)
+        var allPlans = await handler.Handle(new GetSubscriptionPlansAdminQuery(), CancellationToken.None);
+        allPlans.Should().ContainSingle(p => p.PlanCode == "CUSTOM_TIER");
+
+        // 3. Update the plan (deactivate and update price)
+        var updateReq = new UpdateSubscriptionPlanRequest(
+            PlanName: "Custom Specialized Clinic (Archived)",
+            Tier: "Specialty",
+            IsUnlimitedVisits: false,
+            DefaultMonthlyVisits: 750,
+            MaxDoctors: 3,
+            MaxStaff: 6,
+            PriceINR: 1999m,
+            BillingCycle: BillingCycles.Monthly,
+            HasCustomVitals: true,
+            HasLabModule: true,
+            IsActive: false // soft-deactivated
+        );
+
+        var updated = await handler.Handle(new UpdateSubscriptionPlanCommand(created.Id, updateReq), CancellationToken.None);
+        updated.IsActive.Should().BeFalse();
+        updated.PlanName.Should().Be("Custom Specialized Clinic (Archived)");
+        updated.PriceINR.Should().Be(1999m);
+
+        // 4. Regular GetSubscriptionPlansQuery (for onboarding picker) should filter out inactive plan
+        var activePlans = await handler.Handle(new GetSubscriptionPlansQuery(), CancellationToken.None);
+        activePlans.Should().NotContain(p => p.Id == created.Id);
     }
 }
 

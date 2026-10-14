@@ -8,6 +8,7 @@ import {
   SubscriptionStatus,
   PaymentMethod,
   PaymentStatus,
+  SubscriptionPlan,
 } from '../../types';
 import {
   Building2,
@@ -89,6 +90,56 @@ export const ClinicSubscriptionPage: React.FC = () => {
   const [paymentDate, setPaymentDate] = useState<string>(() => getIstDateInputValue());
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>('Success');
   const [paymentSubmitting, setPaymentSubmitting] = useState<boolean>(false);
+
+  // Change Plan Modal State
+  const [isChangePlanModalOpen, setIsChangePlanModalOpen] = useState<boolean>(false);
+  const [availablePlans, setAvailablePlans] = useState<SubscriptionPlan[]>([]);
+  const [loadingAvailablePlans, setLoadingAvailablePlans] = useState<boolean>(false);
+  const [selectedNewPlanId, setSelectedNewPlanId] = useState<string>('');
+  const [resetOverrides, setResetOverrides] = useState<boolean>(false);
+  const [planChangeReason, setPlanChangeReason] = useState<string>('');
+  const [changePlanSubmitting, setChangePlanSubmitting] = useState<boolean>(false);
+
+  const openChangePlanModal = async () => {
+    setIsChangePlanModalOpen(true);
+    setPlanChangeReason('');
+    setResetOverrides(false);
+    try {
+      setLoadingAvailablePlans(true);
+      const plans = await adminApi.getPlans();
+      setAvailablePlans(plans);
+      const otherPlan = plans.find((p) => p.id !== detail?.catalogPlanId) || plans[0];
+      if (otherPlan) {
+        setSelectedNewPlanId(otherPlan.id);
+      }
+    } catch (err) {
+      console.error('Failed to load plans for plan change', err);
+    } finally {
+      setLoadingAvailablePlans(false);
+    }
+  };
+
+  const handleApplyChangePlan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!clinicId || !selectedNewPlanId) return;
+    try {
+      setChangePlanSubmitting(true);
+      setError(null);
+      await adminApi.changeClinicPlan(clinicId, {
+        catalogPlanId: selectedNewPlanId,
+        resetOverrides,
+        reason: planChangeReason.trim() || undefined,
+      });
+      setIsChangePlanModalOpen(false);
+      setSuccessMessage('Clinic catalog plan successfully changed and new contract snapshot applied!');
+      setTimeout(() => setSuccessMessage(null), 4000);
+      await fetchSubscription();
+    } catch (err: unknown) {
+      setError(getApiErrorMessage(err, 'Failed to change clinic catalog plan'));
+    } finally {
+      setChangePlanSubmitting(false);
+    }
+  };
 
   const fetchSubscription = async () => {
     if (!clinicId) {
@@ -257,7 +308,7 @@ export const ClinicSubscriptionPage: React.FC = () => {
       ? true
       : labModuleSetting === 'disabled'
       ? false
-      : detail.planHasLabModule;
+      : detail.subscribedHasLabModule;
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -279,41 +330,69 @@ export const ClinicSubscriptionPage: React.FC = () => {
             <CreditCard className="w-6 h-6" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-2xl font-black text-slate-900 tracking-tight">
                 {detail.clinicName}
               </h1>
               <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-800">
                 {detail.planName}
               </span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200/60">
+                Contract Snapshot
+              </span>
             </div>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Tier: <strong className="text-slate-700">{detail.planTier}</strong> • Billing Cycle:{' '}
-              <strong className="text-slate-700">{detail.billingCycle}</strong> • Plan Price:{' '}
-              {detail.effectivePriceINR !== undefined && detail.priceOverrideINR !== null && detail.priceOverrideINR !== undefined ? (
-                <span>
-                  <strong className="text-emerald-700 font-bold">₹{detail.effectivePriceINR.toLocaleString('en-IN')}</strong>
-                  <span className="text-slate-400 line-through ml-1.5 text-[11px]">₹{detail.priceINR.toLocaleString('en-IN')}</span>
-                  {detail.discountAmountINR ? (
-                    <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                      -₹{detail.discountAmountINR.toLocaleString('en-IN')} Off
-                    </span>
-                  ) : null}
-                </span>
-              ) : (
-                <strong className="text-slate-700">₹{detail.priceINR.toLocaleString('en-IN')}</strong>
+            <p className="text-xs text-slate-500 mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span>
+                Tier: <strong className="text-slate-700">{detail.planTier}</strong>
+              </span>
+              <span>•</span>
+              <span>
+                Billing Cycle: <strong className="text-slate-700">{detail.billingCycle}</strong>
+              </span>
+              <span>•</span>
+              <span>
+                Plan Price:{' '}
+                {detail.effectivePriceINR !== undefined && detail.priceOverrideINR !== null && detail.priceOverrideINR !== undefined ? (
+                  <span>
+                    <strong className="text-emerald-700 font-bold">₹{detail.effectivePriceINR.toLocaleString('en-IN')}</strong>
+                    <span className="text-slate-400 line-through ml-1.5 text-[11px]">₹{detail.priceINR.toLocaleString('en-IN')}</span>
+                    {detail.discountAmountINR ? (
+                      <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                        -₹{detail.discountAmountINR.toLocaleString('en-IN')} Off
+                      </span>
+                    ) : null}
+                  </span>
+                ) : (
+                  <strong className="text-slate-700">₹{detail.priceINR.toLocaleString('en-IN')}</strong>
+                )}
+              </span>
+              {detail.planAssignedAt && (
+                <>
+                  <span>•</span>
+                  <span className="text-slate-400 text-[11px]">
+                    Assigned: {formatDateTimeIST(detail.planAssignedAt)}
+                  </span>
+                </>
               )}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={fetchSubscription}
             title="Refresh"
             className="p-2.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors border border-slate-200"
           >
             <RefreshCw className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={openChangePlanModal}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-md shadow-indigo-600/20 transition-all hover:shadow"
+          >
+            <Layers className="w-4 h-4" />
+            <span>Change Plan</span>
           </button>
 
           <button
@@ -590,7 +669,7 @@ export const ClinicSubscriptionPage: React.FC = () => {
                   className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500/20 cursor-pointer"
                 >
                   <option value="inherit">
-                    Use plan default ({detail.planHasLabModule ? 'On' : 'Off'} — {detail.planName})
+                    Use plan default ({detail.subscribedHasLabModule ? 'On' : 'Off'} — {detail.planName})
                   </option>
                   <option value="enabled">Force enabled (this clinic only)</option>
                   <option value="disabled">Force disabled (this clinic only)</option>
@@ -941,6 +1020,199 @@ export const ClinicSubscriptionPage: React.FC = () => {
                   className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm disabled:opacity-50"
                 >
                   {paymentSubmitting ? 'Recording...' : 'Save Payment'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Change Plan Modal */}
+      {isChangePlanModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-700">
+                  <Layers className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">Switch Clinic Catalog Plan</h3>
+                  <p className="text-xs text-slate-500">
+                    Creates a new contract snapshot for {detail.clinicName}. Catalog updates never alter existing subscribers at runtime.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsChangePlanModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg transition-colors"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleApplyChangePlan} className="mt-5 space-y-5">
+              {/* Plan Picker */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Select New Catalog Plan <span className="text-rose-500">*</span>
+                </label>
+                {loadingAvailablePlans ? (
+                  <div className="py-4 text-center text-xs text-slate-400">Loading catalog plans...</div>
+                ) : (
+                  <select
+                    value={selectedNewPlanId}
+                    onChange={(e) => setSelectedNewPlanId(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer"
+                    required
+                  >
+                    {availablePlans.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.planName} ({p.planCode}) — {p.tier} • ₹{p.priceINR.toLocaleString('en-IN')}/{p.billingCycle.toLowerCase()} {p.isUnlimitedVisits ? '• Unlimited' : `• ${p.defaultMonthlyVisits} visits`}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              {/* Diff Preview between Current Contract vs Selected Catalog Plan */}
+              {(() => {
+                const candidate = availablePlans.find((p) => p.id === selectedNewPlanId);
+                if (!candidate) return null;
+
+                const isPlanDiff = candidate.id !== detail.catalogPlanId;
+                const isPriceDiff = candidate.priceINR !== detail.priceINR;
+                const isVisitDiff = candidate.isUnlimitedVisits !== detail.isUnlimitedVisits || candidate.defaultMonthlyVisits !== detail.monthlyVisitQuota;
+                const isDoctorDiff = candidate.maxDoctors !== detail.effectiveMaxDoctors;
+                const isLabDiff = candidate.hasLabModule !== detail.subscribedHasLabModule;
+                const isVitalsDiff = candidate.hasCustomVitals !== detail.subscribedHasCustomVitals;
+
+                return (
+                  <div className="rounded-2xl border border-slate-200 overflow-hidden bg-slate-50/50">
+                    <div className="px-4 py-2.5 bg-slate-100 border-b border-slate-200 flex items-center justify-between">
+                      <span className="text-xs font-black text-slate-700 uppercase tracking-wider">
+                        Contract Snapshot Diff Preview
+                      </span>
+                      {isPlanDiff && (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800">
+                          Plan Changed
+                        </span>
+                      )}
+                    </div>
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-200 bg-white/60 text-slate-500 font-bold text-left">
+                          <th className="py-2 px-3">Attribute</th>
+                          <th className="py-2 px-3">Current Contract Snapshot</th>
+                          <th className="py-2 px-3">Candidate Catalog Plan</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200/60 bg-white">
+                        <tr>
+                          <td className="py-2 px-3 font-medium text-slate-600">Plan Name & Tier</td>
+                          <td className="py-2 px-3 font-bold text-slate-800">{detail.planName} ({detail.planTier})</td>
+                          <td className={`py-2 px-3 font-bold ${isPlanDiff ? 'text-indigo-700 bg-indigo-50/50' : 'text-slate-800'}`}>
+                            {candidate.planName} ({candidate.tier})
+                          </td>
+                        </tr>
+                        <tr>
+                          <td className="py-2 px-3 font-medium text-slate-600">Catalog Base Price</td>
+                          <td className="py-2 px-3 font-mono text-slate-800">₹{detail.priceINR.toLocaleString('en-IN')}</td>
+                          <td className={`py-2 px-3 font-mono font-bold ${isPriceDiff ? 'text-indigo-700 bg-indigo-50/50' : 'text-slate-800'}`}>
+                            ₹{candidate.priceINR.toLocaleString('en-IN')}
+                          </td>
+                        </tr>
+                        <tr>
+                          <td className="py-2 px-3 font-medium text-slate-600">Monthly Visits</td>
+                          <td className="py-2 px-3 text-slate-800">
+                            {detail.isUnlimitedVisits ? 'Unlimited' : `${detail.monthlyVisitQuota ?? '—'} visits`}
+                          </td>
+                          <td className={`py-2 px-3 font-bold ${isVisitDiff ? 'text-indigo-700 bg-indigo-50/50' : 'text-slate-800'}`}>
+                            {candidate.isUnlimitedVisits ? 'Unlimited' : `${candidate.defaultMonthlyVisits ?? '—'} visits`}
+                          </td>
+                        </tr>
+                        <tr>
+                          <td className="py-2 px-3 font-medium text-slate-600">Max Doctors</td>
+                          <td className="py-2 px-3 text-slate-800">{detail.effectiveMaxDoctors}</td>
+                          <td className={`py-2 px-3 font-bold ${isDoctorDiff ? 'text-indigo-700 bg-indigo-50/50' : 'text-slate-800'}`}>
+                            {candidate.maxDoctors}
+                          </td>
+                        </tr>
+                        <tr>
+                          <td className="py-2 px-3 font-medium text-slate-600">Diagnostic Labs</td>
+                          <td className="py-2 px-3 text-slate-800">
+                            {detail.subscribedHasLabModule ? 'Included' : 'Not Included'}
+                          </td>
+                          <td className={`py-2 px-3 font-bold ${isLabDiff ? 'text-indigo-700 bg-indigo-50/50' : 'text-slate-800'}`}>
+                            {candidate.hasLabModule ? 'Included' : 'Not Included'}
+                          </td>
+                        </tr>
+                        <tr>
+                          <td className="py-2 px-3 font-medium text-slate-600">Custom Vitals</td>
+                          <td className="py-2 px-3 text-slate-800">
+                            {detail.subscribedHasCustomVitals ? 'Enabled' : 'Disabled'}
+                          </td>
+                          <td className={`py-2 px-3 font-bold ${isVitalsDiff ? 'text-indigo-700 bg-indigo-50/50' : 'text-slate-800'}`}>
+                            {candidate.hasCustomVitals ? 'Enabled' : 'Disabled'}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
+
+              {/* Reset Overrides Option */}
+              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={resetOverrides}
+                    onChange={(e) => setResetOverrides(e.target.checked)}
+                    className="w-4 h-4 mt-0.5 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 cursor-pointer"
+                  />
+                  <div>
+                    <span className="text-xs font-bold text-slate-900 block">
+                      Reset per-clinic overrides to catalog defaults
+                    </span>
+                    <span className="text-[11px] text-slate-500 block mt-0.5">
+                      If unchecked (recommended), custom price overrides, doctor seat caps, and diagnostic lab toggles configured specifically for this clinic will remain active.
+                    </span>
+                  </div>
+                </label>
+              </div>
+
+              {/* Audit Reason */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Reason for Plan Change <span className="text-slate-400 font-normal">(Optional audit note)</span>
+                </label>
+                <input
+                  type="text"
+                  value={planChangeReason}
+                  onChange={(e) => setPlanChangeReason(e.target.value)}
+                  placeholder="e.g. Upgraded to MultiDoctor on request, seasonal promo"
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/20"
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsChangePlanModalOpen(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={changePlanSubmitting || !selectedNewPlanId}
+                  className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/20 disabled:opacity-50 inline-flex items-center gap-1.5"
+                >
+                  <Layers className="w-4 h-4" />
+                  <span>{changePlanSubmitting ? 'Applying Change...' : 'Switch Plan & Create Snapshot'}</span>
                 </button>
               </div>
             </form>

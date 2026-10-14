@@ -23,7 +23,8 @@ import {
   ArrowRight,
   RefreshCw,
   Sliders,
-  Filter
+  Filter,
+  Layers,
 } from 'lucide-react';
 
 export const AdminClinicsPage: React.FC = () => {
@@ -162,6 +163,16 @@ export const AdminClinicsPage: React.FC = () => {
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
+
+          {isPlatformAdmin && (
+            <button
+              onClick={() => navigate('/admin/plans')}
+              className="inline-flex items-center gap-2 px-3.5 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-sm font-bold rounded-xl border border-indigo-200 transition-all"
+            >
+              <Layers className="w-4 h-4" />
+              <span>Plan Catalog</span>
+            </button>
+          )}
 
           <button
             onClick={() => navigate('/admin/onboard-doctor')}

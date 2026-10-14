@@ -509,7 +509,7 @@ export interface OnboardClinicRequest {
   consultationFee?: number;
   clinicTimings?: string;
   doctorPassword?: string;
-  planId: string;
+  catalogPlanId: string;
   isTrial: boolean;
   monthlyVisitQuotaOverride?: number;
   isUnlimitedOverride: boolean;
@@ -582,7 +582,7 @@ export interface ClinicSubscriptionDetail {
   subscriptionId: string;
   clinicId: string;
   clinicName: string;
-  planId: string;
+  catalogPlanId: string;
   planName: string;
   planTier: SubscriptionTier;
   billingCycle: BillingCycle;
@@ -602,7 +602,7 @@ export interface ClinicSubscriptionDetail {
   lastVisitRecordedAt?: string;
   notes?: string;
   labModuleOverride?: boolean | null;
-  planHasLabModule: boolean;
+  subscribedHasLabModule: boolean;
   effectiveHasLabModule: boolean;
   paymentHistory: SubscriptionPayment[];
   priceOverrideINR?: number;
@@ -611,6 +611,17 @@ export interface ClinicSubscriptionDetail {
   usedPrescriptions?: number;
   remainingPrescriptions?: number;
   totalAllowedPrescriptions?: number;
+  // B13 Contract Snapshot Details
+  subscribedPlanName?: string;
+  subscribedTier?: SubscriptionTier;
+  subscribedBillingCycle?: BillingCycle;
+  subscribedPriceINR?: number;
+  subscribedIsUnlimitedVisits?: boolean;
+  subscribedDefaultMonthlyVisits?: number | null;
+  subscribedMaxDoctors?: number;
+  subscribedMaxStaff?: number;
+  subscribedHasCustomVitals?: boolean;
+  planAssignedAt?: string;
 }
 
 /** inherit = use plan default; enabled/disabled = per-clinic override */
@@ -626,6 +637,42 @@ export interface UpdateClinicSubscriptionRequest {
   labModuleOverride?: boolean | null;
   priceOverrideINR?: number | null;
   discountAmountINR?: number | null;
+}
+
+export interface ChangeClinicPlanRequest {
+  catalogPlanId: string;
+  resetOverrides?: boolean;
+  effectiveImmediately?: boolean;
+  reason?: string;
+}
+
+export interface CreateSubscriptionPlanRequest {
+  planCode: string;
+  planName: string;
+  tier: SubscriptionTier;
+  billingCycle: BillingCycle;
+  priceINR: number;
+  isUnlimitedVisits: boolean;
+  defaultMonthlyVisits?: number | null;
+  maxDoctors: number;
+  maxStaff: number;
+  hasCustomVitals: boolean;
+  hasLabModule: boolean;
+  isActive: boolean;
+}
+
+export interface UpdateSubscriptionPlanRequest {
+  planName: string;
+  tier: SubscriptionTier;
+  billingCycle: BillingCycle;
+  priceINR: number;
+  isUnlimitedVisits: boolean;
+  defaultMonthlyVisits?: number | null;
+  maxDoctors: number;
+  maxStaff: number;
+  hasCustomVitals: boolean;
+  hasLabModule: boolean;
+  isActive: boolean;
 }
 
 export interface ClinicQuotaStatus {

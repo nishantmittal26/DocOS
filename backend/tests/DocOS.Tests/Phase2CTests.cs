@@ -132,12 +132,11 @@ public class Phase2CTests
         {
             Id = Guid.NewGuid(),
             ClinicId = clinicId,
-            PlanId = plan.Id,
-            Plan = plan,
             Status = SubscriptionStatuses.Active,
             CurrentPeriodStart = DateTime.UtcNow.AddDays(-5),
             CurrentPeriodEnd = DateTime.UtcNow.AddDays(25)
         };
+        sub.ApplyCatalogPlan(plan, DateTime.UtcNow);
         context.ClinicSubscriptions.Add(sub);
         context.SaveChanges();
 
@@ -179,12 +178,11 @@ public class Phase2CTests
         {
             Id = Guid.NewGuid(),
             ClinicId = clinicId,
-            PlanId = plan.Id,
-            Plan = plan,
             Status = SubscriptionStatuses.Active,
             CurrentPeriodStart = DateTime.UtcNow.AddDays(-5),
             CurrentPeriodEnd = DateTime.UtcNow.AddDays(25)
         };
+        sub.ApplyCatalogPlan(plan, DateTime.UtcNow);
         context.ClinicSubscriptions.Add(sub);
         context.SaveChanges();
 

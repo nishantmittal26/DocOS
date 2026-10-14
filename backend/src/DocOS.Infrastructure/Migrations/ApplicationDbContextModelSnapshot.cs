@@ -248,6 +248,9 @@ namespace DocOS.Infrastructure.Migrations
                     b.Property<int>("AdditionalTopUpVisits")
                         .HasColumnType("int");
 
+                    b.Property<Guid>("CatalogPlanId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("ClinicId")
                         .HasColumnType("uniqueidentifier");
 
@@ -283,8 +286,8 @@ namespace DocOS.Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
-                    b.Property<Guid>("PlanId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<DateTime>("PlanAssignedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<decimal?>("PriceOverrideINR")
                         .HasPrecision(10, 2)
@@ -295,15 +298,52 @@ namespace DocOS.Infrastructure.Migrations
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
 
+                    b.Property<string>("SubscribedBillingCycle")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<int?>("SubscribedDefaultMonthlyVisits")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("SubscribedHasCustomVitals")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("SubscribedHasLabModule")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("SubscribedIsUnlimitedVisits")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("SubscribedMaxDoctors")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SubscribedMaxStaff")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SubscribedPlanName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<decimal>("SubscribedPriceINR")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<string>("SubscribedTier")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CatalogPlanId");
+
                     b.HasIndex("ClinicId")
                         .IsUnique();
-
-                    b.HasIndex("PlanId");
 
                     b.ToTable("ClinicSubscriptions");
                 });
@@ -1486,21 +1526,21 @@ namespace DocOS.Infrastructure.Migrations
 
             modelBuilder.Entity("DocOS.Domain.Entities.ClinicSubscription", b =>
                 {
+                    b.HasOne("DocOS.Domain.Entities.SubscriptionPlanMaster", "CatalogPlan")
+                        .WithMany("Subscriptions")
+                        .HasForeignKey("CatalogPlanId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("DocOS.Domain.Entities.Clinic", "Clinic")
                         .WithOne("Subscription")
                         .HasForeignKey("DocOS.Domain.Entities.ClinicSubscription", "ClinicId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("DocOS.Domain.Entities.SubscriptionPlanMaster", "Plan")
-                        .WithMany("Subscriptions")
-                        .HasForeignKey("PlanId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                    b.Navigation("CatalogPlan");
 
                     b.Navigation("Clinic");
-
-                    b.Navigation("Plan");
                 });
 
             modelBuilder.Entity("DocOS.Domain.Entities.ClinicVitalPreference", b =>

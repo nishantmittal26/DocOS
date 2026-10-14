@@ -27,6 +27,48 @@ public class AdminController : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("plans/admin")]
+    [Authorize(Roles = Roles.PlatformAdmin)]
+    public async Task<ActionResult<List<SubscriptionPlanDto>>> GetPlansAdmin()
+    {
+        var result = await _mediator.Send(new GetSubscriptionPlansAdminQuery());
+        return Ok(result);
+    }
+
+    [HttpPost("plans")]
+    [Authorize(Roles = Roles.PlatformAdmin)]
+    public async Task<ActionResult<SubscriptionPlanDto>> CreatePlan([FromBody] CreateSubscriptionPlanRequest request)
+    {
+        try
+        {
+            var result = await _mediator.Send(new CreateSubscriptionPlanCommand(request));
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("plans/{id:guid}")]
+    [Authorize(Roles = Roles.PlatformAdmin)]
+    public async Task<ActionResult<SubscriptionPlanDto>> UpdatePlan(Guid id, [FromBody] UpdateSubscriptionPlanRequest request)
+    {
+        try
+        {
+            var result = await _mediator.Send(new UpdateSubscriptionPlanCommand(id, request));
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpPost("onboard")]
     [Authorize(Roles = $"{Roles.PlatformAdmin},{Roles.SalesAgent}")]
     public async Task<ActionResult<OnboardClinicResponse>> OnboardClinic([FromBody] OnboardClinicRequest request)
@@ -57,6 +99,27 @@ public class AdminController : ControllerBase
     {
         var result = await _mediator.Send(new UpdateClinicSubscriptionCommand(clinicId, request));
         return Ok(result);
+    }
+
+    [HttpPost("clinics/{clinicId:guid}/subscription/change-plan")]
+    [Authorize(Roles = Roles.PlatformAdmin)]
+    public async Task<ActionResult<ClinicSubscriptionDetailDto>> ChangeClinicPlan(
+        Guid clinicId,
+        [FromBody] ChangeClinicPlanRequest request)
+    {
+        try
+        {
+            var result = await _mediator.Send(new ChangeClinicCatalogPlanCommand(clinicId, request));
+            return Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpPost("clinics/{clinicId:guid}/subscription/topup")]

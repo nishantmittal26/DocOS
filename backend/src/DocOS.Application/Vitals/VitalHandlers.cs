@@ -173,12 +173,12 @@ public class VitalHandlers :
         var clinicId = _currentUser.ClinicId
             ?? throw new UnauthorizedAccessException("Clinic context is required");
 
-        // Entitlement check: HasCustomVitals on the clinic's plan
+        // Entitlement check: SubscribedHasCustomVitals on the clinic's contract snapshot
         var subscription = await _context.ClinicSubscriptions
-            .Include(s => s.Plan)
+            .AsNoTracking()
             .FirstOrDefaultAsync(s => s.ClinicId == clinicId, cancellationToken);
 
-        if (subscription?.Plan?.HasCustomVitals != true)
+        if (subscription?.SubscribedHasCustomVitals != true)
         {
             throw new InvalidOperationException("Custom vitals require a subscription plan that includes the custom vitals feature. Please upgrade your clinic's plan.");
         }

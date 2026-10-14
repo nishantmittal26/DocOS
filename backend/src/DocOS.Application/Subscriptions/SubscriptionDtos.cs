@@ -31,7 +31,7 @@ public record OnboardClinicRequest(
     string? DoctorPassword,
 
     // Step 2: Plan & Quota
-    Guid PlanId,
+    Guid CatalogPlanId,
     bool IsTrial,
     int? MonthlyVisitQuotaOverride,
     bool IsUnlimitedOverride,
@@ -114,7 +114,7 @@ public record ClinicSubscriptionDetailDto(
     Guid SubscriptionId,
     Guid ClinicId,
     string ClinicName,
-    Guid PlanId,
+    Guid CatalogPlanId,
     string PlanName,
     string PlanTier,
     string BillingCycle,
@@ -134,18 +134,58 @@ public record ClinicSubscriptionDetailDto(
     DateTime? LastVisitRecordedAt,
     string? Notes,
     bool? LabModuleOverride,
-    bool PlanHasLabModule,
+    bool SubscribedHasLabModule,
     bool EffectiveHasLabModule,
     List<SubscriptionPaymentDto> PaymentHistory,
     decimal? PriceOverrideINR = null,
     decimal? DiscountAmountINR = null,
-    decimal EffectivePriceINR = 0m
+    decimal EffectivePriceINR = 0m,
+    DateTime? PlanAssignedAt = null,
+    bool SubscribedHasCustomVitals = false,
+    int SubscribedMaxDoctors = 1,
+    int SubscribedMaxStaff = 2,
+    bool SubscribedIsUnlimitedVisits = false,
+    int? SubscribedDefaultMonthlyVisits = null
 )
 {
     public int UsedPrescriptions => VisitsConducted;
     public int? RemainingPrescriptions => RemainingVisits;
     public int? TotalAllowedPrescriptions => TotalAllowedVisits;
 }
+
+public record ChangeClinicPlanRequest(
+    Guid CatalogPlanId,
+    string? Notes = null
+);
+
+public record CreateSubscriptionPlanRequest(
+    string PlanCode,
+    string PlanName,
+    string Tier,
+    bool IsUnlimitedVisits,
+    int? DefaultMonthlyVisits,
+    int MaxDoctors,
+    int MaxStaff,
+    decimal PriceINR,
+    string BillingCycle,
+    bool HasCustomVitals,
+    bool HasLabModule,
+    bool IsActive
+);
+
+public record UpdateSubscriptionPlanRequest(
+    string PlanName,
+    string Tier,
+    bool IsUnlimitedVisits,
+    int? DefaultMonthlyVisits,
+    int MaxDoctors,
+    int MaxStaff,
+    decimal PriceINR,
+    string BillingCycle,
+    bool HasCustomVitals,
+    bool HasLabModule,
+    bool IsActive
+);
 
 public record UpdateClinicSubscriptionRequest(
     bool IsUnlimitedVisits,

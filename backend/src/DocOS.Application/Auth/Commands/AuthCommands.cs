@@ -181,7 +181,6 @@ public class AuthCommandHandler :
         if (role == Roles.Doctor)
         {
             var sub = await _context.ClinicSubscriptions
-                .Include(s => s.Plan)
                 .FirstOrDefaultAsync(s => s.ClinicId == clinicId, cancellationToken);
 
             var maxDoctors = sub?.EffectiveMaxDoctors ?? 1;
@@ -237,7 +236,6 @@ public class AuthCommandHandler :
             if (targetStaff != null && targetStaff.Roles.Contains(Roles.Doctor) && !targetStaff.IsActive)
             {
                 var sub = await _context.ClinicSubscriptions
-                    .Include(s => s.Plan)
                     .FirstOrDefaultAsync(s => s.ClinicId == clinicId, cancellationToken);
 
                 var maxDoctors = sub?.EffectiveMaxDoctors ?? 1;

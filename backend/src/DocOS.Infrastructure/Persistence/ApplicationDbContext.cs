@@ -237,16 +237,24 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
             entity.Property(s => s.PriceOverrideINR).HasPrecision(10, 2);
             entity.Property(s => s.DiscountAmountINR).HasPrecision(10, 2);
 
+            // B13 Contract snapshot columns
+            entity.Property(s => s.SubscribedPlanName).HasMaxLength(150).IsRequired();
+            entity.Property(s => s.SubscribedTier).HasMaxLength(30).IsRequired();
+            entity.Property(s => s.SubscribedBillingCycle).HasMaxLength(20).IsRequired();
+            entity.Property(s => s.SubscribedPriceINR).HasPrecision(10, 2);
+            entity.Property(s => s.PlanAssignedAt).IsRequired();
+
             entity.HasIndex(s => s.ClinicId).IsUnique();
+            entity.HasIndex(s => s.CatalogPlanId);
 
             entity.HasOne(s => s.Clinic)
                 .WithOne(c => c.Subscription)
                 .HasForeignKey<ClinicSubscription>(s => s.ClinicId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            entity.HasOne(s => s.Plan)
+            entity.HasOne(s => s.CatalogPlan)
                 .WithMany(p => p.Subscriptions)
-                .HasForeignKey(s => s.PlanId)
+                .HasForeignKey(s => s.CatalogPlanId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
 

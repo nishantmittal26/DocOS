@@ -61,7 +61,7 @@ export const OnboardDoctorPage: React.FC = () => {
     consultationFee: 500,
     clinicTimings: 'Mon - Sat: 10:00 AM - 02:00 PM, 05:00 PM - 09:00 PM',
     doctorPassword: '',
-    planId: '',
+    catalogPlanId: '',
     isTrial: false,
     monthlyVisitQuotaOverride: undefined,
     isUnlimitedOverride: false,
@@ -83,8 +83,8 @@ export const OnboardDoctorPage: React.FC = () => {
         setLoadingPlans(true);
         const data = await adminApi.getPlans();
         setPlans(data);
-        if (data.length > 0 && !formData.planId) {
-          setFormData((prev) => ({ ...prev, planId: data[0].id }));
+        if (data.length > 0 && !formData.catalogPlanId) {
+          setFormData((prev) => ({ ...prev, catalogPlanId: data[0].id }));
         }
       } catch (err: any) {
         console.error('Failed to load subscription plans:', err);
@@ -111,7 +111,7 @@ export const OnboardDoctorPage: React.FC = () => {
   };
 
   const validateStep2 = () => {
-    if (!formData.planId) return 'Please select a subscription plan';
+    if (!formData.catalogPlanId) return 'Please select a subscription plan';
     return null;
   };
 
@@ -166,7 +166,7 @@ export const OnboardDoctorPage: React.FC = () => {
     }
   };
 
-  const selectedPlan = plans.find((p) => p.id === formData.planId);
+  const selectedPlan = plans.find((p) => p.id === formData.catalogPlanId);
 
   return (
     <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 lg:px-8">
@@ -477,11 +477,11 @@ export const OnboardDoctorPage: React.FC = () => {
               <div className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {plans.map((p) => {
-                    const isSelected = formData.planId === p.id;
+                    const isSelected = formData.catalogPlanId === p.id;
                     return (
                       <div
                         key={p.id}
-                        onClick={() => setFormData({ ...formData, planId: p.id })}
+                        onClick={() => setFormData({ ...formData, catalogPlanId: p.id })}
                         className={`p-5 rounded-2xl border-2 cursor-pointer transition relative flex flex-col justify-between ${
                           isSelected
                             ? 'border-emerald-600 bg-emerald-50/50 shadow-sm'

@@ -46,7 +46,6 @@ public class LabHandlers :
     private async Task EnsureLabModuleEntitlementAsync(Guid clinicId, CancellationToken cancellationToken)
     {
         var subscription = await _context.ClinicSubscriptions
-            .Include(s => s.Plan)
             .FirstOrDefaultAsync(s => s.ClinicId == clinicId, cancellationToken);
 
         if (subscription?.EffectiveHasLabModule != true)

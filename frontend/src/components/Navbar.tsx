@@ -25,6 +25,7 @@ import {
   FlaskConical,
   BookOpen,
   FileText,
+  Layers,
 } from 'lucide-react';
 import { ChangePasswordModal } from './ChangePasswordModal';
 
@@ -190,6 +191,17 @@ export const Navbar: React.FC = () => {
                         >
                           <BookOpen className="w-4 h-4" />
                           <span>Advice</span>
+                        </Link>
+                        <Link
+                          to="/admin/plans"
+                          className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                            isActive('/admin/plans')
+                              ? 'bg-indigo-50 text-indigo-700 font-bold'
+                              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                          }`}
+                        >
+                          <Layers className="w-4 h-4" />
+                          <span>Plans</span>
                         </Link>
                         <Link
                           to="/admin/audit-logs"

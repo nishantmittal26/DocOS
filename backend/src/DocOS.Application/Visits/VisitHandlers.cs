@@ -96,7 +96,6 @@ public class VisitHandlers :
 
         // Subscription Guard: Check if subscription allows issuing tokens
         var subscription = await _context.ClinicSubscriptions
-            .Include(s => s.Plan)
             .FirstOrDefaultAsync(s => s.ClinicId == clinicId, cancellationToken);
 
         if (subscription != null)
@@ -421,7 +420,6 @@ public class VisitHandlers :
         if (wasNotCompleted)
         {
             var activeSubscription = await _context.ClinicSubscriptions
-                .Include(s => s.Plan)
                 .FirstOrDefaultAsync(s => s.ClinicId == clinicId, cancellationToken);
 
             if (activeSubscription != null)

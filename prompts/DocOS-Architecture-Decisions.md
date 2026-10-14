@@ -99,6 +99,20 @@ Newest first. One block per decision or schema change.
 - **Decision:** Catalog vs contract subscriptions (**B13**) lives only in [DocOS-Backlog-B13-Catalog.md](DocOS-Backlog-B13-Catalog.md). It is removed from [DocOS-Phase3-Backlog.md](DocOS-Phase3-Backlog.md) so it is not mixed with smaller later ideas. When implementation starts, agents must explain the design in detail and ask questions; **no code until the human agrees and understands** (that file **§0**).
 - **Schema:** No change.
 
+### 2026-10-13 — B13 Catalog-based subscriptions & contract snapshots
+
+- **Context & Problem:** Previously, `ClinicSubscription` pointed to `SubscriptionPlanMaster` (`PlanId`) and joined at runtime for `HasLabModule`, `PriceINR`, `DefaultMonthlyVisits`, etc. When a platform admin edited plan pricing, quotas, or feature flags in the catalog, existing clinics had their entitlements and renewal prices changed implicitly without their consent.
+- **Decision:** Split into **Catalog (Menu SKUs)** vs. **Contract (Clinic Agreement)**:
+  - `SubscriptionPlanMaster` acts exclusively as the master catalog/menu. Added full Platform Admin CRUD (`GET /api/admin/plans/admin`, `POST /api/admin/plans`, `PUT /api/admin/plans/{id}`).
+  - `ClinicSubscription` represents the clinic contract snapshot. Renamed `PlanId` -> `CatalogPlanId` (`Restrict` delete behavior). Added snapshot columns frozen upon assignment: `SubscribedPlanName`, `SubscribedTier`, `SubscribedBillingCycle`, `SubscribedPriceINR`, `SubscribedIsUnlimitedVisits`, `SubscribedDefaultMonthlyVisits`, `SubscribedMaxDoctors`, `SubscribedMaxStaff`, `SubscribedHasCustomVitals`, `SubscribedHasLabModule`, and `PlanAssignedAt` (`datetime2`, IST wall-clock).
+  - Domain helpers (`TotalAllowedVisits`, `EffectivePriceINR`, `EffectiveMaxDoctors`, `EffectiveHasLabModule`) calculate entitlements strictly from contract snapshot + per-clinic overrides, with zero runtime dependency on catalog edits.
+  - Plan switches happen via dedicated `POST /api/admin/clinics/{clinicId}/subscription/change-plan`, copying a fresh snapshot and auditing the reason.
+  - Per directives: clean breaking contract rename without JSON aliases (`catalogPlanId`, `subscribedHasLabModule`).
+- **Database Schema Changes Applied:**
+  - `ClinicSubscriptions`: Renamed column `PlanId` -> `CatalogPlanId` (`uniqueidentifier`, FK to `SubscriptionPlans(Id)` with `Restrict` delete behavior).
+  - `ClinicSubscriptions`: Added snapshot columns `SubscribedPlanName` (`nvarchar(150)`), `SubscribedTier` (`nvarchar(30)`), `SubscribedBillingCycle` (`nvarchar(20)`), `SubscribedPriceINR` (`decimal(10,2)`), `SubscribedIsUnlimitedVisits` (`bit`), `SubscribedDefaultMonthlyVisits` (`int`, nullable), `SubscribedMaxDoctors` (`int`), `SubscribedMaxStaff` (`int`), `SubscribedHasCustomVitals` (`bit`), `SubscribedHasLabModule` (`bit`), `PlanAssignedAt` (`datetime2`).
+- **Migration:** `20261014073204_AddB13_ClinicSubscription_ContractSnapshot` generated and applied to SQL Server with backfill SQL populating snapshot values for existing clinic subscriptions from `SubscriptionPlans`.
+
 ### 2026-10-06 — Fold completed follow-up enhancements into Phase 2 spec
 
 - **Docs:** Completed follow-up **enhancements** E01–E15 were folded into [DocOS-(Phase 2).md](<DocOS-(Phase%202).md>) as accepted 2A/2B/2D product behavior (locked IST rule, login/onboarding, navigation, catalogs, visits, patients, quota UI, Rx timeline). **Bugs were not copied** into the Phase 2 spec. [DocOS-Follow-ups.md](DocOS-Follow-ups.md) was reset to an empty living tracker for new bugs/polish.

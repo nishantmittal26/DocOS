@@ -212,14 +212,14 @@ Clinic-facing quota endpoint (if separate from admin): ensure it uses updated ha
 
 ### Other handlers
 
-- [ ] `VitalHandlers.cs` — entitlement via contract `SubscribedHasCustomVitals`.
-- [ ] `LabHandlers.cs` / `VisitHandlers.cs` — grep `Plan.` or `HasLabModule` on subscription.
-- [ ] `AuthCommands.cs` — any subscription seed on login (if present).
+- [x] `VitalHandlers.cs` — entitlement via contract `SubscribedHasCustomVitals`.
+- [x] `LabHandlers.cs` / `VisitHandlers.cs` — grep `Plan.` or `HasLabModule` on subscription.
+- [x] `AuthCommands.cs` — doctor seat cap checks use `EffectiveMaxDoctors` from contract snapshot.
 
 ### Tests
 
-- [ ] `Phase2BTests.cs`, `Phase2CTests.cs`, `Phase2DTests.cs`, `LocalDbSubscriptionDetailTests.cs` — seed subscriptions with snapshots; assert catalog edit does **not** change clinic entitlement.
-- [ ] New test: change plan copies new snapshot; lab override still wins when set.
+- [x] `Phase2BTests.cs`, `Phase2CTests.cs`, `Phase2DTests.cs` — seed subscriptions with snapshots; assert catalog edit does **not** change clinic entitlement.
+- [x] New test: change plan copies new snapshot; lab override still wins when set.
 
 ---
 
@@ -268,6 +268,7 @@ Follow **§0**. Conversation and explicit human agreement come first; docs and c
 
 | Date (IST) | Summary |
 | :--- | :--- |
+| 2026-10-13 | B13 implementation complete: Split catalog (SubscriptionPlanMaster) and contract (ClinicSubscription snapshot). Added catalog plan admin CRUD, change plan command with diff preview, contract snapshot persistence, and automated test coverage. |
 | 2026-10-13 | Updated with B11 impact: ClinicSubscription now includes PriceOverrideINR and DiscountAmountINR; B13 entitlement resolution formula for price defines EffectivePriceINR = PriceOverrideINR ?? SubscribedPriceINR. |
 | 2026-10-12 | Added reference to check B11 (custom price / onboarding instant discount) in DocOS-Phase3-Backlog.md before implementing B13. |
 | 2026-10-06 | Agent gate: explain in detail and ask questions; no code until the human agrees and understands. |

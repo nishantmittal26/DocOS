@@ -17,6 +17,7 @@ import { AdminVitalsPage } from './pages/admin/AdminVitalsPage';
 import { AdminLabsPage } from './pages/admin/AdminLabsPage';
 import { AdminAdvicePage } from './pages/admin/AdminAdvicePage';
 import { AdminAuditLogsPage } from './pages/admin/AdminAuditLogsPage';
+import { SubscriptionPlansPage } from './pages/admin/SubscriptionPlansPage';
 import { PublicPrescriptionPage } from './pages/public/PublicPrescriptionPage';
 
 // Automatically use HashRouter on GitHub Pages to prevent 404s on subpath page reloads
@@ -101,6 +102,16 @@ const AppContent: React.FC = () => {
                 element={
                   isPlatformAdmin ? (
                     <AdminAuditLogsPage />
+                  ) : (
+                    <Navigate to="/admin/clinics" replace />
+                  )
+                }
+              />
+              <Route
+                path="/admin/plans"
+                element={
+                  isPlatformAdmin ? (
+                    <SubscriptionPlansPage />
                   ) : (
                     <Navigate to="/admin/clinics" replace />
                   )

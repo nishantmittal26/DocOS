@@ -74,9 +74,9 @@ public class Phase2DTests
         var sub = new ClinicSubscription
         {
             ClinicId = clinicId,
-            PlanId = plan.Id,
             Status = SubscriptionStatuses.Active
         };
+        sub.ApplyCatalogPlan(plan, DateTime.UtcNow);
         context.ClinicSubscriptions.Add(sub);
         context.SaveChanges();
 
@@ -91,8 +91,9 @@ public class Phase2DTests
         await act.Should().ThrowAsync<InvalidOperationException>()
             .WithMessage("*Lab Module is not included*");
 
-        // Upgrade plan to include lab module
+        // Upgrade plan to include lab module and apply to clinic contract snapshot
         plan.HasLabModule = true;
+        sub.ApplyCatalogPlan(plan, DateTime.UtcNow);
         context.SaveChanges();
 
         // Now should succeed
@@ -124,10 +125,10 @@ public class Phase2DTests
         var sub = new ClinicSubscription
         {
             ClinicId = clinicId,
-            PlanId = plan.Id,
             Status = SubscriptionStatuses.Active,
             LabModuleOverride = true
         };
+        sub.ApplyCatalogPlan(plan, DateTime.UtcNow);
         context.ClinicSubscriptions.Add(sub);
         context.SaveChanges();
 
@@ -152,7 +153,9 @@ public class Phase2DTests
 
         var plan = new SubscriptionPlanMaster { Id = Guid.NewGuid(), PlanCode = "PRO", PlanName = "Pro", Tier = "Pro", HasLabModule = true, BillingCycle = "Monthly" };
         context.SubscriptionPlans.Add(plan);
-        context.ClinicSubscriptions.Add(new ClinicSubscription { ClinicId = clinicId, PlanId = plan.Id, Status = SubscriptionStatuses.Active });
+        var sub = new ClinicSubscription { ClinicId = clinicId, Status = SubscriptionStatuses.Active };
+        sub.ApplyCatalogPlan(plan, DateTime.UtcNow);
+        context.ClinicSubscriptions.Add(sub);
 
         var patient = new Patient { Id = Guid.NewGuid(), ClinicId = clinicId, FullName = "John Doe", PatientUid = "DOC001", MobileNumber = "9988776655" };
         context.Patients.Add(patient);
@@ -334,7 +337,8 @@ public class Phase2DTests
 
         var plan = new SubscriptionPlanMaster { Id = Guid.NewGuid(), PlanCode = "TEST", PlanName = "Test", Tier = "Test", BillingCycle = "Monthly", DefaultMonthlyVisits = 100 };
         context.SubscriptionPlans.Add(plan);
-        var sub = new ClinicSubscription { ClinicId = clinicId, PlanId = plan.Id, Status = SubscriptionStatuses.Active };
+        var sub = new ClinicSubscription { ClinicId = clinicId, Status = SubscriptionStatuses.Active };
+        sub.ApplyCatalogPlan(plan, DateTime.UtcNow);
         context.ClinicSubscriptions.Add(sub);
         var usage = new ClinicPeriodUsage { ClinicId = clinicId, SubscriptionId = sub.Id, PeriodStart = DateTime.UtcNow.Date, PeriodEnd = DateTime.UtcNow.Date.AddDays(30), VisitsConducted = 5 };
         context.ClinicPeriodUsages.Add(usage);
@@ -486,7 +490,8 @@ public class Phase2DTests
             DefaultMonthlyVisits = 100
         };
         context.SubscriptionPlans.Add(plan);
-        var sub = new ClinicSubscription { ClinicId = clinicId, PlanId = plan.Id, Status = SubscriptionStatuses.Active };
+        var sub = new ClinicSubscription { ClinicId = clinicId, Status = SubscriptionStatuses.Active };
+        sub.ApplyCatalogPlan(plan, DateTime.UtcNow);
         context.ClinicSubscriptions.Add(sub);
         var usage = new ClinicPeriodUsage
         {

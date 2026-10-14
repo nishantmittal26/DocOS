@@ -99,7 +99,6 @@ public static class SubscriptionPlanSeeder
             var subscription = new ClinicSubscription
             {
                 ClinicId = clinic.Id,
-                PlanId = starterPlan.Id,
                 IsUnlimitedVisits = false,
                 MonthlyVisitQuota = starterPlan.DefaultMonthlyVisits,
                 AdditionalTopUpVisits = 0,
@@ -110,6 +109,7 @@ public static class SubscriptionPlanSeeder
                 GracePeriodDays = 5,
                 Notes = "Auto-backfilled Starter subscription for existing clinic"
             };
+            subscription.ApplyCatalogPlan(starterPlan, periodStart);
 
             context.ClinicSubscriptions.Add(subscription);
 

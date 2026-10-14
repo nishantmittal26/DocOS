@@ -17,3 +17,12 @@ public record GetAdminClinicsQuery : IRequest<List<AdminClinicItemDto>>;
 public record GetClinicSubscriptionDetailQuery(Guid ClinicId) : IRequest<ClinicSubscriptionDetailDto>;
 
 public record GetClinicQuotaStatusQuery : IRequest<ClinicQuotaStatusDto>;
+
+// B13 Catalog Administration & Plan Change Commands
+public record ChangeClinicCatalogPlanCommand(Guid ClinicId, ChangeClinicPlanRequest Request) : IRequest<ClinicSubscriptionDetailDto>;
+
+public record GetSubscriptionPlansAdminQuery : IRequest<List<SubscriptionPlanDto>>;
+
+public record CreateSubscriptionPlanCommand(CreateSubscriptionPlanRequest Request) : IRequest<SubscriptionPlanDto>;
+
+public record UpdateSubscriptionPlanCommand(Guid Id, UpdateSubscriptionPlanRequest Request) : IRequest<SubscriptionPlanDto>;

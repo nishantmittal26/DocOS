@@ -15,7 +15,11 @@ public class SubscriptionHandlers :
     IRequestHandler<UpdateClinicSubscriptionCommand, bool>,
     IRequestHandler<AddTopUpVisitsCommand, bool>,
     IRequestHandler<RecordSubscriptionPaymentCommand, bool>,
-    IRequestHandler<GetClinicQuotaStatusQuery, ClinicQuotaStatusDto>
+    IRequestHandler<GetClinicQuotaStatusQuery, ClinicQuotaStatusDto>,
+    IRequestHandler<ChangeClinicCatalogPlanCommand, ClinicSubscriptionDetailDto>,
+    IRequestHandler<GetSubscriptionPlansAdminQuery, List<SubscriptionPlanDto>>,
+    IRequestHandler<CreateSubscriptionPlanCommand, SubscriptionPlanDto>,
+    IRequestHandler<UpdateSubscriptionPlanCommand, SubscriptionPlanDto>
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
@@ -43,7 +47,7 @@ public class SubscriptionHandlers :
 
         // 2. Validate plan
         var plan = await _context.SubscriptionPlans
-            .FirstOrDefaultAsync(p => p.Id == req.PlanId && p.IsActive, cancellationToken)
+            .FirstOrDefaultAsync(p => p.Id == req.CatalogPlanId && p.IsActive, cancellationToken)
             ?? throw new InvalidOperationException("Selected subscription plan was not found or is inactive");
 
         var doctorEmail = req.Email?.Trim() ?? string.Empty;
@@ -131,7 +135,6 @@ public class SubscriptionHandlers :
         var subscription = new ClinicSubscription
         {
             ClinicId = clinic.Id,
-            PlanId = plan.Id,
             IsUnlimitedVisits = isUnlimited,
             MonthlyVisitQuota = monthlyQuota,
             AdditionalTopUpVisits = 0,
@@ -144,6 +147,7 @@ public class SubscriptionHandlers :
             GracePeriodDays = 5,
             Notes = $"Onboarded by {_currentUserService.UserId} on {IndiaTime.Now:yyyy-MM-dd}"
         };
+        subscription.ApplyCatalogPlan(plan, IndiaTime.Now);
 
         _context.ClinicSubscriptions.Add(subscription);
 
@@ -227,7 +231,6 @@ public class SubscriptionHandlers :
 
         var clinics = await query
             .Include(c => c.Subscription)
-                .ThenInclude(s => s!.Plan)
             .Include(c => c.PeriodUsages)
             .OrderByDescending(c => c.CreatedAt)
             .ToListAsync(cancellationToken);
@@ -266,8 +269,8 @@ public class SubscriptionHandlers :
                 SalesNotes: c.SalesNotes,
                 CreatedAt: c.CreatedAt,
                 SubscriptionId: sub?.Id,
-                PlanName: sub?.Plan?.PlanName,
-                PlanTier: sub?.Plan?.Tier,
+                PlanName: sub?.SubscribedPlanName,
+                PlanTier: sub?.SubscribedTier,
                 Status: sub?.Status ?? SubscriptionStatuses.Active,
                 CurrentPeriodStart: sub?.CurrentPeriodStart ?? c.CreatedAt,
                 CurrentPeriodEnd: sub?.CurrentPeriodEnd ?? c.CreatedAt.AddDays(30),
@@ -297,15 +300,8 @@ public class SubscriptionHandlers :
 
         var sub = await _context.ClinicSubscriptions
             .AsNoTracking()
-            .Include(s => s.Plan)
             .Include(s => s.PaymentHistories)
             .FirstAsync(s => s.ClinicId == request.ClinicId, cancellationToken);
-
-        if (sub.Plan == null)
-        {
-            throw new InvalidOperationException(
-                "Subscription plan is missing or invalid for this clinic. Assign an active plan and try again.");
-        }
 
         var currentUsage = await _context.ClinicPeriodUsages
             .AsNoTracking()
@@ -334,11 +330,11 @@ public class SubscriptionHandlers :
             SubscriptionId: sub.Id,
             ClinicId: clinic.Id,
             ClinicName: clinic.Name,
-            PlanId: sub.PlanId,
-            PlanName: sub.Plan.PlanName,
-            PlanTier: sub.Plan.Tier,
-            BillingCycle: sub.Plan.BillingCycle,
-            PriceINR: sub.Plan.PriceINR,
+            CatalogPlanId: sub.CatalogPlanId,
+            PlanName: sub.SubscribedPlanName,
+            PlanTier: sub.SubscribedTier,
+            BillingCycle: sub.SubscribedBillingCycle,
+            PriceINR: sub.SubscribedPriceINR,
             Status: sub.Status,
             CurrentPeriodStart: sub.CurrentPeriodStart,
             CurrentPeriodEnd: sub.CurrentPeriodEnd,
@@ -354,12 +350,18 @@ public class SubscriptionHandlers :
             LastVisitRecordedAt: currentUsage?.LastVisitRecordedAt,
             Notes: sub.Notes,
             LabModuleOverride: sub.LabModuleOverride,
-            PlanHasLabModule: sub.Plan.HasLabModule,
+            SubscribedHasLabModule: sub.SubscribedHasLabModule,
             EffectiveHasLabModule: sub.EffectiveHasLabModule,
             PaymentHistory: payments,
             PriceOverrideINR: sub.PriceOverrideINR,
             DiscountAmountINR: sub.DiscountAmountINR,
-            EffectivePriceINR: sub.EffectivePriceINR
+            EffectivePriceINR: sub.EffectivePriceINR,
+            PlanAssignedAt: sub.PlanAssignedAt,
+            SubscribedHasCustomVitals: sub.SubscribedHasCustomVitals,
+            SubscribedMaxDoctors: sub.SubscribedMaxDoctors,
+            SubscribedMaxStaff: sub.SubscribedMaxStaff,
+            SubscribedIsUnlimitedVisits: sub.SubscribedIsUnlimitedVisits,
+            SubscribedDefaultMonthlyVisits: sub.SubscribedDefaultMonthlyVisits
         );
     }
 
@@ -371,7 +373,6 @@ public class SubscriptionHandlers :
         }
 
         var sub = await _context.ClinicSubscriptions
-            .Include(s => s.Plan)
             .FirstOrDefaultAsync(s => s.ClinicId == command.ClinicId, cancellationToken)
             ?? throw new KeyNotFoundException("Clinic subscription not found");
 
@@ -393,15 +394,15 @@ public class SubscriptionHandlers :
             throw new InvalidOperationException("Discount amount cannot be negative.");
         }
 
-        if (req.PriceOverrideINR.HasValue && !req.DiscountAmountINR.HasValue && sub.Plan != null)
+        if (req.PriceOverrideINR.HasValue && !req.DiscountAmountINR.HasValue)
         {
             sub.PriceOverrideINR = req.PriceOverrideINR;
-            sub.DiscountAmountINR = Math.Max(0m, sub.Plan.PriceINR - req.PriceOverrideINR.Value);
+            sub.DiscountAmountINR = Math.Max(0m, sub.SubscribedPriceINR - req.PriceOverrideINR.Value);
         }
-        else if (req.DiscountAmountINR.HasValue && !req.PriceOverrideINR.HasValue && sub.Plan != null)
+        else if (req.DiscountAmountINR.HasValue && !req.PriceOverrideINR.HasValue)
         {
             sub.DiscountAmountINR = req.DiscountAmountINR;
-            sub.PriceOverrideINR = Math.Max(0m, sub.Plan.PriceINR - req.DiscountAmountINR.Value);
+            sub.PriceOverrideINR = Math.Max(0m, sub.SubscribedPriceINR - req.DiscountAmountINR.Value);
         }
         else
         {
@@ -428,7 +429,6 @@ public class SubscriptionHandlers :
         }
 
         var sub = await _context.ClinicSubscriptions
-            .Include(s => s.Plan)
             .FirstOrDefaultAsync(s => s.ClinicId == command.ClinicId, cancellationToken)
             ?? throw new KeyNotFoundException("Clinic subscription not found");
 
@@ -500,7 +500,6 @@ public class SubscriptionHandlers :
 
         var sub = await _context.ClinicSubscriptions
             .AsNoTracking()
-            .Include(s => s.Plan)
             .FirstOrDefaultAsync(s => s.ClinicId == clinicId, cancellationToken);
 
         if (sub == null)
@@ -568,8 +567,8 @@ public class SubscriptionHandlers :
         return new ClinicQuotaStatusDto(
             ClinicId: clinicId,
             Status: isSuspended ? SubscriptionStatuses.Suspended : (isQuotaExceeded ? SubscriptionStatuses.QuotaExceeded : (isGracePeriod ? SubscriptionStatuses.GracePeriod : sub.Status)),
-            PlanName: sub.Plan.PlanName,
-            PlanTier: sub.Plan.Tier,
+            PlanName: sub.SubscribedPlanName,
+            PlanTier: sub.SubscribedTier,
             IsUnlimited: isUnlimited,
             VisitsConducted: visitsConducted,
             MonthlyQuota: sub.MonthlyVisitQuota,
@@ -584,8 +583,163 @@ public class SubscriptionHandlers :
             PeriodEnd: sub.CurrentPeriodEnd,
             CanIssueTokens: canIssueTokens,
             HasLabModule: sub.EffectiveHasLabModule,
-            HasCustomVitals: sub.Plan?.HasCustomVitals == true,
+            HasCustomVitals: sub.SubscribedHasCustomVitals,
             EffectiveMaxDoctors: sub.EffectiveMaxDoctors
+        );
+    }
+
+    public async Task<ClinicSubscriptionDetailDto> Handle(ChangeClinicCatalogPlanCommand command, CancellationToken cancellationToken)
+    {
+        if (!_currentUserService.IsInRole(Roles.PlatformAdmin))
+        {
+            throw new UnauthorizedAccessException("Only Platform Administrators can change a clinic's catalog plan");
+        }
+
+        var sub = await _context.ClinicSubscriptions
+            .FirstOrDefaultAsync(s => s.ClinicId == command.ClinicId, cancellationToken)
+            ?? throw new KeyNotFoundException("Clinic subscription not found");
+
+        var newPlan = await _context.SubscriptionPlans
+            .FirstOrDefaultAsync(p => p.Id == command.Request.CatalogPlanId && p.IsActive, cancellationToken)
+            ?? throw new InvalidOperationException("Selected subscription plan does not exist or is inactive");
+
+        // Copy catalog baseline snapshot into contract
+        sub.ApplyCatalogPlan(newPlan, IndiaTime.Now);
+
+        if (!string.IsNullOrWhiteSpace(command.Request.Notes))
+        {
+            sub.Notes = string.IsNullOrWhiteSpace(sub.Notes)
+                ? command.Request.Notes.Trim()
+                : $"{sub.Notes} | {command.Request.Notes.Trim()}";
+        }
+        sub.UpdatedAt = IndiaTime.Now;
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return await Handle(new GetClinicSubscriptionDetailQuery(command.ClinicId), cancellationToken);
+    }
+
+    public async Task<List<SubscriptionPlanDto>> Handle(GetSubscriptionPlansAdminQuery request, CancellationToken cancellationToken)
+    {
+        if (!_currentUserService.IsInRole(Roles.PlatformAdmin))
+        {
+            throw new UnauthorizedAccessException("Only Platform Administrators can view all catalog plans");
+        }
+
+        return await _context.SubscriptionPlans
+            .AsNoTracking()
+            .OrderBy(p => p.PriceINR)
+            .Select(p => new SubscriptionPlanDto(
+                p.Id,
+                p.PlanCode,
+                p.PlanName,
+                p.Tier,
+                p.IsUnlimitedVisits,
+                p.DefaultMonthlyVisits,
+                p.MaxDoctors,
+                p.MaxStaff,
+                p.PriceINR,
+                p.BillingCycle,
+                p.HasCustomVitals,
+                p.HasLabModule,
+                p.IsActive
+            ))
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<SubscriptionPlanDto> Handle(CreateSubscriptionPlanCommand command, CancellationToken cancellationToken)
+    {
+        if (!_currentUserService.IsInRole(Roles.PlatformAdmin))
+        {
+            throw new UnauthorizedAccessException("Only Platform Administrators can create subscription plans");
+        }
+
+        var req = command.Request;
+        var cleanCode = req.PlanCode.Trim().ToUpperInvariant();
+        var exists = await _context.SubscriptionPlans
+            .AnyAsync(p => p.PlanCode == cleanCode, cancellationToken);
+        if (exists)
+        {
+            throw new InvalidOperationException($"Subscription plan with code '{cleanCode}' already exists");
+        }
+
+        var plan = new SubscriptionPlanMaster
+        {
+            PlanCode = cleanCode,
+            PlanName = req.PlanName.Trim(),
+            Tier = req.Tier.Trim(),
+            IsUnlimitedVisits = req.IsUnlimitedVisits,
+            DefaultMonthlyVisits = req.IsUnlimitedVisits ? null : req.DefaultMonthlyVisits,
+            MaxDoctors = Math.Max(1, req.MaxDoctors),
+            MaxStaff = Math.Max(1, req.MaxStaff),
+            PriceINR = req.PriceINR,
+            BillingCycle = req.BillingCycle.Trim(),
+            HasCustomVitals = req.HasCustomVitals,
+            HasLabModule = req.HasLabModule,
+            IsActive = req.IsActive
+        };
+
+        _context.SubscriptionPlans.Add(plan);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return new SubscriptionPlanDto(
+            plan.Id,
+            plan.PlanCode,
+            plan.PlanName,
+            plan.Tier,
+            plan.IsUnlimitedVisits,
+            plan.DefaultMonthlyVisits,
+            plan.MaxDoctors,
+            plan.MaxStaff,
+            plan.PriceINR,
+            plan.BillingCycle,
+            plan.HasCustomVitals,
+            plan.HasLabModule,
+            plan.IsActive
+        );
+    }
+
+    public async Task<SubscriptionPlanDto> Handle(UpdateSubscriptionPlanCommand command, CancellationToken cancellationToken)
+    {
+        if (!_currentUserService.IsInRole(Roles.PlatformAdmin))
+        {
+            throw new UnauthorizedAccessException("Only Platform Administrators can edit subscription plans");
+        }
+
+        var plan = await _context.SubscriptionPlans
+            .FirstOrDefaultAsync(p => p.Id == command.Id, cancellationToken)
+            ?? throw new KeyNotFoundException("Subscription plan not found");
+
+        var req = command.Request;
+        plan.PlanName = req.PlanName.Trim();
+        plan.Tier = req.Tier.Trim();
+        plan.IsUnlimitedVisits = req.IsUnlimitedVisits;
+        plan.DefaultMonthlyVisits = req.IsUnlimitedVisits ? null : req.DefaultMonthlyVisits;
+        plan.MaxDoctors = Math.Max(1, req.MaxDoctors);
+        plan.MaxStaff = Math.Max(1, req.MaxStaff);
+        plan.PriceINR = req.PriceINR;
+        plan.BillingCycle = req.BillingCycle.Trim();
+        plan.HasCustomVitals = req.HasCustomVitals;
+        plan.HasLabModule = req.HasLabModule;
+        plan.IsActive = req.IsActive;
+        plan.UpdatedAt = IndiaTime.Now;
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return new SubscriptionPlanDto(
+            plan.Id,
+            plan.PlanCode,
+            plan.PlanName,
+            plan.Tier,
+            plan.IsUnlimitedVisits,
+            plan.DefaultMonthlyVisits,
+            plan.MaxDoctors,
+            plan.MaxStaff,
+            plan.PriceINR,
+            plan.BillingCycle,
+            plan.HasCustomVitals,
+            plan.HasLabModule,
+            plan.IsActive
         );
     }
 
@@ -614,7 +768,6 @@ public class SubscriptionHandlers :
         var subscription = new ClinicSubscription
         {
             ClinicId = clinicId,
-            PlanId = starterPlan.Id,
             IsUnlimitedVisits = false,
             MonthlyVisitQuota = starterPlan.DefaultMonthlyVisits,
             AdditionalTopUpVisits = 0,
@@ -625,6 +778,7 @@ public class SubscriptionHandlers :
             GracePeriodDays = 5,
             Notes = "Auto-provisioned Starter subscription when opening quota & billing"
         };
+        subscription.ApplyCatalogPlan(starterPlan, IndiaTime.Now);
 
         _context.ClinicSubscriptions.Add(subscription);
 

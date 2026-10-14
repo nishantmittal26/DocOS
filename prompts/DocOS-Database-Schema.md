@@ -1,6 +1,6 @@
 # DocOS — Database Schema
 
-Authoritative column-level schema for the DocOS SQL Server database: Phase 1 clinical core (patients, visits, prescriptions, medicines) plus Phase 2 parts **2A–2D** (identity, subscriptions, dynamic vitals, labs, advice, payments, audit) and post-2D columns from folded enhancements **E07, E12, E13** (E15 reuses an existing FK). Behavioral rules are in [DocOS-(Phase 2).md](<DocOS-(Phase 2).md>). Migrations live in `DocOS.Infrastructure/Migrations`; the model snapshot reflects the **current** shape after `AddClinicLandlineAndNullablePhone` (includes `AddPhase2D_Features`, `AddClinicSubscription_LabModuleOverride`, and `VisitDate_Datetime2`).
+Authoritative column-level schema for the DocOS SQL Server database: Phase 1 clinical core (patients, visits, prescriptions, medicines) plus Phase 2 parts **2A–2D** (identity, subscriptions, dynamic vitals, labs, advice, payments, audit), post-2D columns from folded enhancements **E07, E12, E13**, and Phase 3 **B13** contract snapshots. Behavioral rules are in [DocOS-(Phase 2).md](<DocOS-(Phase 2).md>). Migrations live in `DocOS.Infrastructure/Migrations`; the model snapshot reflects the **current** shape after `AddB13_ClinicSubscription_ContractSnapshot`.
 
 Phase 1’s PostgreSQL database is the historical MVP. Production Phase 2+ uses a **new** SQL Server database (not an in-place PostgreSQL migration).
 
@@ -343,7 +343,7 @@ Search returns rows where `ClinicId` is null or `ClinicId` equals the caller’s
 erDiagram
     AspNetUsers |o--o{ Clinics : "OnboardedByUserId"
     Clinics ||--|| ClinicSubscription : "one subscription"
-    SubscriptionPlanMaster ||--o{ ClinicSubscription : "plan"
+    SubscriptionPlanMaster ||--o{ ClinicSubscription : "catalog SKU (FK CatalogPlanId)"
     ClinicSubscription ||--o{ ClinicPeriodUsage : "period counters"
     Clinics ||--o{ ClinicPeriodUsage : "usage"
     ClinicSubscription ||--o{ SubscriptionPaymentHistory : "SaaS invoices"
@@ -379,20 +379,31 @@ erDiagram
 
 ### 4.4 `ClinicSubscription`
 
-One row per clinic. Lifecycle status lives here.
+One row per clinic. Represents the frozen contract agreement and snapshot. Lifecycle status lives here.
 
 | Column | Type | Null | Notes |
 | :--- | :--- | :---: | :--- |
 | `Id` | `uniqueidentifier` | No | PK |
 | `ClinicId` | `uniqueidentifier` | No | Unique FK `Clinics(Id)` |
-| `PlanId` | `uniqueidentifier` | No | FK `SubscriptionPlanMaster(Id)` |
+| `CatalogPlanId` | `uniqueidentifier` | No | FK `SubscriptionPlanMaster(Id)`. **B13** renamed from `PlanId`. DeleteBehavior.Restrict |
+| `SubscribedPlanName` | `nvarchar(150)` | No | **B13.** Contract snapshot plan name frozen at assignment |
+| `SubscribedTier` | `nvarchar(30)` | No | **B13.** Contract snapshot tier |
+| `SubscribedBillingCycle` | `nvarchar(20)` | No | **B13.** Contract snapshot billing cycle |
+| `SubscribedPriceINR` | `decimal(10,2)` | No | **B13.** Contract snapshot base price |
+| `SubscribedIsUnlimitedVisits` | `bit` | No | **B13.** Contract snapshot unlimited flag |
+| `SubscribedDefaultMonthlyVisits` | `int` | Yes | **B13.** Contract snapshot default visits cap |
+| `SubscribedMaxDoctors` | `int` | No | **B13.** Contract snapshot max doctors |
+| `SubscribedMaxStaff` | `int` | No | **B13.** Contract snapshot max staff |
+| `SubscribedHasCustomVitals` | `bit` | No | **B13.** Contract snapshot custom vitals entitlement |
+| `SubscribedHasLabModule` | `bit` | No | **B13.** Contract snapshot lab module entitlement |
+| `PlanAssignedAt` | `datetime2` | No | **B13.** IST wall-clock timestamp when current contract snapshot was assigned |
 | `IsUnlimitedVisits` | `bit` | No | PlatformAdmin override |
 | `MonthlyVisitQuota` | `int` | Yes | Null when this clinic is unlimited |
 | `AdditionalTopUpVisits` | `int` | No | Default 0. Current period only |
-| `MaxDoctorsOverride` | `int` | Yes | Null means use the plan’s `MaxDoctors` |
-| `LabModuleOverride` | `bit` | Yes | **E12.** Null = inherit `SubscriptionPlanMaster.HasLabModule`; `0`/`1` = per-clinic force off/on |
-| `PriceOverrideINR` | `decimal(10,2)` | Yes | **B11.** When set, overrides catalog `SubscriptionPlanMaster.PriceINR` for this clinic |
-| `DiscountAmountINR` | `decimal(10,2)` | Yes | **B11.** Instant discount amount in INR applied against catalog price at onboarding |
+| `MaxDoctorsOverride` | `int` | Yes | Null means use contract snapshot `SubscribedMaxDoctors` |
+| `LabModuleOverride` | `bit` | Yes | **E12.** Null = inherit contract snapshot `SubscribedHasLabModule`; `0`/`1` = per-clinic force off/on |
+| `PriceOverrideINR` | `decimal(10,2)` | Yes | **B11.** When set, overrides contract snapshot `SubscribedPriceINR` for this clinic |
+| `DiscountAmountINR` | `decimal(10,2)` | Yes | **B11.** Instant discount amount in INR applied against base price at onboarding |
 | `Status` | `nvarchar(30)` | No | `Trial`, `Active`, `GracePeriod`, `QuotaExceeded`, `Suspended` |
 | `CurrentPeriodStart` | `datetime2` | No | |
 | `CurrentPeriodEnd` | `datetime2` | No | |
@@ -401,7 +412,7 @@ One row per clinic. Lifecycle status lives here.
 | `CreatedAt` | `datetime2` | No | |
 | `UpdatedAt` | `datetime2` | Yes | |
 
-`TotalAllowed` is unlimited when `IsUnlimitedVisits` is true, otherwise `MonthlyVisitQuota + AdditionalTopUpVisits`. The extra 20 completed visits are a buffer beyond `TotalAllowed`, not a stored column. Quota used/remaining on clinic UI (**E14**) reads these columns plus `ClinicPeriodUsage`; no extra usage columns. Lab access uses `LabModuleOverride ?? plan.HasLabModule` (**E12**). Doctor seats: `MaxDoctorsOverride ?? plan.MaxDoctors ?? 1` (not a column). Effective subscription price uses `PriceOverrideINR ?? plan.PriceINR ?? 0m` (**B11**).
+**B13 Contract Isolation:** `TotalAllowed` is unlimited when `HasUnlimitedVisits` is true, otherwise `MonthlyVisitQuota + AdditionalTopUpVisits`. The extra 20 completed visits are a buffer beyond `TotalAllowed`, not a stored column. Quota used/remaining on clinic UI (**E14**) reads these columns plus `ClinicPeriodUsage`; no extra usage columns. Lab access uses `EffectiveHasLabModule => LabModuleOverride ?? SubscribedHasLabModule` (**B13/E12**). Doctor seats: `EffectiveMaxDoctors => MaxDoctorsOverride ?? SubscribedMaxDoctors`. Effective subscription price uses `EffectivePriceINR => PriceOverrideINR ?? SubscribedPriceINR`. All entitlements read from the frozen contract snapshot, isolating subscribers from catalog modifications.
 
 ### 4.5 `ClinicPeriodUsage`
 

@@ -13,6 +13,9 @@ import {
   VisitQueueItem,
   Vitals,
   SubscriptionPlan,
+  ChangeClinicPlanRequest,
+  CreateSubscriptionPlanRequest,
+  UpdateSubscriptionPlanRequest,
   OnboardClinicRequest,
   OnboardClinicResponse,
   AdminClinicItem,
@@ -407,6 +410,18 @@ export const adminApi = {
     const res = await api.get<SubscriptionPlan[]>('/admin/plans');
     return res.data;
   },
+  getAdminPlans: async () => {
+    const res = await api.get<SubscriptionPlan[]>('/admin/plans/admin');
+    return res.data;
+  },
+  createPlan: async (data: CreateSubscriptionPlanRequest) => {
+    const res = await api.post<SubscriptionPlan>('/admin/plans', data);
+    return res.data;
+  },
+  updatePlan: async (id: string, data: UpdateSubscriptionPlanRequest) => {
+    const res = await api.put<SubscriptionPlan>(`/admin/plans/${id}`, data);
+    return res.data;
+  },
   onboardClinic: async (data: OnboardClinicRequest) => {
     const res = await api.post<OnboardClinicResponse>('/admin/onboard', data);
     return res.data;
@@ -417,6 +432,10 @@ export const adminApi = {
   },
   getClinicSubscription: async (clinicId: string) => {
     const res = await api.get<ClinicSubscriptionDetail>(`/admin/clinics/${clinicId}/subscription`);
+    return res.data;
+  },
+  changeClinicPlan: async (clinicId: string, data: ChangeClinicPlanRequest) => {
+    const res = await api.post<ClinicSubscriptionDetail>(`/admin/clinics/${clinicId}/subscription/change-plan`, data);
     return res.data;
   },
   updateClinicSubscription: async (clinicId: string, data: UpdateClinicSubscriptionRequest) => {
