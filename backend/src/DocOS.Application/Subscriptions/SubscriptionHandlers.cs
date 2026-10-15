@@ -19,7 +19,10 @@ public class SubscriptionHandlers :
     IRequestHandler<ChangeClinicCatalogPlanCommand, ClinicSubscriptionDetailDto>,
     IRequestHandler<GetSubscriptionPlansAdminQuery, List<SubscriptionPlanDto>>,
     IRequestHandler<CreateSubscriptionPlanCommand, SubscriptionPlanDto>,
-    IRequestHandler<UpdateSubscriptionPlanCommand, SubscriptionPlanDto>
+    IRequestHandler<UpdateSubscriptionPlanCommand, SubscriptionPlanDto>,
+    IRequestHandler<GetSalesAgentsQuery, List<SalesAgentDto>>,
+    IRequestHandler<CreateSalesAgentCommand, SalesAgentDto>,
+    IRequestHandler<UpdateSalesAgentStatusCommand, bool>
 {
     private readonly IApplicationDbContext _context;
     private readonly ICurrentUserService _currentUserService;
@@ -741,6 +744,112 @@ public class SubscriptionHandlers :
             plan.HasLabModule,
             plan.IsActive
         );
+    }
+
+    public async Task<List<SalesAgentDto>> Handle(GetSalesAgentsQuery request, CancellationToken cancellationToken)
+    {
+        if (!_currentUserService.IsInRole(Roles.PlatformAdmin))
+        {
+            throw new UnauthorizedAccessException("Only Platform Administrators can view and manage Sales Agents");
+        }
+
+        var agents = await _identityService.GetUsersInRoleAsync(Roles.SalesAgent);
+        var agentIds = agents.Select(a => a.Id).ToList();
+
+        var clinicCounts = new Dictionary<string, int>();
+        if (agentIds.Count > 0)
+        {
+            clinicCounts = await _context.Clinics
+                .AsNoTracking()
+                .Where(c => c.OnboardedByUserId != null && agentIds.Contains(c.OnboardedByUserId))
+                .GroupBy(c => c.OnboardedByUserId!)
+                .Select(g => new { AgentId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.AgentId, x => x.Count, cancellationToken);
+        }
+
+        return agents.Select(a => new SalesAgentDto(
+            Id: a.Id,
+            FullName: a.FullName,
+            Email: a.Email,
+            PhoneNumber: a.PhoneNumber,
+            IsActive: a.IsActive,
+            CreatedAt: a.CreatedAt,
+            OnboardedClinicsCount: clinicCounts.TryGetValue(a.Id, out var count) ? count : 0
+        )).ToList();
+    }
+
+    public async Task<SalesAgentDto> Handle(CreateSalesAgentCommand command, CancellationToken cancellationToken)
+    {
+        if (!_currentUserService.IsInRole(Roles.PlatformAdmin))
+        {
+            throw new UnauthorizedAccessException("Only Platform Administrators can add Sales Agents");
+        }
+
+        var req = command.Request;
+        var fullName = req.FullName?.Trim() ?? string.Empty;
+        var email = req.Email?.Trim() ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(fullName))
+        {
+            throw new InvalidOperationException("Sales Agent full name is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(email) || !email.Contains('@'))
+        {
+            throw new InvalidOperationException("A valid Sales Agent email address is required.");
+        }
+
+        var initialPassword = string.IsNullOrWhiteSpace(req.Password) ? "Sales@2026" : req.Password.Trim();
+        var phoneNumber = string.IsNullOrWhiteSpace(req.PhoneNumber) ? null : req.PhoneNumber.Trim();
+
+        var (success, error, userId) = await _identityService.CreateSalesAgentAsync(
+            email: email,
+            password: initialPassword,
+            fullName: fullName,
+            phoneNumber: phoneNumber
+        );
+
+        if (!success)
+        {
+            throw new InvalidOperationException(error ?? "Failed to create Sales Agent account");
+        }
+
+        return new SalesAgentDto(
+            Id: userId,
+            FullName: fullName,
+            Email: email,
+            PhoneNumber: phoneNumber,
+            IsActive: true,
+            CreatedAt: IndiaTime.Now,
+            OnboardedClinicsCount: 0,
+            InitialPassword: initialPassword
+        );
+    }
+
+    public async Task<bool> Handle(UpdateSalesAgentStatusCommand command, CancellationToken cancellationToken)
+    {
+        if (!_currentUserService.IsInRole(Roles.PlatformAdmin))
+        {
+            throw new UnauthorizedAccessException("Only Platform Administrators can update Sales Agent status");
+        }
+
+        if (string.IsNullOrWhiteSpace(command.UserId))
+        {
+            throw new InvalidOperationException("Sales Agent UserId is required.");
+        }
+
+        if (string.Equals(command.UserId, _currentUserService.UserId, StringComparison.OrdinalIgnoreCase) && !command.IsActive)
+        {
+            throw new InvalidOperationException("You cannot deactivate your own account.");
+        }
+
+        var (success, error) = await _identityService.SetPlatformUserActiveStatusAsync(command.UserId, command.IsActive);
+        if (!success)
+        {
+            throw new InvalidOperationException(error ?? "Failed to update Sales Agent status");
+        }
+
+        return true;
     }
 
     private async Task EnsureClinicSubscriptionAsync(Guid clinicId, CancellationToken cancellationToken)
