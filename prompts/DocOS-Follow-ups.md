@@ -10,6 +10,9 @@ Add items as you find them. No need for ADR unless behavior or schema changes.
 
 | ID | Area | Description | Status |
 | :--- | :--- | :--- | :--- |
+| BUG-001 | Vitals / Consultation | Vitals should be read only once the consultation is completed. Backend rejects edits with 400 when visit status is Completed; UI disables inputs and switches actions to view-only 'Close' modal with 'View Vitals' button labels. | done |
+| BUG-002 | Clinic Settings / Vitals | Clinic Vitals Configuration page --> click on Saved Preferences button gives error message 'Failed to save vital preferences'. Fixed Receptionist RBAC authorization on `VitalsController`, added robust deduplication & auto-insert of missing clinic preferences in `VitalHandlers`, and improved frontend error parsing & view-only fallback for non-authorized roles. | done |
+| BUG-003 | Billing / RBAC | Hide OPD Fee Collection and Daily OPD Collection Report option for Nurse role; should be visible to Doctor, Clinic Admin, Receptionist. Added `canManagePayments` gate in OPD Queue header, card actions, and modal openers. | done |
 
 ---
 

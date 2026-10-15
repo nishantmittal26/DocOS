@@ -657,7 +657,7 @@ export const ConsultationRoomPage: React.FC = () => {
               className="ml-auto inline-flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold transition-colors"
             >
               <HeartPulse className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Record / Edit Vitals</span>
+              <span>{visit?.status === 'Completed' ? 'View Vitals' : 'Record / Edit Vitals'}</span>
             </button>
           </div>
         </div>

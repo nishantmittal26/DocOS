@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Activity, Check, HeartPulse, Thermometer, Wind, Scale, Ruler, Droplet, AlertTriangle, Sparkles } from 'lucide-react';
+import { X, Activity, Check, HeartPulse, Thermometer, Wind, Scale, Ruler, Droplet, AlertTriangle, Sparkles, Lock } from 'lucide-react';
 import { vitalsApi } from '../api/client';
 import { VisitQueueItem, ClinicVitalPreference, RecordVisitVitalItemRequest } from '../types';
 
@@ -8,6 +8,7 @@ interface VitalsModalProps {
   visit: VisitQueueItem | null;
   onClose: () => void;
   onSaved: () => void;
+  readOnly?: boolean;
 }
 
 export const VitalsModal: React.FC<VitalsModalProps> = ({
@@ -15,7 +16,9 @@ export const VitalsModal: React.FC<VitalsModalProps> = ({
   visit,
   onClose,
   onSaved,
+  readOnly = false,
 }) => {
+  const isReadOnly = Boolean(readOnly || visit?.status === 'Completed');
   const [preferences, setPreferences] = useState<ClinicVitalPreference[]>([]);
   const [values, setValues] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState<boolean>(false);
@@ -137,6 +140,11 @@ export const VitalsModal: React.FC<VitalsModalProps> = ({
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isReadOnly) {
+      onClose();
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -203,11 +211,23 @@ export const VitalsModal: React.FC<VitalsModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
           <div className="flex items-center space-x-2.5">
-            <div className="w-8 h-8 rounded-lg bg-teal-100 text-teal-700 flex items-center justify-center">
-              <Activity className="w-4 h-4" />
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+              isReadOnly ? 'bg-slate-200 text-slate-700' : 'bg-teal-100 text-teal-700'
+            }`}>
+              {isReadOnly ? <Lock className="w-4 h-4" /> : <Activity className="w-4 h-4" />}
             </div>
             <div>
-              <h2 className="text-lg font-bold text-slate-900">Record Patient Vitals</h2>
+              <div className="flex items-center space-x-2">
+                <h2 className="text-lg font-bold text-slate-900">
+                  {isReadOnly ? 'Patient Vitals' : 'Record Patient Vitals'}
+                </h2>
+                {isReadOnly && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 flex items-center gap-1">
+                    <Lock className="w-3 h-3 text-slate-500" />
+                    <span>Read-Only</span>
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-slate-500">
                 Token #{visit.tokenNumber} • {visit.patientName} ({visit.patientUid})
               </p>
@@ -223,6 +243,13 @@ export const VitalsModal: React.FC<VitalsModalProps> = ({
 
         {/* Content Form */}
         <form onSubmit={handleSave} className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
+          {isReadOnly && (
+            <div className="p-3 bg-amber-50/80 border border-amber-200/80 text-amber-900 rounded-xl text-xs flex items-center space-x-2">
+              <Lock className="w-4 h-4 shrink-0 text-amber-700" />
+              <span>Consultation is completed. Patient vitals are locked in read-only mode.</span>
+            </div>
+          )}
+
           {error && (
             <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs flex items-center space-x-2">
               <AlertTriangle className="w-4 h-4 shrink-0 text-rose-500" />
@@ -281,13 +308,16 @@ export const VitalsModal: React.FC<VitalsModalProps> = ({
                         <div className="relative flex-1">
                           <input
                             type="number"
-                            placeholder="Systolic"
+                            placeholder={isReadOnly ? '-' : 'Systolic'}
                             value={sysVal}
+                            disabled={isReadOnly}
                             onChange={(e) => handleInputChange('BP_SYS', e.target.value)}
-                            className={`w-full px-3 py-2 text-sm bg-white border rounded-lg focus:outline-none focus:ring-2 transition-all ${
-                              sysAbnormal
-                                ? 'border-rose-400 focus:ring-rose-200 text-rose-900 font-semibold'
-                                : 'border-slate-200 focus:ring-teal-200 text-slate-900'
+                            className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 transition-all ${
+                              isReadOnly
+                                ? 'bg-slate-100 text-slate-800 border-slate-200 cursor-not-allowed'
+                                : sysAbnormal
+                                ? 'bg-white border-rose-400 focus:ring-rose-200 text-rose-900 font-semibold'
+                                : 'bg-white border-slate-200 focus:ring-teal-200 text-slate-900'
                             }`}
                           />
                         </div>
@@ -295,13 +325,16 @@ export const VitalsModal: React.FC<VitalsModalProps> = ({
                         <div className="relative flex-1">
                           <input
                             type="number"
-                            placeholder="Diastolic"
+                            placeholder={isReadOnly ? '-' : 'Diastolic'}
                             value={diaVal}
+                            disabled={isReadOnly}
                             onChange={(e) => handleInputChange('BP_DIA', e.target.value)}
-                            className={`w-full px-3 py-2 text-sm bg-white border rounded-lg focus:outline-none focus:ring-2 transition-all ${
-                              diaAbnormal
-                                ? 'border-rose-400 focus:ring-rose-200 text-rose-900 font-semibold'
-                                : 'border-slate-200 focus:ring-teal-200 text-slate-900'
+                            className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 transition-all ${
+                              isReadOnly
+                                ? 'bg-slate-100 text-slate-800 border-slate-200 cursor-not-allowed'
+                                : diaAbnormal
+                                ? 'bg-white border-rose-400 focus:ring-rose-200 text-rose-900 font-semibold'
+                                : 'bg-white border-slate-200 focus:ring-teal-200 text-slate-900'
                             }`}
                           />
                         </div>
@@ -404,11 +437,14 @@ export const VitalsModal: React.FC<VitalsModalProps> = ({
                         step={pref.inputType === 'Decimal' ? '0.1' : undefined}
                         placeholder={pref.code === 'SUGAR' ? 'e.g. 110 mg/dL, 140 PP' : `Enter ${pref.displayName}`}
                         value={val}
+                        disabled={isReadOnly}
                         onChange={(e) => handleInputChange(pref.code, e.target.value)}
-                        className={`w-full px-3 py-2 text-sm bg-white border rounded-lg focus:outline-none focus:ring-2 transition-all ${
-                          isAbnormal
-                            ? 'border-rose-400 focus:ring-rose-200 text-rose-900 font-semibold bg-rose-50/20'
-                            : 'border-slate-200 focus:ring-teal-200 text-slate-900'
+                        className={`w-full px-3 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 transition-all ${
+                          isReadOnly
+                            ? 'bg-slate-100 text-slate-800 border-slate-200 cursor-not-allowed font-medium'
+                            : isAbnormal
+                              ? 'border-rose-400 focus:ring-rose-200 text-rose-900 font-semibold bg-rose-50/20'
+                              : 'bg-white border-slate-200 focus:ring-teal-200 text-slate-900'
                         }`}
                       />
                       <span className="absolute right-3 top-2.5 text-xs font-medium text-slate-400 pointer-events-none">
@@ -430,30 +466,42 @@ export const VitalsModal: React.FC<VitalsModalProps> = ({
 
           {/* Action Buttons */}
           <div className="flex items-center justify-end space-x-3 pt-4 border-t border-slate-100">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading || loadingPrefs}
-              className="px-5 py-2 text-sm font-semibold text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-50 rounded-xl shadow-sm shadow-teal-700/20 flex items-center space-x-1.5 transition-all"
-            >
-              {loading ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Saving...</span>
-                </>
-              ) : (
-                <>
-                  <Check className="w-4 h-4" />
-                  <span>Save Vitals</span>
-                </>
-              )}
-            </button>
+            {isReadOnly ? (
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-5 py-2 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
+              >
+                Close
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading || loadingPrefs}
+                  className="px-5 py-2 text-sm font-semibold text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-50 rounded-xl shadow-sm shadow-teal-700/20 flex items-center space-x-1.5 transition-all"
+                >
+                  {loading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4" />
+                      <span>Save Vitals</span>
+                    </>
+                  )}
+                </button>
+              </>
+            )}
           </div>
         </form>
       </div>

@@ -1,6 +1,7 @@
 using DocOS.Application.Common.Interfaces;
 using DocOS.Domain.Common;
 using DocOS.Domain.Entities;
+using DocOS.Domain.Enums;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 
@@ -145,15 +146,27 @@ public class VitalHandlers :
         var clinicId = _currentUser.ClinicId
             ?? throw new UnauthorizedAccessException("Clinic context is required");
 
-        var preferences = await _context.ClinicVitalPreferences
+        if (request.Request?.Preferences == null)
+        {
+            throw new ArgumentException("Preferences list cannot be null");
+        }
+
+        var existingPrefs = await _context.ClinicVitalPreferences
             .Where(p => p.ClinicId == clinicId)
             .ToListAsync(cancellationToken);
 
-        var requestMap = request.Request.Preferences.ToDictionary(p => p.VitalMasterId);
+        var existingPrefMap = existingPrefs
+            .GroupBy(p => p.VitalMasterId)
+            .ToDictionary(g => g.Key, g => g.First());
 
-        foreach (var pref in preferences)
+        var requestItems = request.Request.Preferences
+            .GroupBy(p => p.VitalMasterId)
+            .Select(g => g.Last())
+            .ToList();
+
+        foreach (var update in requestItems)
         {
-            if (requestMap.TryGetValue(pref.VitalMasterId, out var update))
+            if (existingPrefMap.TryGetValue(update.VitalMasterId, out var pref))
             {
                 pref.IsEnabled = update.IsEnabled;
                 pref.IsMandatory = update.IsMandatory;
@@ -161,6 +174,22 @@ public class VitalHandlers :
                 pref.NormalRangeMinOverride = update.NormalRangeMinOverride;
                 pref.NormalRangeMaxOverride = update.NormalRangeMaxOverride;
                 pref.UpdatedAt = IndiaTime.Now;
+            }
+            else
+            {
+                var newPref = new ClinicVitalPreference
+                {
+                    Id = Guid.NewGuid(),
+                    ClinicId = clinicId,
+                    VitalMasterId = update.VitalMasterId,
+                    IsEnabled = update.IsEnabled,
+                    IsMandatory = update.IsMandatory,
+                    DisplayOrder = update.DisplayOrder,
+                    NormalRangeMinOverride = update.NormalRangeMinOverride,
+                    NormalRangeMaxOverride = update.NormalRangeMaxOverride,
+                    CreatedAt = IndiaTime.Now
+                };
+                _context.ClinicVitalPreferences.Add(newPref);
             }
         }
 
@@ -398,6 +427,11 @@ public class VitalHandlers :
             .Include(v => v.Vitals)
             .FirstOrDefaultAsync(v => v.Id == request.VisitId && v.ClinicId == clinicId, cancellationToken)
             ?? throw new InvalidOperationException("Visit not found");
+
+        if (visit.Status == VisitStatus.Completed)
+        {
+            throw new InvalidOperationException("Cannot modify vitals for a completed consultation. Vitals are read-only.");
+        }
 
         // Load clinic's vital preferences to get effective ranges and mandatory flags
         var preferences = await _context.ClinicVitalPreferences

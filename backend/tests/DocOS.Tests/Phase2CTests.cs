@@ -369,4 +369,82 @@ public class Phase2CTests
         updated.DisplayName.Should().Be("Respiratory Rate (Breaths)");
         updated.NormalRangeMin.Should().Be(14m);
     }
+
+    [Fact]
+    public async Task RecordVisitVitals_When_Visit_Is_Completed_Throws_InvalidOperationException()
+    {
+        // Arrange
+        using var context = CreateInMemoryDbContext();
+        SeedGlobalVitalMasters(context);
+
+        var clinicId = Guid.NewGuid();
+        var patientId = Guid.NewGuid();
+        var visitId = Guid.NewGuid();
+
+        var clinic = new Clinic { Id = clinicId, Name = "Test Clinic", Phone = "9999999999" };
+        var patient = new Patient { Id = patientId, ClinicId = clinicId, FullName = "Completed Patient", MobileNumber = "9999999999", Gender = Gender.Male, Age = 45 };
+        var visit = new Visit
+        {
+            Id = visitId,
+            ClinicId = clinicId,
+            PatientId = patientId,
+            Status = VisitStatus.Completed
+        };
+
+        context.Clinics.Add(clinic);
+        context.Patients.Add(patient);
+        context.Visits.Add(visit);
+        context.SaveChanges();
+
+        var mockUser = new Mock<ICurrentUserService>();
+        mockUser.Setup(u => u.ClinicId).Returns(clinicId);
+
+        var handler = new VitalHandlers(context, mockUser.Object);
+
+        var recordReq = new RecordVisitVitalsRequest(new List<RecordVisitVitalItemRequest>
+        {
+            new(null, "PULSE", "72", 72m)
+        });
+
+        // Act
+        var act = async () => await handler.Handle(new RecordVisitVitalsCommand(visitId, recordReq), CancellationToken.None);
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*read-only*");
+    }
+
+    [Fact]
+    public async Task UpdateClinicVitalPreferences_With_Unseeded_Masters_And_Duplicates_Succeeds()
+    {
+        // Arrange
+        using var context = CreateInMemoryDbContext();
+        SeedGlobalVitalMasters(context);
+
+        var clinicId = Guid.NewGuid();
+        var clinic = new Clinic { Id = clinicId, Name = "Test Clinic", Phone = "9999999999" };
+        context.Clinics.Add(clinic);
+        context.SaveChanges();
+
+        var mockUser = new Mock<ICurrentUserService>();
+        mockUser.Setup(u => u.ClinicId).Returns(clinicId);
+
+        var handler = new VitalHandlers(context, mockUser.Object);
+
+        var master = await context.VitalMasters.FirstAsync(m => m.Code == "PULSE");
+
+        // Act: send duplicate items for same VitalMasterId to verify robust grouping
+        var updateReq = new UpdateClinicVitalPreferencesRequest(new List<UpdateVitalPreferenceItem>
+        {
+            new(master.Id, IsEnabled: true, IsMandatory: true, DisplayOrder: 1, null, null),
+            new(master.Id, IsEnabled: true, IsMandatory: true, DisplayOrder: 1, null, null)
+        });
+
+        await handler.Handle(new UpdateClinicVitalPreferencesCommand(updateReq), CancellationToken.None);
+
+        // Assert
+        var prefs = await handler.Handle(new GetClinicVitalPreferencesQuery(), CancellationToken.None);
+        var pulsePref = prefs.First(p => p.Code == "PULSE");
+        pulsePref.IsMandatory.Should().BeTrue();
+    }
 }

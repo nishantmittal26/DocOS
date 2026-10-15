@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, ArrowUp, ArrowDown, Check, Save, Plus, AlertCircle, Sparkles, Lock, RotateCcw } from 'lucide-react';
+import { Activity, ArrowUp, ArrowDown, Check, Save, Plus, AlertCircle, Sparkles, Lock, RotateCcw, ShieldAlert } from 'lucide-react';
 import { vitalsApi, clinicsApi } from '../../api/client';
+import { useAuth } from '../../context/AuthContext';
 import { ClinicVitalPreference, UpdateVitalPreferenceItem, CreateCustomVitalRequest, ClinicQuotaStatus } from '../../types';
 
 export const VitalsSettingsPage: React.FC<{ embedded?: boolean }> = ({ embedded = false }) => {
+  const { hasRole } = useAuth();
+  const canEdit = hasRole('ClinicAdmin') || hasRole('Doctor') || hasRole('Receptionist');
+
   const [preferences, setPreferences] = useState<ClinicVitalPreference[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
@@ -130,7 +134,11 @@ export const VitalsSettingsPage: React.FC<{ embedded?: boolean }> = ({ embedded 
       setMessage({ type: 'success', text: 'Vital preferences saved successfully!' });
       setTimeout(() => setMessage(null), 4000);
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to save vital preferences' });
+      const serverMsg =
+        err.response?.data?.message ||
+        err.response?.data?.title ||
+        (typeof err.response?.data === 'string' ? err.response.data : null);
+      setMessage({ type: 'error', text: serverMsg || 'Failed to save vital preferences' });
     } finally {
       setSaving(false);
     }
@@ -188,30 +196,39 @@ export const VitalsSettingsPage: React.FC<{ embedded?: boolean }> = ({ embedded 
         </div>
 
         <div className="flex items-center space-x-3">
-          <button
-            onClick={() => setIsAddModalOpen(true)}
-            className="px-4 py-2 text-sm font-semibold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-xl flex items-center space-x-1.5 transition-all shadow-sm"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add Custom Vital</span>
-          </button>
-          <button
-            onClick={handleSavePreferences}
-            disabled={saving || loading}
-            className="px-5 py-2 text-sm font-semibold text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-50 rounded-xl shadow-sm shadow-teal-700/20 flex items-center space-x-1.5 transition-all"
-          >
-            {saving ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span>Saving...</span>
-              </>
-            ) : (
-              <>
-                <Save className="w-4 h-4" />
-                <span>Save Preferences</span>
-              </>
-            )}
-          </button>
+          {canEdit ? (
+            <>
+              <button
+                onClick={() => setIsAddModalOpen(true)}
+                className="px-4 py-2 text-sm font-semibold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-xl flex items-center space-x-1.5 transition-all shadow-sm"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Custom Vital</span>
+              </button>
+              <button
+                onClick={handleSavePreferences}
+                disabled={saving || loading}
+                className="px-5 py-2 text-sm font-semibold text-white bg-teal-600 hover:bg-teal-700 disabled:opacity-50 rounded-xl shadow-sm shadow-teal-700/20 flex items-center space-x-1.5 transition-all"
+              >
+                {saving ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    <span>Save Preferences</span>
+                  </>
+                )}
+              </button>
+            </>
+          ) : (
+            <div className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-xs font-semibold text-slate-600">
+              <Lock className="w-4 h-4 text-slate-500" />
+              <span>View-Only Mode</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -263,7 +280,7 @@ export const VitalsSettingsPage: React.FC<{ embedded?: boolean }> = ({ embedded 
                       <div className="flex items-center justify-center space-x-1">
                         <button
                           onClick={() => handleMove(index, 'up')}
-                          disabled={index === 0}
+                          disabled={!canEdit || index === 0}
                           title="Move Up"
                           className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-200 disabled:opacity-20 transition-all"
                         >
@@ -274,7 +291,7 @@ export const VitalsSettingsPage: React.FC<{ embedded?: boolean }> = ({ embedded 
                         </span>
                         <button
                           onClick={() => handleMove(index, 'down')}
-                          disabled={index === preferences.length - 1}
+                          disabled={!canEdit || index === preferences.length - 1}
                           title="Move Down"
                           className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-200 disabled:opacity-20 transition-all"
                         >
@@ -316,8 +333,9 @@ export const VitalsSettingsPage: React.FC<{ embedded?: boolean }> = ({ embedded 
                       <input
                         type="checkbox"
                         checked={pref.isEnabled}
+                        disabled={!canEdit}
                         onChange={() => handleToggleEnable(pref.id)}
-                        className="w-4 h-4 text-teal-600 rounded border-slate-300 focus:ring-teal-500 cursor-pointer"
+                        className="w-4 h-4 text-teal-600 rounded border-slate-300 focus:ring-teal-500 cursor-pointer disabled:opacity-40"
                       />
                     </td>
 
@@ -326,7 +344,7 @@ export const VitalsSettingsPage: React.FC<{ embedded?: boolean }> = ({ embedded 
                       <input
                         type="checkbox"
                         checked={pref.isMandatory}
-                        disabled={!pref.isEnabled}
+                        disabled={!canEdit || !pref.isEnabled}
                         onChange={() => handleToggleMandatory(pref.id)}
                         className="w-4 h-4 text-teal-600 rounded border-slate-300 focus:ring-teal-500 cursor-pointer disabled:opacity-30"
                       />
@@ -353,7 +371,7 @@ export const VitalsSettingsPage: React.FC<{ embedded?: boolean }> = ({ embedded 
                             placeholder={pref.masterRangeMin?.toString() ?? 'Min'}
                             value={pref.normalRangeMinOverride ?? ''}
                             onChange={(e) => handleRangeOverrideChange(pref.id, 'normalRangeMinOverride', e.target.value)}
-                            disabled={!pref.isEnabled}
+                            disabled={!canEdit || !pref.isEnabled}
                             className="w-20 px-2 py-1 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-200 disabled:bg-slate-50"
                           />
                           <span className="text-slate-400">-</span>
@@ -363,10 +381,10 @@ export const VitalsSettingsPage: React.FC<{ embedded?: boolean }> = ({ embedded 
                             placeholder={pref.masterRangeMax?.toString() ?? 'Max'}
                             value={pref.normalRangeMaxOverride ?? ''}
                             onChange={(e) => handleRangeOverrideChange(pref.id, 'normalRangeMaxOverride', e.target.value)}
-                            disabled={!pref.isEnabled}
+                            disabled={!canEdit || !pref.isEnabled}
                             className="w-20 px-2 py-1 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-200 disabled:bg-slate-50"
                           />
-                          {(pref.normalRangeMinOverride !== undefined || pref.normalRangeMaxOverride !== undefined) && (
+                          {(pref.normalRangeMinOverride !== undefined || pref.normalRangeMaxOverride !== undefined) && canEdit && (
                             <button
                               onClick={() => handleResetRange(pref.id)}
                               title="Reset override to master"

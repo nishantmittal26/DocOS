@@ -27,17 +27,32 @@ public class VitalsController : ControllerBase
     }
 
     [HttpPut("vitals/preferences")]
-    [Authorize(Roles = $"{Roles.ClinicAdmin},{Roles.Doctor}")]
+    [Authorize(Roles = $"{Roles.ClinicAdmin},{Roles.Doctor},{Roles.Receptionist}")]
     public async Task<ActionResult<bool>> UpdatePreferences(
         [FromBody] UpdateClinicVitalPreferencesRequest request,
         CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(new UpdateClinicVitalPreferencesCommand(request), cancellationToken);
-        return Ok(result);
+        try
+        {
+            var result = await _mediator.Send(new UpdateClinicVitalPreferencesCommand(request), cancellationToken);
+            return Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, new { message = ex.Message });
+        }
     }
 
     [HttpPost("vitals/masters/custom")]
-    [Authorize(Roles = $"{Roles.ClinicAdmin},{Roles.Doctor}")]
+    [Authorize(Roles = $"{Roles.ClinicAdmin},{Roles.Doctor},{Roles.Receptionist}")]
     public async Task<ActionResult<ClinicVitalPreferenceDto>> CreateCustomVital(
         [FromBody] CreateCustomVitalRequest request,
         CancellationToken cancellationToken)
@@ -47,9 +62,17 @@ public class VitalsController : ControllerBase
             var result = await _mediator.Send(new CreateCustomVitalCommand(request), cancellationToken);
             return Ok(result);
         }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
         catch (InvalidOperationException ex)
         {
             return BadRequest(new { message = ex.Message });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, new { message = ex.Message });
         }
     }
 

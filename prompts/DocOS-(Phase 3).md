@@ -29,6 +29,7 @@ Work listed here is **out of scope** until it is **promoted** to a numbered deli
 | B10 | **Audit row for every VIEW** | Routine queue views are not audited; see 2D `AuditLogs` scope. | `idea` |
 | B11 | **Custom plan price & instant discount on clinic onboarding** | Sales/admin custom pricing or discount of X INR off catalog plan value during onboarding. | `Promoted →` |
 | B13 | **Catalog-based subscriptions & contract snapshots** | Split catalog (`SubscriptionPlanMaster`) and contract (`ClinicSubscription` snapshot); copy-on-assign entitlements. | `Promoted →` |
+| B14 | **Platform Admin Sales Agent management & onboarding-only access** | Option for Platform Admin to add/manage `SalesAgent` users (`ClinicId` null); Sales Agents have access strictly to Onboarding a New Clinic (and viewing their own onboarded clinics), with no access to platform masters, subscription overrides, audit logs, or clinical APIs. | `idea` |
 
 > **Technical & Infrastructure Backlog:** Items **B03** (*Subdomain tenant routing & wildcard DNS*) and **B04** (*Kubernetes, Helm, white-label packaging*) have been moved to [DocOS-Technical(Infra)-Backlog.md](DocOS-Technical(Infra)-Backlog.md).
 
@@ -43,6 +44,7 @@ Work listed here is **out of scope** until it is **promoted** to a numbered deli
 - **VIEW audit.** Explicitly excluded from 2D audit design.  
 - **Custom plan price & instant onboarding discount (B11).** Promoted and implemented. See §Promoted work below.
 - **Catalog-based subscriptions & contract snapshots (B13).** Promoted and implemented. See §Promoted work below.
+- **Platform Admin Sales Agent management (B14).** Allows `PlatformAdmin` to create and manage `SalesAgent` accounts (`ClinicId` null); restricts `SalesAgent` portal access strictly to onboarding new clinics (`/admin/onboard-doctor`).
 
 ---
 
