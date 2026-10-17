@@ -26,3 +26,11 @@ public record GetSubscriptionPlansAdminQuery : IRequest<List<SubscriptionPlanDto
 public record CreateSubscriptionPlanCommand(CreateSubscriptionPlanRequest Request) : IRequest<SubscriptionPlanDto>;
 
 public record UpdateSubscriptionPlanCommand(Guid Id, UpdateSubscriptionPlanRequest Request) : IRequest<SubscriptionPlanDto>;
+
+// B14 Sales Agent Management Commands
+public record GetSalesAgentsQuery : IRequest<List<SalesAgentDto>>;
+
+public record CreateSalesAgentCommand(CreateSalesAgentRequest Request) : IRequest<SalesAgentDto>;
+
+public record UpdateSalesAgentStatusCommand(string UserId, bool IsActive) : IRequest<bool>;
+

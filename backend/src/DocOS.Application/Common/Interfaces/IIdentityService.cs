@@ -41,4 +41,16 @@ public interface IIdentityService
     Task<List<DoctorProfileDto>> GetClinicDoctorsAsync(Guid clinicId);
 
     Task<Dictionary<string, string>> GetDoctorNamesAsync(IEnumerable<string> userIds);
+
+    Task<List<StaffMemberDto>> GetUsersInRoleAsync(string role);
+
+    Task<(bool Success, string? Error, string UserId)> CreateSalesAgentAsync(
+        string email,
+        string password,
+        string fullName,
+        string? phoneNumber = null);
+
+    Task<(bool Success, string? Error)> SetPlatformUserActiveStatusAsync(
+        string userId,
+        bool isActive);
 }

@@ -29,7 +29,7 @@ Work listed here is **out of scope** until it is **promoted** to a numbered deli
 | B10 | **Audit row for every VIEW** | Routine queue views are not audited; see 2D `AuditLogs` scope. | `idea` |
 | B11 | **Custom plan price & instant discount on clinic onboarding** | Sales/admin custom pricing or discount of X INR off catalog plan value during onboarding. | `Promoted →` |
 | B13 | **Catalog-based subscriptions & contract snapshots** | Split catalog (`SubscriptionPlanMaster`) and contract (`ClinicSubscription` snapshot); copy-on-assign entitlements. | `Promoted →` |
-| B14 | **Platform Admin Sales Agent management & onboarding-only access** | Option for Platform Admin to add/manage `SalesAgent` users (`ClinicId` null); Sales Agents have access strictly to Onboarding a New Clinic (and viewing their own onboarded clinics), with no access to platform masters, subscription overrides, audit logs, or clinical APIs. | `idea` |
+| B14 | **Platform Admin Sales Agent management & onboarding-only access** | Option for Platform Admin to add/manage `SalesAgent` users (`ClinicId` null); Sales Agents have access strictly to Onboarding a New Clinic, with no access to clinics directory, platform masters, subscription overrides, audit logs, or clinical APIs. | `Promoted →` |
 
 > **Technical & Infrastructure Backlog:** Items **B03** (*Subdomain tenant routing & wildcard DNS*) and **B04** (*Kubernetes, Helm, white-label packaging*) have been moved to [DocOS-Technical(Infra)-Backlog.md](DocOS-Technical(Infra)-Backlog.md).
 
@@ -44,7 +44,7 @@ Work listed here is **out of scope** until it is **promoted** to a numbered deli
 - **VIEW audit.** Explicitly excluded from 2D audit design.  
 - **Custom plan price & instant onboarding discount (B11).** Promoted and implemented. See §Promoted work below.
 - **Catalog-based subscriptions & contract snapshots (B13).** Promoted and implemented. See §Promoted work below.
-- **Platform Admin Sales Agent management (B14).** Allows `PlatformAdmin` to create and manage `SalesAgent` accounts (`ClinicId` null); restricts `SalesAgent` portal access strictly to onboarding new clinics (`/admin/onboard-doctor`).
+- **Platform Admin Sales Agent management (B14).** Promoted and implemented. See §Promoted work below.
 
 ---
 
@@ -84,3 +84,22 @@ Work listed here is **out of scope** until it is **promoted** to a numbered deli
   - [x] Clinic Subscription page updated with contract snapshot view and Change Plan modal with diff preview.
   - [x] Automated tests verify catalog edits do not mutate existing clinic entitlements, change-plan copies snapshots, and overrides take precedence.
   - [x] Architecture Decision Record (ADR) and Database Schema documentation updated.
+
+### B14 — Platform Admin Sales Agent management & onboarding-only access
+- **Status:** Complete (code and automated tests verified; uses existing `AspNetRoles`, `AspNetUserRoles`, and `AspNetUsers` tables with `SalesAgent` role seeded in `dbo.AspNetRoles`).
+- **Scope:**
+  - Ensures `SalesAgent` role is always present in `dbo.AspNetRoles` via `RoleSeeder.SeedRolesAsync` and `IdentityService.CreateSalesAgentAsync`.
+  - Allows `PlatformAdmin` to list, create, and activate/deactivate `SalesAgent` accounts (`ClinicId = null`) via `GET /api/admin/sales-agents`, `POST /api/admin/sales-agents`, and `PUT /api/admin/sales-agents/{userId}/status`.
+  - Adds Platform Admin **Sales Agents** management UI (`/admin/sales-agents`) with agent metrics, search/status filtering, onboarded clinic attribution count, Add Sales Agent modal (with default password `Sales@2026` or custom password), credentials handover slip, and Activate/Deactivate toggle.
+  - Restricts `SalesAgent` access strictly to **Onboarding a New Clinic** (`/admin/onboard-doctor` on frontend; `GET /api/admin/plans` and `POST /api/admin/onboard` on `AdminController`). `SalesAgent` cannot access `/admin/clinics`, `/admin/sales-agents`, `/admin/plans`, `/admin/masters/*`, `/admin/audit-logs`, `/admin/clinics/{id}/subscription`, or any clinic clinical APIs.
+- **Out of scope:**
+  - Sales commission payouts, territory hierarchy, or self-serve Sales Agent sign-up.
+- **Done when:**
+  - [x] `SalesAgent` role guaranteed in `dbo.AspNetRoles` by `RoleSeeder` and `IdentityService`.
+  - [x] `IIdentityService` and `IdentityService` support creating, listing, and toggling active status for `SalesAgent` users (`ClinicId = null`).
+  - [x] `GetSalesAgentsQuery`, `CreateSalesAgentCommand`, and `UpdateSalesAgentStatusCommand` handlers and `AdminController` endpoints added and restricted to `PlatformAdmin`.
+  - [x] `AdminController` restricts `SalesAgent` strictly to `GET /api/admin/plans` and `POST /api/admin/onboard`.
+  - [x] Frontend routing (`App.tsx`), navigation (`Navbar.tsx`), and wizard (`OnboardDoctorPage.tsx`) restrict `SalesAgent` to `/admin/onboard-doctor` only, and add `/admin/sales-agents` for `PlatformAdmin`.
+  - [x] Unit tests verify `SalesAgent` role seeding, `PlatformAdmin` creating/toggling `SalesAgent` users, and authorization boundaries.
+  - [x] ADR, Product Roadmap, and Database Schema documentation updated.
+

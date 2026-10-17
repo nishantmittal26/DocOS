@@ -701,3 +701,22 @@ export interface ClinicQuotaStatus {
   totalAllowedPrescriptions?: number;
 }
 
+export interface SalesAgentItem {
+  id: string;
+  fullName: string;
+  email: string;
+  phoneNumber?: string;
+  isActive: boolean;
+  createdAt: string;
+  onboardedClinicsCount: number;
+  initialPassword?: string;
+}
+
+export interface CreateSalesAgentRequest {
+  fullName: string;
+  email: string;
+  password?: string;
+  phoneNumber?: string;
+}
+
+

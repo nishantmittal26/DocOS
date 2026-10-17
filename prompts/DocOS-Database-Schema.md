@@ -182,7 +182,7 @@ erDiagram
 
 Standard Identity tables created by EF, not custom-designed in 2A: `AspNetRoleClaims`, `AspNetUserClaims`, `AspNetUserLogins`, `AspNetUserTokens`.
 
-**`AspNetRoles`.** Seed only these `Name` values: `PlatformAdmin`, `SalesAgent`, `ClinicAdmin`, `Doctor`, `Nurse`, `Receptionist`.
+**`AspNetRoles`.** Seed only these `Name` values: `PlatformAdmin`, `SalesAgent`, `ClinicAdmin`, `Doctor`, `Nurse`, `Receptionist`. (**B14:** `RoleSeeder` and `IdentityService` guarantee `SalesAgent` is present in `dbo.AspNetRoles`; `PlatformAdmin` creates and manages `SalesAgent` users with `ClinicId = null`.)
 
 | Column | Type | Null | Notes |
 | :--- | :--- | :---: | :--- |

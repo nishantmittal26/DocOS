@@ -1201,5 +1201,92 @@ public class Phase2BTests
         var activePlans = await handler.Handle(new GetSubscriptionPlansQuery(), CancellationToken.None);
         activePlans.Should().NotContain(p => p.Id == created.Id);
     }
+
+    [Fact]
+    public async Task B14_PlatformAdmin_Can_Create_List_And_Toggle_SalesAgents()
+    {
+        using var context = CreateInMemoryDbContext();
+        var plan = SeedStarterPlan(context);
+
+        var agentId = "sales-agent-b14";
+        context.Clinics.Add(new Clinic
+        {
+            Id = Guid.NewGuid(),
+            Name = "Onboarded By Agent Clinic",
+            Phone = "9876543210",
+            OnboardedByUserId = agentId
+        });
+        await context.SaveChangesAsync();
+
+        var mockCurrentUser = new Mock<ICurrentUserService>();
+        mockCurrentUser.Setup(u => u.UserId).Returns("platform-admin-1");
+        mockCurrentUser.Setup(u => u.IsInRole(Roles.PlatformAdmin)).Returns(true);
+
+        var mockIdentityService = new Mock<IIdentityService>();
+        mockIdentityService.Setup(i => i.CreateSalesAgentAsync(
+            "rohan@docos.com", "Sales@2026", "Rohan Mehta", "9876501234"))
+            .ReturnsAsync((true, null, agentId));
+
+        mockIdentityService.Setup(i => i.GetUsersInRoleAsync(Roles.SalesAgent))
+            .ReturnsAsync(new List<DocOS.Application.Auth.StaffMemberDto>
+            {
+                new(agentId, "Rohan Mehta", "rohan@docos.com", "9876501234",
+                    new List<string> { Roles.SalesAgent }, true, IndiaTime.Now, null, null, null, null)
+            });
+
+        mockIdentityService.Setup(i => i.SetPlatformUserActiveStatusAsync(agentId, false))
+            .ReturnsAsync((true, null));
+
+        var handler = new SubscriptionHandlers(context, mockCurrentUser.Object, mockIdentityService.Object);
+
+        // 1. Create Sales Agent with default password
+        var created = await handler.Handle(new CreateSalesAgentCommand(new CreateSalesAgentRequest(
+            FullName: "Rohan Mehta",
+            Email: "rohan@docos.com",
+            Password: null,
+            PhoneNumber: "9876501234"
+        )), CancellationToken.None);
+
+        created.Id.Should().Be(agentId);
+        created.FullName.Should().Be("Rohan Mehta");
+        created.Email.Should().Be("rohan@docos.com");
+        created.InitialPassword.Should().Be("Sales@2026");
+        created.IsActive.Should().BeTrue();
+
+        // 2. List Sales Agents -> includes OnboardedClinicsCount
+        var agents = await handler.Handle(new GetSalesAgentsQuery(), CancellationToken.None);
+        agents.Should().ContainSingle();
+        agents[0].Id.Should().Be(agentId);
+        agents[0].OnboardedClinicsCount.Should().Be(1);
+
+        // 3. Deactivate Sales Agent
+        var toggled = await handler.Handle(new UpdateSalesAgentStatusCommand(agentId, false), CancellationToken.None);
+        toggled.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task B14_SalesAgent_Cannot_Manage_SalesAgents_Or_ClinicSubscriptions()
+    {
+        using var context = CreateInMemoryDbContext();
+        var mockCurrentUser = new Mock<ICurrentUserService>();
+        mockCurrentUser.Setup(u => u.UserId).Returns("sales-agent-only");
+        mockCurrentUser.Setup(u => u.IsInRole(Roles.SalesAgent)).Returns(true);
+        mockCurrentUser.Setup(u => u.IsInRole(Roles.PlatformAdmin)).Returns(false);
+
+        var mockIdentityService = new Mock<IIdentityService>();
+        var handler = new SubscriptionHandlers(context, mockCurrentUser.Object, mockIdentityService.Object);
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            handler.Handle(new GetSalesAgentsQuery(), CancellationToken.None));
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            handler.Handle(new CreateSalesAgentCommand(new CreateSalesAgentRequest("Agent Two", "two@docos.com")), CancellationToken.None));
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            handler.Handle(new UpdateSalesAgentStatusCommand("any-id", false), CancellationToken.None));
+
+        await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+            handler.Handle(new GetClinicSubscriptionDetailQuery(Guid.NewGuid()), CancellationToken.None));
+    }
 }
 

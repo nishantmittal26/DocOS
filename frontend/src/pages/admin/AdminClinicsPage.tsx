@@ -165,13 +165,22 @@ export const AdminClinicsPage: React.FC = () => {
           </button>
 
           {isPlatformAdmin && (
-            <button
-              onClick={() => navigate('/admin/plans')}
-              className="inline-flex items-center gap-2 px-3.5 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-sm font-bold rounded-xl border border-indigo-200 transition-all"
-            >
-              <Layers className="w-4 h-4" />
-              <span>Plan Catalog</span>
-            </button>
+            <>
+              <button
+                onClick={() => navigate('/admin/sales-agents')}
+                className="inline-flex items-center gap-2 px-3.5 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-bold rounded-xl border border-blue-200 transition-all"
+              >
+                <Users className="w-4 h-4" />
+                <span>Sales Agents</span>
+              </button>
+              <button
+                onClick={() => navigate('/admin/plans')}
+                className="inline-flex items-center gap-2 px-3.5 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-sm font-bold rounded-xl border border-indigo-200 transition-all"
+              >
+                <Layers className="w-4 h-4" />
+                <span>Plan Catalog</span>
+              </button>
+            </>
           )}
 
           <button

@@ -9,7 +9,7 @@
 | :--- | :--- |
 | [DocOS-Product-Roadmap.md](DocOS-Product-Roadmap.md) | Hub: status, stack, reading order |
 | [DocOS-(Phase 2).md](<DocOS-(Phase 2).md>) | Parts 2A–2D, in/out of scope, done-when checklists |
-| [DocOS-(Phase 3).md](<DocOS-(Phase%203).md>) | Post–2D deferred work; promotion rules and promoted specs (B11, B13) |
+| [DocOS-(Phase 3).md](<DocOS-(Phase%203).md>) | Post–2D deferred work; promotion rules and promoted specs (B11, B13, B14) |
 | [DocOS-Database-Schema.md](DocOS-Database-Schema.md) | Tables, columns, indexes, ERDs |
 | [DocOS-(Phase 1).md](DocOS-(Phase%201).md) | Locked MVP archive (do not rewrite for Phase 2) |
 
@@ -85,6 +85,12 @@ When adding a **new** date or datetime column: document it in [DocOS-Database-Sc
 ## 5. Change log
 
 Newest first. One block per decision or schema change.
+
+### 2026-10-15 — B14 Platform Admin Sales Agent management & onboarding-only access
+
+- **Decision:** Allow `PlatformAdmin` to create, view, and activate/deactivate `SalesAgent` users (`ClinicId = null`), and restrict `SalesAgent` portal and API access strictly to **Onboarding a New Clinic** (`/admin/onboard-doctor`, `GET /api/admin/plans`, and `POST /api/admin/onboard`).
+- **Role & Schema:** Uses existing ASP.NET Core Identity tables (`dbo.AspNetRoles`, `dbo.AspNetUserRoles`, `dbo.AspNetUsers` with `ClinicId = null`) and `Clinics.OnboardedByUserId`. `RoleSeeder.SeedRolesAsync` unconditionally verifies every role in `Roles.All` (including `SalesAgent`) in `dbo.AspNetRoles`. No new tables or columns required.
+- **Behavior:** `PlatformAdmin` manages Sales Agents at `/admin/sales-agents` (`GET /api/admin/sales-agents`, `POST /api/admin/sales-agents`, `PUT /api/admin/sales-agents/{userId}/status`), including onboarded clinic attribution counts and credential handover. When signed in as `SalesAgent`, the frontend routes exclusively to `/admin/onboard-doctor` and hides all other admin/clinic navigation items.
 
 ### 2026-10-13 — B11 Custom plan price & instant discount on onboarding
 

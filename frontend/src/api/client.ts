@@ -46,6 +46,8 @@ import {
   AuditLog,
   PrescriptionLabOrderRequest,
   PrescriptionAdviceRequest,
+  SalesAgentItem,
+  CreateSalesAgentRequest,
 } from '../types';
 
 const api = axios.create({
@@ -424,6 +426,18 @@ export const adminApi = {
   },
   onboardClinic: async (data: OnboardClinicRequest) => {
     const res = await api.post<OnboardClinicResponse>('/admin/onboard', data);
+    return res.data;
+  },
+  getSalesAgents: async () => {
+    const res = await api.get<SalesAgentItem[]>('/admin/sales-agents');
+    return res.data;
+  },
+  createSalesAgent: async (data: CreateSalesAgentRequest) => {
+    const res = await api.post<SalesAgentItem>('/admin/sales-agents', data);
+    return res.data;
+  },
+  updateSalesAgentStatus: async (userId: string, isActive: boolean) => {
+    const res = await api.put<boolean>(`/admin/sales-agents/${userId}/status`, { isActive });
     return res.data;
   },
   getClinics: async () => {

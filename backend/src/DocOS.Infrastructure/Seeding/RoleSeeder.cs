@@ -13,16 +13,12 @@ public static class RoleSeeder
     {
         var roleManager = serviceProvider.GetRequiredService<RoleManager<IdentityRole>>();
 
-        // Fast-path: Check if all standard roles are already created
-        var existingRoleCount = await roleManager.Roles.CountAsync();
-        if (existingRoleCount < Roles.All.Count)
+        // Ensure all standard roles (including SalesAgent) exist in AspNetRoles
+        foreach (var role in Roles.All)
         {
-            foreach (var role in Roles.All)
+            if (!await roleManager.RoleExistsAsync(role))
             {
-                if (!await roleManager.RoleExistsAsync(role))
-                {
-                    await roleManager.CreateAsync(new IdentityRole(role));
-                }
+                await roleManager.CreateAsync(new IdentityRole(role));
             }
         }
 

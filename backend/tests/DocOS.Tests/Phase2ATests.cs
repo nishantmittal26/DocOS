@@ -423,6 +423,9 @@ public class Phase2ATests
         var isPlatformAdmin = await userManager.IsInRoleAsync(admin, Roles.PlatformAdmin);
         isPlatformAdmin.Should().BeTrue();
 
+        var roleManager = serviceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+        (await roleManager.RoleExistsAsync(Roles.SalesAgent)).Should().BeTrue();
+
         var checkPassword = await userManager.CheckPasswordAsync(admin, "Admin@123");
         checkPassword.Should().BeTrue();
     }

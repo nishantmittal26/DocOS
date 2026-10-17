@@ -77,8 +77,51 @@ public class AdminController : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("sales-agents")]
+    [Authorize(Roles = Roles.PlatformAdmin)]
+    public async Task<ActionResult<List<SalesAgentDto>>> GetSalesAgents(CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new GetSalesAgentsQuery(), cancellationToken);
+        return Ok(result);
+    }
+
+    [HttpPost("sales-agents")]
+    [Authorize(Roles = Roles.PlatformAdmin)]
+    public async Task<ActionResult<SalesAgentDto>> CreateSalesAgent(
+        [FromBody] CreateSalesAgentRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _mediator.Send(new CreateSalesAgentCommand(request), cancellationToken);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("sales-agents/{userId}/status")]
+    [Authorize(Roles = Roles.PlatformAdmin)]
+    public async Task<ActionResult<bool>> UpdateSalesAgentStatus(
+        string userId,
+        [FromBody] UpdateSalesAgentStatusRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var result = await _mediator.Send(new UpdateSalesAgentStatusCommand(userId, request.IsActive), cancellationToken);
+            return Ok(result);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [HttpGet("clinics")]
-    [Authorize(Roles = $"{Roles.PlatformAdmin},{Roles.SalesAgent}")]
+    [Authorize(Roles = Roles.PlatformAdmin)]
     public async Task<ActionResult<List<AdminClinicItemDto>>> GetClinics()
     {
         var result = await _mediator.Send(new GetAdminClinicsQuery());

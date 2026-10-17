@@ -92,7 +92,13 @@ export const Navbar: React.FC = () => {
             {/* Brand & Clinic/Platform Info */}
             <div className="flex items-center space-x-4">
               <Link
-                to={isPlatformStaff ? '/admin/clinics' : '/'}
+                to={
+                  isPlatformStaff
+                    ? hasRole('PlatformAdmin')
+                      ? '/admin/clinics'
+                      : '/admin/onboard-doctor'
+                    : '/'
+                }
                 className="flex items-center space-x-3 group"
               >
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform">
@@ -135,17 +141,19 @@ export const Navbar: React.FC = () => {
               <nav className="hidden md:flex items-center space-x-1 pl-6">
                 {isPlatformStaff ? (
                   <>
-                    <Link
-                      to="/admin/clinics"
-                      className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        isActive('/admin/clinics')
-                          ? 'bg-emerald-50 text-emerald-700 font-bold'
-                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                      }`}
-                    >
-                      <Building2 className="w-4 h-4" />
-                      <span>Clinics Directory</span>
-                    </Link>
+                    {hasRole('PlatformAdmin') && (
+                      <Link
+                        to="/admin/clinics"
+                        className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
+                          isActive('/admin/clinics')
+                            ? 'bg-emerald-50 text-emerald-700 font-bold'
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                        }`}
+                      >
+                        <Building2 className="w-4 h-4" />
+                        <span>Clinics Directory</span>
+                      </Link>
+                    )}
                     <Link
                       to="/admin/onboard-doctor"
                       className={`flex items-center space-x-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -159,6 +167,17 @@ export const Navbar: React.FC = () => {
                     </Link>
                     {hasRole('PlatformAdmin') && (
                       <>
+                        <Link
+                          to="/admin/sales-agents"
+                          className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                            isActive('/admin/sales-agents')
+                              ? 'bg-indigo-50 text-indigo-700 font-bold'
+                              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                          }`}
+                        >
+                          <Users className="w-4 h-4" />
+                          <span>Sales Agents</span>
+                        </Link>
                         <Link
                           to="/admin/masters/vitals"
                           className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${

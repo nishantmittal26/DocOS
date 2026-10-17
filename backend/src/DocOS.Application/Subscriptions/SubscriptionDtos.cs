@@ -239,3 +239,27 @@ public record ClinicQuotaStatusDto(
     public int? RemainingPrescriptions => RemainingVisits;
     public int? TotalAllowedPrescriptions => TotalAllowed;
 }
+
+// B14 Sales Agent Management DTOs
+public record SalesAgentDto(
+    string Id,
+    string FullName,
+    string Email,
+    string? PhoneNumber,
+    bool IsActive,
+    DateTime CreatedAt,
+    int OnboardedClinicsCount,
+    string? InitialPassword = null
+);
+
+public record CreateSalesAgentRequest(
+    string FullName,
+    string Email,
+    string? Password = null,
+    string? PhoneNumber = null
+);
+
+public record UpdateSalesAgentStatusRequest(
+    bool IsActive
+);
+

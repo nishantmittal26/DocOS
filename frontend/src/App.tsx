@@ -12,6 +12,7 @@ import { PatientsPage } from './pages/patients/PatientsPage';
 import { SettingsPage } from './pages/settings/SettingsPage';
 import { OnboardDoctorPage } from './pages/admin/OnboardDoctorPage';
 import { AdminClinicsPage } from './pages/admin/AdminClinicsPage';
+import { AdminSalesAgentsPage } from './pages/admin/AdminSalesAgentsPage';
 import { ClinicSubscriptionPage } from './pages/admin/ClinicSubscriptionPage';
 import { AdminVitalsPage } from './pages/admin/AdminVitalsPage';
 import { AdminLabsPage } from './pages/admin/AdminLabsPage';
@@ -64,8 +65,35 @@ const AppContent: React.FC = () => {
           {isPlatformStaff ? (
             /* Platform Admin & Sales Agent Routes */
             <>
-              <Route path="/" element={<Navigate to="/admin/clinics" replace />} />
-              <Route path="/admin/clinics" element={<AdminClinicsPage />} />
+              <Route
+                path="/"
+                element={
+                  <Navigate
+                    to={isPlatformAdmin ? '/admin/clinics' : '/admin/onboard-doctor'}
+                    replace
+                  />
+                }
+              />
+              <Route
+                path="/admin/clinics"
+                element={
+                  isPlatformAdmin ? (
+                    <AdminClinicsPage />
+                  ) : (
+                    <Navigate to="/admin/onboard-doctor" replace />
+                  )
+                }
+              />
+              <Route
+                path="/admin/sales-agents"
+                element={
+                  isPlatformAdmin ? (
+                    <AdminSalesAgentsPage />
+                  ) : (
+                    <Navigate to="/admin/onboard-doctor" replace />
+                  )
+                }
+              />
               <Route path="/admin/onboard-doctor" element={<OnboardDoctorPage />} />
               <Route
                 path="/admin/masters/vitals"
@@ -73,7 +101,7 @@ const AppContent: React.FC = () => {
                   isPlatformAdmin ? (
                     <AdminVitalsPage />
                   ) : (
-                    <Navigate to="/admin/clinics" replace />
+                    <Navigate to="/admin/onboard-doctor" replace />
                   )
                 }
               />
@@ -83,7 +111,7 @@ const AppContent: React.FC = () => {
                   isPlatformAdmin ? (
                     <AdminLabsPage />
                   ) : (
-                    <Navigate to="/admin/clinics" replace />
+                    <Navigate to="/admin/onboard-doctor" replace />
                   )
                 }
               />
@@ -93,7 +121,7 @@ const AppContent: React.FC = () => {
                   isPlatformAdmin ? (
                     <AdminAdvicePage />
                   ) : (
-                    <Navigate to="/admin/clinics" replace />
+                    <Navigate to="/admin/onboard-doctor" replace />
                   )
                 }
               />
@@ -103,7 +131,7 @@ const AppContent: React.FC = () => {
                   isPlatformAdmin ? (
                     <AdminAuditLogsPage />
                   ) : (
-                    <Navigate to="/admin/clinics" replace />
+                    <Navigate to="/admin/onboard-doctor" replace />
                   )
                 }
               />
@@ -113,7 +141,7 @@ const AppContent: React.FC = () => {
                   isPlatformAdmin ? (
                     <SubscriptionPlansPage />
                   ) : (
-                    <Navigate to="/admin/clinics" replace />
+                    <Navigate to="/admin/onboard-doctor" replace />
                   )
                 }
               />
@@ -123,11 +151,19 @@ const AppContent: React.FC = () => {
                   isPlatformAdmin ? (
                     <ClinicSubscriptionPage />
                   ) : (
-                    <Navigate to="/admin/clinics" replace />
+                    <Navigate to="/admin/onboard-doctor" replace />
                   )
                 }
               />
-              <Route path="*" element={<Navigate to="/admin/clinics" replace />} />
+              <Route
+                path="*"
+                element={
+                  <Navigate
+                    to={isPlatformAdmin ? '/admin/clinics' : '/admin/onboard-doctor'}
+                    replace
+                  />
+                }
+              />
             </>
           ) : (
             /* Clinic Staff (Doctor, ClinicAdmin, Nurse, Receptionist) Routes */

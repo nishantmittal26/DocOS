@@ -258,4 +258,107 @@ public class IdentityService : IIdentityService
             .Where(u => idList.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id, u => u.FullName);
     }
+
+    public async Task<List<StaffMemberDto>> GetUsersInRoleAsync(string role)
+    {
+        var usersInRole = await _userManager.GetUsersInRoleAsync(role);
+        var platformUsers = usersInRole
+            .Where(u => u.ClinicId == null)
+            .OrderByDescending(u => u.CreatedAt)
+            .ThenBy(u => u.FullName)
+            .ToList();
+
+        var result = new List<StaffMemberDto>();
+        foreach (var user in platformUsers)
+        {
+            var roles = (await _userManager.GetRolesAsync(user)).ToList();
+            result.Add(new StaffMemberDto(
+                user.Id,
+                user.FullName,
+                user.Email ?? string.Empty,
+                user.PhoneNumber,
+                roles,
+                user.IsActive,
+                user.CreatedAt,
+                user.Qualifications,
+                user.MedicalCouncilRegistrationNumber,
+                user.Speciality,
+                user.ConsultationFee
+            ));
+        }
+
+        return result;
+    }
+
+    public async Task<(bool Success, string? Error, string UserId)> CreateSalesAgentAsync(
+        string email,
+        string password,
+        string fullName,
+        string? phoneNumber = null)
+    {
+        var existing = await _userManager.FindByEmailAsync(email);
+        if (existing != null)
+        {
+            return (false, "An account with this email address already exists.", string.Empty);
+        }
+
+        // Ensure SalesAgent role exists in AspNetRoles
+        if (!await _roleManager.RoleExistsAsync(Roles.SalesAgent))
+        {
+            await _roleManager.CreateAsync(new IdentityRole(Roles.SalesAgent));
+        }
+
+        var user = new ApplicationUser
+        {
+            UserName = email,
+            Email = email,
+            EmailConfirmed = true,
+            FullName = fullName,
+            PhoneNumber = string.IsNullOrWhiteSpace(phoneNumber) ? null : phoneNumber.Trim(),
+            ClinicId = null,
+            IsActive = true,
+            CreatedAt = IndiaTime.Now
+        };
+
+        var result = await _userManager.CreateAsync(user, password);
+        if (!result.Succeeded)
+        {
+            var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+            return (false, errors, string.Empty);
+        }
+
+        var roleResult = await _userManager.AddToRoleAsync(user, Roles.SalesAgent);
+        if (!roleResult.Succeeded)
+        {
+            var errors = string.Join(", ", roleResult.Errors.Select(e => e.Description));
+            return (false, errors, user.Id);
+        }
+
+        return (true, null, user.Id);
+    }
+
+    public async Task<(bool Success, string? Error)> SetPlatformUserActiveStatusAsync(
+        string userId,
+        bool isActive)
+    {
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user == null || user.ClinicId != null)
+        {
+            return (false, "Sales Agent account not found.");
+        }
+
+        if (!await _userManager.IsInRoleAsync(user, Roles.SalesAgent))
+        {
+            return (false, "Target user is not a Sales Agent.");
+        }
+
+        user.IsActive = isActive;
+        var result = await _userManager.UpdateAsync(user);
+        if (!result.Succeeded)
+        {
+            return (false, string.Join(", ", result.Errors.Select(e => e.Description)));
+        }
+
+        return (true, null);
+    }
 }

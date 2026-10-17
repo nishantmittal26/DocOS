@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import { adminApi } from '../../api/client';
 import { SubscriptionPlan, OnboardClinicRequest, OnboardClinicResponse } from '../../types';
 import {
@@ -39,6 +40,8 @@ const ONBOARD_WIZARD_STEPS: OnboardWizardStep[] = [
 
 export const OnboardDoctorPage: React.FC = () => {
   const navigate = useNavigate();
+  const { hasRole } = useAuth();
+  const isPlatformAdmin = hasRole('PlatformAdmin');
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loadingPlans, setLoadingPlans] = useState<boolean>(true);
@@ -168,6 +171,37 @@ export const OnboardDoctorPage: React.FC = () => {
 
   const selectedPlan = plans.find((p) => p.id === formData.catalogPlanId);
 
+  const handleResetWizard = () => {
+    setError(null);
+    setHandoverResult(null);
+    setPatientIdPrefixTouched(false);
+    setCurrentStep(1);
+    setFormData({
+      clinicName: '',
+      phone: '',
+      email: '',
+      address: '',
+      doctorName: '',
+      regNumber: '',
+      qualifications: '',
+      specialization: '',
+      consultationFee: 500,
+      clinicTimings: 'Mon - Sat: 10:00 AM - 02:00 PM, 05:00 PM - 09:00 PM',
+      doctorPassword: '',
+      catalogPlanId: plans.length > 0 ? plans[0].id : '',
+      isTrial: false,
+      monthlyVisitQuotaOverride: undefined,
+      isUnlimitedOverride: false,
+      letterheadMarginTopMm: 60,
+      printBottomMarginMm: 15,
+      hideLetterheadOnPrint: false,
+      salesNotes: '',
+      patientIdPrefix: '',
+      discountAmountINR: undefined,
+      customPriceINR: undefined,
+    });
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-4xl mx-auto">
@@ -185,12 +219,23 @@ export const OnboardDoctorPage: React.FC = () => {
               Setup a new medical practice, attach their subscription plan, and generate handover credentials.
             </p>
           </div>
-          <button
-            onClick={() => navigate('/admin/clinics')}
-            className="px-4 py-2 border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 rounded-lg text-sm font-medium transition"
-          >
-            Cancel / Back to List
-          </button>
+          {isPlatformAdmin ? (
+            <button
+              onClick={() => navigate('/admin/clinics')}
+              className="px-4 py-2 border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 rounded-lg text-sm font-medium transition"
+            >
+              Cancel / Back to List
+            </button>
+          ) : (
+            (currentStep > 1 || handoverResult !== null) && (
+              <button
+                onClick={handleResetWizard}
+                className="px-4 py-2 border border-slate-200 text-slate-700 bg-white hover:bg-slate-50 rounded-lg text-sm font-medium transition"
+              >
+                Start New Onboarding
+              </button>
+            )
+          )}
         </div>
 
         {/* Wizard timeline */}
@@ -1094,12 +1139,21 @@ export const OnboardDoctorPage: React.FC = () => {
                     <Printer className="w-3.5 h-3.5" />
                     Print Handover Slip
                   </button>
-                  <button
-                    onClick={() => navigate('/admin/clinics')}
-                    className="flex-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition"
-                  >
-                    View Clinics Directory
-                  </button>
+                  {isPlatformAdmin ? (
+                    <button
+                      onClick={() => navigate('/admin/clinics')}
+                      className="flex-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition"
+                    >
+                      View Clinics Directory
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleResetWizard}
+                      className="flex-1 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition"
+                    >
+                      Onboard Another Clinic
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
